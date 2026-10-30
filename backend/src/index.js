@@ -30,7 +30,7 @@ app.use('/api/tasks', createTasksRouter({ planner: planSchedule }));
 app.use('/api/schedule', createScheduleRouter({ planner: planSchedule }));
 app.use('/api/fixed-blocks', createFixedBlocksRouter({ planner: planSchedule }));
 // 실제 배치는 AI, 우선순위/잔량 계산과 결과 검증만 코드에서 담당한다.
-app.use('/api/chat', createChatRouter({ scheduler: planSchedule,
+app.use('/api/chat', createChatRouter({ scheduler: planSchedule, backgroundScheduling: true,
   progressReporter: (db, id, input, options) => reportProgress(db, id, input, { ...options, planner: planSchedule }) }));
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/user', createUserSettingsRouter({ scheduler: planSchedule }));

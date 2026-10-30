@@ -132,6 +132,8 @@
 
 한 발화에 과제가 여러 개면(최대 10개) `add_task` 하나로 처리한다. 의도 해석 결과는 첫 과제를 `slots`, 두 번째부터를 `extraTasks`(같은 필드)에 담는다. 응답 `result.task`는 첫 저장 과제이고, 둘 이상 저장하거나 이미 등록된 과제를 건너뛴 경우 `result.tasks`(저장한 과제)와 `result.duplicates`(이미 있던 과제)가 추가된다. 일부 과제의 마감이 없으면 아무것도 저장하지 않고 `needs_clarification`으로 해당 과제만 묻는다. 전체 재배치 요청은 한 번만 보낸다.
 
+예상 시간을 말하지 않았고(`baseEstimatedMinutes`=null) 제이의 추정도 요청하지 않은(`estimateByAi`=false) 과제가 있으면 아무것도 저장하지 않고 `needs_clarification`으로 해당 과제들의 시간을 한 번에 묻는다. 사용자가 시간을 알려 주거나 "제이가 정해줘"라고 하면(`estimateByAi`=true) 저장한다. `estimateByAi`는 `slots`와 `extraTasks` 각 항목에 들어간다.
+
 ### GET /api/schedule/today — 오늘 타임라인 조회
 
 ```jsonc
@@ -331,3 +333,10 @@ incompleteTasks는 선택 기간에 마감하는 status가 done이 아닌 작업
 - `POST /api/push/test` — 구독된 기기로 알림 발송 `{ sent }`
 - 알림 payload: `{ title, body, url }`. 클릭하면 서비스워커가 `url`(기본 `/chat?source=notification`)을 연다.
 - 환경변수(백엔드): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+
+### 배치 뒤로 미루기 (채팅 등록)
+
+`/api/chat/interpret`는 `add_task`·`update_task`를 저장한 뒤 AI 일정 배치를 기다리지 않고 바로 응답한다(`status: pending_schedule`, `schedulingInBackground: true`). 배치는 서버가 뒤에서 한 번에 하나씩 실행하며, 저장소 잠금을 쥐지 않고 사본으로 계획한 뒤 그동안 작업·고정 일정·설정·블록이 바뀌지 않았을 때만 반영한다(바뀌었으면 결과를 버리고 최대 3번 다시 계산). 실패해도 과제는 저장돼 있고 배치 요청은 대기로 남는다.
+
+- `GET /api/chat/scheduler/status` → `{ running, error, pending }`
+- `POST /api/chat/scheduler/run` → `{ started }` 배치 재시도

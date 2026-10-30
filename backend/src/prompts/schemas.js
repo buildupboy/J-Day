@@ -7,12 +7,14 @@ export const MAX_UTTERANCE_TASKS = 10;
 const EXTRA_TASK = object({
   title: nullable('string'), type: { type: ['string', 'null'], enum: [...TASK_TYPES, null] },
   deadline: nullable('string'), baseEstimatedMinutes: nullable('integer'), importance: nullable('integer'),
+  estimateByAi: { type: 'boolean' }, distinctFromExisting: { type: 'boolean' },
 });
 export const INTERPRET_SCHEMA = object({
   intent: { type: 'string', enum: ['add_task', 'update_task', 'report_progress', 'query_schedule', 'reschedule', 'clarify', 'unsupported'] },
   slots: object({
     title: nullable('string'), type: { type: ['string', 'null'], enum: [...TASK_TYPES, null] },
     deadline: nullable('string'), baseEstimatedMinutes: nullable('integer'), importance: nullable('integer'),
+    estimateByAi: { type: 'boolean' }, distinctFromExisting: { type: 'boolean' },
     taskId: nullable('string'), progress: nullable('number'), actualMinutes: nullable('integer'),
     actualMinutesMode: { type: ['string', 'null'], enum: ['cumulative', 'increment', null] }, date: nullable('string'),
     unavailableDates: { type: ['array', 'null'], items: { type: 'string' } },

@@ -43,6 +43,20 @@ export const api = {
   interpret: (text, { requestId = crypto.randomUUID(), conversation = [] } = {}) =>
     request('/chat/interpret', { method: 'POST', body: { text, requestId, conversation } }),
 
+  // 저장 뒤 서버가 뒤에서 하는 일정 배치: 진행 상태 조회·재시도
+  getSchedulerStatus: () => request('/chat/scheduler/status'),
+  runScheduler: () => request('/chat/scheduler/run', { method: 'POST', body: {} }),
+  // 배치가 끝날 때까지 기다린다. 끝나면 서버 상태({ running:false, error })를 돌려주고 재배치 중 표시도 함께 켠다.
+  waitForScheduling: ({ intervalMs = 1500, limitMs = 5 * 60000 } = {}) => trackRescheduling((async () => {
+    const started = Date.now();
+    for (;;) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      const status = await request('/chat/scheduler/status');
+      if (!status.running) return status;
+      if (Date.now() - started > limitMs) return { running: false, error: '배치가 너무 오래 걸리고 있어요.', pending: status.pending };
+    }
+  })()),
+
   // 작업
   estimateTask: (payload, { signal } = {}) => request('/tasks/estimate', { method: 'POST', body: payload, signal }),
   getTasks: () => request('/tasks'),
@@ -60,6 +74,9 @@ export const api = {
   deleteSubtask: (taskId, subtaskId) => request(`/tasks/${taskId}/subtasks/${subtaskId}`, { method: 'DELETE' }),
 
   updateFixedBlock: (id, patch) => request(`/schedule/fixed/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
+  getMergeSuggestions: () => request('/schedule/merge-suggestions'),
+  mergeShortBlocks: (blockIds) => request('/schedule/merge-short', { method: 'POST', body: { blockIds } }),
+  declineShortMerge: (id) => request('/schedule/merge-short/decline', { method: 'POST', body: { id } }),
   postponeBlocks: (payload) => request('/schedule/blocks/postpone', { method: 'POST', body: payload }),
   deleteCalendarItem: (source, id, date) => request(`/schedule/items/${encodeURIComponent(source)}/${encodeURIComponent(id)}`, { method: 'DELETE', body: { date } }),
 
