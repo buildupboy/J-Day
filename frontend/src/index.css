@@ -6480,3 +6480,91 @@ button:disabled {
   background: var(--sleep);
   color: var(--sleep-ink);
 }
+
+/* PiP 캐릭터 영상 · 대화 시작 게이트 */
+/* 화면에는 보이지 않고 PiP로만 띄운다. display:none이면 PiP가 안 되므로 1px로 숨긴다 */
+.jay-video {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.voice-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.gate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.push-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* 오른쪽 위: 스피커 아래에 PiP 버튼. 가운데 이름·상태는 원래 자리 유지 */
+.voice-bar {
+  align-items: flex-start;
+}
+
+.voice-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 캘린더: 제목·주/월·요일 줄·범례는 상단에 고정하고 타임테이블만 스크롤한다 */
+.calendar-page {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.calendar-page > * {
+  flex: none;
+}
+
+.calendar-page > .timetable-scroll {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 220px;
+  overscroll-behavior: contain;
+}
+
+/* 분석 화면 화살표: 글자 대신 아이콘을 쓰고 가운데 정렬한다 */
+.analysis-back,
+.analysis-period button {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  color: var(--ink);
+}
+
+/* 분석 화면 오른쪽 화살표 크기·색 통일 */
+.analysis-due-chevron {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  color: var(--muted);
+}

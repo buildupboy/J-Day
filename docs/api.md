@@ -337,3 +337,13 @@ incompleteTasks는 선택 기간에 마감하는 status가 done이 아닌 작업
 작업 ID 중복을 제거한 뒤 집계하며, 같은 작업에 여러 missed 블록이 있어도 작업 수는 늘지 않는다.
 이 두 필드의 유형별 합은 dueTasks.completed와 dueTasks.total - dueTasks.completed에 각각 일치한다.
 기존 completedTasks(기간 내 완료 이력 수)와 missedBlocks는 유지한다. 작업 속도 계산도 완료 이력 기준을 유지한다.
+
+## Web Push·알림 복귀 (2026-10-31)
+
+- `db.pushSubscriptions`: `[{ endpoint, keys: { p256dh, auth } }]` — 푸시 구독 목록(endpoint 중복 없음).
+- `GET /api/push/key` → `{ enabled, publicKey }` (VAPID 키 미설정이면 `enabled:false`)
+- `POST /api/push/subscribe` — body: 브라우저 `PushSubscription.toJSON()`
+- `DELETE /api/push/subscribe` — body: `{ endpoint }`
+- `POST /api/push/test` — 구독된 기기로 알림 발송 `{ sent }`
+- 알림 payload: `{ title, body, url }`. 클릭하면 서비스워커가 `url`(기본 `/chat?source=notification`)을 연다.
+- 환경변수(백엔드): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`

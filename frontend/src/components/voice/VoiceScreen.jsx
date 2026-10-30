@@ -4,6 +4,8 @@ import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
 import { useAudioLevel } from '../../hooks/useAudioLevel.js';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis.js';
+import useCharacterPip from '../../hooks/useCharacterPip.js';
+import { loadThread, saveThread } from '../../utils/chatEntry.js';
 import {
   MicIcon,
   ArrowRightIcon,
@@ -13,6 +15,7 @@ import {
   SpeakerIcon,
   ListIcon,
   StopIcon,
+  PipIcon,
 } from '../common/Icons.jsx';
 import TaskProposalCard from './TaskProposalCard.jsx';
 
@@ -29,9 +32,12 @@ const ERROR_TEXT = {
   'service-not-allowed': '이 브라우저에서는 음성 인식을 쓸 수 없어요. 크롬에서 열어 주세요.',
 };
 
-// 04 제이 대화: 마이크 탭을 누르면 바로 듣고, 대화와 등록 결과를 한 화면에 보여 준다
-export default function VoiceScreen({ nav, onClose }) {
-  const [messages, setMessages] = useState([]);
+// 04 제이 대화: 마이크 탭을 누르면 바로 듣고, 대화와 등록 결과를 한 화면에 보여 준다.
+// needsStart: 알림·PiP로 돌아온 경우. iOS 제약 때문에 사용자가 '대화 시작'을 한 번 눌러야 마이크를 켠다.
+export default function VoiceScreen({ nav, onClose, needsStart = false }) {
+  const [started, setStarted] = useState(!needsStart);
+  const [messages, setMessages] = useState(loadThread);
+  useEffect(() => saveThread(messages), [messages]);
   const [thinking, setThinking] = useState(false);
   const [longWait, setLongWait] = useState(false);
   useEffect(() => {
@@ -48,6 +54,7 @@ export default function VoiceScreen({ nav, onClose }) {
   const mutedRef = useRef(false);
   mutedRef.current = muted;
   const { speak, cancel } = useSpeechSynthesis();
+  const { videoRef, pipError, inPip, toggle: togglePip } = useCharacterPip();
 
   const send = async (raw, viaVoice = false, retry = null) => {
     const content = raw.trim();
@@ -130,13 +137,21 @@ export default function VoiceScreen({ nav, onClose }) {
 
   useEffect(() => cancel, [cancel]);
 
-  // 화면을 열면 바로 듣기 시작한다. setTimeout은 StrictMode의 이중 실행 방지용
+  // 시작하면 바로 듣기 시작한다. 앱이 전면에 올 때까지 기다린 뒤 마이크를 켠다.
+  // setTimeout은 StrictMode의 이중 실행 방지용
   useEffect(() => {
-    if (!supported) return undefined;
-    const t = setTimeout(start, 0);
+    if (!supported || !started) return undefined;
+    let t;
+    const go = () => { t = setTimeout(start, 0); };
+    if (document.hidden) {
+      const onVisible = () => { if (!document.hidden) { document.removeEventListener('visibilitychange', onVisible); go(); } };
+      document.addEventListener('visibilitychange', onVisible);
+      return () => document.removeEventListener('visibilitychange', onVisible);
+    }
+    go();
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supported]);
+  }, [supported, started]);
 
   const submitText = (e) => {
     e.preventDefault();
@@ -154,7 +169,11 @@ export default function VoiceScreen({ nav, onClose }) {
     start();
   };
 
-  const status = listening ? '듣고 있어요' : thinking ? '생각하는 중이에요' : '대기 중';
+  const startConversation = () => {
+    setStarted(true);
+  };
+
+  const status = !started ? '대화 준비 중' : listening ? '듣고 있어요' : thinking ? '생각하는 중이에요' : '대기 중';
   const empty = messages.length === 0 && !thinking;
 
   return (
@@ -164,12 +183,14 @@ export default function VoiceScreen({ nav, onClose }) {
           <CloseIcon size={20} />
         </button>
         <div className="voice-who">
+          <video ref={videoRef} className="jay-video" muted playsInline aria-label="제이 캐릭터" />
           <p className="voice-name">제이</p>
           <p className={`voice-status ${listening ? 'is-live' : ''}`}>
             <i aria-hidden="true" />
             {status}
           </p>
         </div>
+        <div className="voice-actions">
         <button
           type="button"
           className="d-icon-btn"
@@ -182,8 +203,21 @@ export default function VoiceScreen({ nav, onClose }) {
         >
           {muted ? <SpeakerIcon size={20} /> : <SpeakerLoudIcon size={20} />}
         </button>
+        {(
+          <button
+            type="button"
+            className="d-icon-btn"
+            aria-label={inPip ? '떠 있는 제이 닫기' : '제이를 작은 창으로 띄우기'}
+            aria-pressed={inPip}
+            onClick={togglePip}
+          >
+            <PipIcon size={20} />
+          </button>
+        )}
+        </div>
       </header>
 
+      {pipError && <p className="d-error" role="alert" style={{ padding: '0 16px' }}>{pipError}</p>}
       <section className="voice-thread" ref={threadRef} aria-label="대화">
         {empty ? (
           <div className="voice-idle">
@@ -245,6 +279,14 @@ export default function VoiceScreen({ nav, onClose }) {
         )}
       </section>
 
+      {!started ? (
+        <footer className="voice-foot voice-gate">
+          <p className="d-meta">제이가 기다리고 있어요. 버튼을 누르면 마이크가 켜져요.</p>
+          <button type="button" className="gate-btn" onClick={startConversation}>
+            <MicIcon size={22} /> 대화 시작
+          </button>
+        </footer>
+      ) : (
       <footer className="voice-foot">
         {error && !typing && <p className="d-error">{ERROR_TEXT[error] ?? `음성 인식 오류: ${error}`}</p>}
         {!supported && <p className="d-error">이 브라우저는 음성 인식을 지원하지 않아요. 직접 입력해 주세요.</p>}
@@ -298,6 +340,7 @@ export default function VoiceScreen({ nav, onClose }) {
           </button>
         </div>
       </footer>
+      )}
     </div>
   );
 }

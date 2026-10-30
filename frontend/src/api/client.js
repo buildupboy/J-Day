@@ -33,6 +33,12 @@ export const api = {
   clearTimetable: () => request('/timetable', { method: 'DELETE' }),
   health: () => request('/health'),
 
+  // Web Push
+  getPushKey: () => request('/push/key'),
+  pushSubscribe: (subscription) => request('/push/subscribe', { method: 'POST', body: subscription }),
+  pushUnsubscribe: (endpoint) => request('/push/subscribe', { method: 'DELETE', body: { endpoint } }),
+  pushTest: () => request('/push/test', { method: 'POST', body: {} }),
+
   // 음성 텍스트 해석
   interpret: (text, { requestId = crypto.randomUUID(), conversation = [] } = {}) =>
     request('/chat/interpret', { method: 'POST', body: { text, requestId, conversation } }),

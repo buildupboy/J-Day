@@ -26,6 +26,21 @@ export function formatDuration(minutes) {
   return h ? `${h}시간` : `${m}분`;
 }
 
+/**
+ * 보정된 총 작업량(total)을 하위 작업 가중치로 나눈 시간. 백엔드 scheduler/workload.js의 distribute와 같은 규칙이라
+ * 하위 작업 시간의 합이 캘린더에 배치되는 블록 시간의 합과 같다.
+ */
+export function distributeMinutes(total, subtasks) {
+  const sum = subtasks.reduce((n, st) => n + st.estimatedMinutes, 0);
+  if (sum === 0) return subtasks.map(() => 0);
+  const values = subtasks.map((st) => Math.floor((total * st.estimatedMinutes) / sum));
+  let extra = total - values.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < values.length && extra > 0; i++) {
+    if (subtasks[i].estimatedMinutes > 0) { values[i]++; extra--; }
+  }
+  return values;
+}
+
 /** 겹치는 구간을 합쳐서, [from, to] 안의 빈 구간 목록을 구한다. minGap(분) 미만 틈은 제외 */
 export function freeSlots(blocks, from, to, minGap = 15) {
   const spans = blocks
