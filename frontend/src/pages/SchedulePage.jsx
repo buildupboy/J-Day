@@ -207,7 +207,7 @@ function SetupView({ nav }) {
       if (result.requiresReview) throw new Error([...result.reviewReasons, ...result.warnings].join(' ') || '요일과 시간을 확인해 주세요. 자동 저장하지 않았어요.');
       if (!result.lessons?.length) throw new Error('등록할 고정 일정을 찾지 못했어요. 요일과 시간이 잘 보이는 사진을 선택해 주세요.');
       setImportStatus('시간표 저장 중…');
-      await api.appendTimetable(result.lessons, result.visibleDays ?? []);
+      await api.saveTimetable(result.lessons, result.visibleDays ?? [], { clearExisting: true });
       scheduleChanged();
     } catch (err) {
       setError(err.message);
@@ -244,7 +244,7 @@ function SetupView({ nav }) {
         {employeeDialog}
         <div className="d-section-head">
           <h2>고정 시간표</h2>
-          <span className="d-meta">매주 반복</span>
+          <span className="d-meta">요일별 일정</span>
         </div>
         <div className="day-picker" role="group" aria-label="요일">
           {DAY_ORDER.map((d, i) => (
@@ -272,7 +272,7 @@ function SetupView({ nav }) {
                 <span className="fixed-time">
                   {b.start} – {b.end}
                 </span>
-                <span className="fixed-title">{b.title}</span>
+                <span className="fixed-title">{b.date && `${b.date} · `}{b.title}</span>
                 <span className="d-meta">{FIXED_KIND_LABEL[b.kind] ?? '일정'}</span>
               </li>
             ))}

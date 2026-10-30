@@ -1,5 +1,6 @@
 import { DAY, KST, day, timestamp } from './time.js';
 import { explainSchedule } from './explanations.js';
+import { fixedOccursOn } from './fixed-occurrence.js';
 
 export function todayKst(now) { return new Date(timestamp(now) + KST).toISOString().slice(0, 10); }
 export function timeline(db, date, { explain = false, now } = {}) {
@@ -7,7 +8,7 @@ export function timeline(db, date, { explain = false, now } = {}) {
   const tasks = new Map(db.tasks.map(task => [task.id, task]));
   const scheduled = (db.scheduledBlocks ?? []).filter(block => block.date === date);
   const items = [
-    ...db.fixedBlocks.filter(block => block.dayOfWeek.includes(weekday)).map(block => ({
+    ...db.fixedBlocks.filter(block => fixedOccursOn(block, date)).map(block => ({
       source: 'fixed', id: block.id, kind: block.kind, title: block.title,
       start: block.start, end: block.end, ...(block.location === undefined ? {} : { location: block.location }),
     })),

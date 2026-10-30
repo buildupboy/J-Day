@@ -236,3 +236,39 @@ test('work and personal timetables accept non-class fixed events', () => {
     assert.deepEqual(saved.map((item) => item.title), ['프로젝트 업무', '팀 회의', '운동', '고정 학습']);
   }
 });
+
+test('daily employee columns retain date without a weekday header and do not repeat', async () => {
+  const { timeline } = await import('../scheduler/timeline.js');
+  const { blockedWindows } = await import('../scheduler/blocked-windows.js');
+  const { selectTimetableEmployee } = await import('../../../frontend/src/utils/selectTimetableEmployee.js');
+  const entries = [
+    {title:'근무', kind:'job', start:'08:00', end:'11:00'},
+    {title:'근무 중 휴게', kind:'event', start:'11:00', end:'12:00'},
+    {title:'근무', kind:'job', start:'12:00', end:'15:00'},
+  ];
+  const draft = normalizeExtraction({ timetableType:'shift', recurrence:'dated', weekdayHeaderVisible:false,
+    lessons: entries.map((entry) => ({...entry, date:'2026-11-03', employeeName:'유하나', dayOfWeek:[]})) });
+  assert.equal(draft.requiresReview, false);
+  const fixedBlocks = validateLessons(selectTimetableEmployee(draft).lessons);
+  assert.ok(fixedBlocks.every((item) => item.date === '2026-11-03'));
+  assert.deepEqual(fixedBlocks[0].dayOfWeek, [2]);
+  const db = {fixedBlocks, tasks:[], scheduledBlocks:[]};
+  assert.equal(timeline(db, '2026-11-03').items.length, 3);
+  assert.equal(timeline(db, '2026-11-10').items.length, 0);
+  const windows = blockedWindows('2026-11-03', fixedBlocks, {});
+  assert.equal(windows.filter((item) => item.kind === 'fixed_and_travel').length, 3);
+  assert.equal(blockedWindows('2026-11-10', fixedBlocks, {}).filter((item) => item.kind === 'fixed_and_travel').length, 0);
+});
+
+test('dated conflicts apply only on the same actual date and weekly occurrences', async () => {
+  const { assertNoTimetableConflicts } = await import('./timetable.js');
+  const { lessonConflicts } = await import('../../../frontend/src/utils/timetableConflicts.js');
+  const a = {...lesson, id:'a', date:'2026-11-03', dayOfWeek:[2]};
+  const nextWeek = {...a, id:'b', date:'2026-11-10'};
+  assert.doesNotThrow(() => assertNoTimetableConflicts([a,nextWeek]));
+  assert.equal(lessonConflicts(a,[nextWeek]).length, 0);
+  const weekly = {...lesson, id:'weekly', dayOfWeek:[2]};
+  assert.throws(() => assertNoTimetableConflicts([a,weekly]), {status:409});
+  assert.equal(lessonConflicts(a,[weekly]).length, 1);
+  assert.throws(() => validateLessons([{...a,date:'2026-02-30'}]));
+});

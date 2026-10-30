@@ -5,8 +5,10 @@ import LessonEditor from '../components/timetable/LessonEditor.jsx';
 import { lessonConflicts } from '../utils/timetableConflicts.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 import useTimetableEmployee from '../hooks/useTimetableEmployee.jsx';
+import { useAppDialogs } from '../components/common/AppDialogs.jsx';
 
 export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineImport = false }) {
+  const { confirm } = useAppDialogs();
   const { chooseEmployee, employeeDialog } = useTimetableEmployee();
   const [lessons, setLessons] = useState([]);
   const [visibleDays, setVisibleDays] = useState([]);
@@ -69,8 +71,10 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
       setWarnings([...(data.reviewReasons ?? []), ...(data.warnings ?? []), ...(data.flexiblePlans ?? []).map((item) => `${item.title}: 유동 계획이므로 고정 시간표에서 제외했어요.`)]);
       setReviewReasons(data.reviewReasons ?? []);
       if (!data.lessons.length) { setError('일정을 찾지 못했어요. 요일과 시간축이 모두 보이는 사진을 올리거나 직접 입력해 주세요.'); return; }
-      setLessons((items) => [...items, ...data.lessons]); setVisibleDays((days) => [...new Set([...days, ...(data.visibleDays || [])])]); setDirty(true);
-      setNotice(`${data.lessons.length}개의 일정을 읽었어요. 원본 사진과 비교하고 저장해 주세요.`);
+      setLessons(data.lessons); setVisibleDays(data.visibleDays || []);
+      setOtherBlocks((items) => items.filter((item) => item.kind === 'routine'));
+      setClearRequested(true); setDirty(true); setEditor(null);
+      setNotice(`${data.lessons.length}개의 일정을 읽었어요. 저장하면 기존 고정 시간표를 이 사진의 일정으로 교체합니다.`);
     } catch (err) { if (mounted.current) setError(err.message); }
     finally { if (mounted.current) setBusy(''); }
   }
@@ -78,8 +82,8 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
   const incompleteCount = lessons.filter((item) => !item.dayOfWeek.length || !item.start || !item.end || item.start >= item.end).length;
   const conflictLessons = lessons.filter((lesson) => lessonConflicts(lesson, [...lessons, ...otherBlocks]).length > 0);
   const conflicts = conflictLessons.length > 0;
-  function clearAll() {
-    if (busy || !window.confirm('고정 시간표 목록을 비울까요? 실제 삭제는 ‘고정 시간표 저장하기’를 눌렀을 때 반영됩니다. 과제·작업과 루틴은 유지됩니다.')) return;
+  async function clearAll() {
+    if (busy || !(await confirm('고정 시간표 목록을 비울까요? 실제 삭제는 ‘고정 시간표 저장하기’를 눌렀을 때 반영됩니다. 과제·작업과 루틴은 유지됩니다.'))) return;
     setError(''); setLessons([]); setOtherBlocks((items) => items.filter((item) => item.kind === 'routine')); setVisibleDays([]);
     setImage(''); setFileName(''); setWarnings([]); setReviewReasons([]); setEditor(null);
     setClearRequested(true); setDirty(true);
@@ -87,7 +91,7 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
   }
   async function save(event) {
     event.preventDefault(); if (conflicts || invalid) { setError('겹치는 일정과 미확인 시간을 먼저 수정해 주세요.'); return; }
-    if (reviewReasons.length && !window.confirm(`${reviewReasons.join('\n')}\n\n대상과 요일·시간을 확인했으며, 현재 목록을 매주 반복되는 고정 일정으로 저장할까요?`)) return;
+    if (reviewReasons.length && !(await confirm(`${reviewReasons.join('\n')}\n\n대상과 날짜·요일·시간을 확인하고 저장할까요? 날짜가 있는 일정은 그날에만, 요일만 있는 일정은 매주 반복으로 저장됩니다.`))) return;
     setBusy('saving'); setError(''); setNotice('');
     try {
       const data = await api.saveTimetable(lessons, visibleDays, { clearExisting: clearRequested });
@@ -130,10 +134,10 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
           <label htmlFor={inlineImport ? 'schedule-timetable-photo' : 'timetable-photo'} className={`fixed-upload-label${busy || !loaded ? ' is-disabled' : ''}`}>{image ? '사진 변경' : '시간표 사진 선택'}</label>
           {image && <button type="button" className="primary-button" disabled={!!busy || !loaded} onClick={() => extract()}>{busy === 'extract' ? '분석 중…' : '시간표 만들기'}</button>}
         </div>
-        <p className="fixed-upload-caption">{image ? '분석 시 OpenAI로 전송하며 사진은 서버에 저장하지 않아요. 새 일정은 기존 시간표에 추가돼요.' : 'PNG · JPG · WebP / 최대 10MB'}</p>
+        <p className="fixed-upload-caption">{image ? '분석 시 OpenAI로 전송하며 사진은 서버에 저장하지 않아요. 저장하면 기존 고정 시간표를 새 사진의 일정으로 교체해요.' : 'PNG · JPG · WebP / 최대 10MB'}</p>
       </section>
       <div hidden={inlineImport && !image}>
-      <p className="analysis-note">사진에서 읽은 일정은 기존 시간표에 추가돼요. 겹치는 일정은 수정 후 저장해 주세요. 새로 시작하려면 ‘고정 시간표 전체 지우기’를 눌러 주세요.</p>
+      <p className="analysis-note">사진으로 시간표를 넣으면 기존 고정 시간표를 교체해요. 저장 전에는 원래 시간표가 유지됩니다. 과제·작업과 루틴은 유지돼요.</p>
       <button type="submit" className="primary-button fixed-save" disabled={!!busy || invalid || conflicts || !dirty}>{busy === 'saving' ? '저장 중…' : '고정 시간표 저장하기'}</button>
       </div>
     </form>}

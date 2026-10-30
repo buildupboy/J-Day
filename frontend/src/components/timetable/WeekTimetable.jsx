@@ -3,11 +3,12 @@ const COLORS = ['#e7edf8', '#f7e8e3', '#e8eee0', '#f4edd9', '#ece6f5', '#def0ef'
 export default function WeekTimetable({ lessons, visibleDays = [], onSelect, onAdd, disabled = false }) {
   const days = [1, 2, 3, 4, 5, 6, 0];
   const minutes = (value) => { const [h, m] = value.split(':').map(Number); return h * 60 + m; };
-  const valid = lessons.filter((item) => item.start && item.end && item.start < item.end);
+  const dated = lessons.filter((item) => item.date);
+  const valid = lessons.filter((item) => !item.date && item.start && item.end && item.start < item.end);
   const first = Math.min(9, ...valid.map((item) => Math.floor(minutes(item.start) / 60)));
   const last = Math.max(18, ...valid.map((item) => Math.ceil(minutes(item.end) / 60)));
   const scale = 40;
-  return <div className="timetable-scroll"><div className="timetable-grid" style={{ width: '100%' }}>
+  return <><div className="timetable-scroll"><div className="timetable-grid" style={{ width: '100%' }}>
     <div className="timetable-grid-heading" style={{ gridTemplateColumns: `30px repeat(${days.length}, 1fr)` }}><span />{days.map((day) => <strong key={day}>{WEEKDAYS[day]}</strong>)}</div>
     <div className="timetable-grid-body" style={{ height: (last - first) * scale }}>
       {Array.from({ length: last - first }, (_, index) => <div className="timetable-hour" style={{ top: index * scale, height: scale }} key={index}><span>{first + index}</span></div>)}
@@ -24,5 +25,5 @@ export default function WeekTimetable({ lessons, visibleDays = [], onSelect, onA
         })}
       </div>)}
     </div>
-  </div></div>;
+  </div></div>{dated.length > 0 && <div className="fixed-pending-list"><h3>날짜가 지정된 일정</h3>{dated.map((item) => <button type="button" key={item.id} disabled={disabled || !onSelect} onClick={() => onSelect?.(item)}><span>{item.date} · {item.title}</span><small>{item.start || '?'}–{item.end || '?'} {item.location}</small></button>)}</div>}</>;
 }

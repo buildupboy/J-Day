@@ -7,6 +7,7 @@ import { explainSchedule } from '../scheduler/explanations.js';
 import { timeline, weekTimeline, todayKst, mondayKst } from '../scheduler/timeline.js';
 import { day, instant } from '../scheduler/time.js';
 import { fail, explainRequested } from '../services/validation.js';
+import { fixedOccursOn } from '../scheduler/fixed-occurrence.js';
 
 const reasons = new Set(['new_task','missed','progress','manual']);
 export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpdate, now = () => new Date(), planner = reschedule } = {}) {
@@ -44,7 +45,7 @@ export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpd
       await updateDb(async db => {
         const weekday = new Date(day(date)).getUTCDay();
         const exists = source === 'fixed'
-          ? db.fixedBlocks.some(item => item.id === id && item.dayOfWeek.includes(weekday))
+          ? db.fixedBlocks.some(item => item.id === id && fixedOccursOn(item, date))
           : db.scheduledBlocks.some(item => item.id === id && item.date === date);
         if (!exists) fail('일정을 찾을 수 없습니다.', 404);
         const deleted = db.deletedCalendarItems ??= [];

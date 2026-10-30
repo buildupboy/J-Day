@@ -32,8 +32,9 @@ export const TIMETABLE_FORMAT = {
         warnings: { type: 'array', items: { type: 'string' } },
         lessons: { type: 'array', items: {
           type: 'object', additionalProperties: false,
-          required: ['title', 'kind', 'employeeName', 'period', 'location', 'dayOfWeek', 'start', 'end'],
+          required: ['title', 'kind', 'date', 'employeeName', 'period', 'location', 'dayOfWeek', 'start', 'end'],
           properties: {
+            date: { type: ['string', 'null'] },
             employeeName: { type: ['string', 'null'] },
             period: { type: ['integer', 'null'] },
             kind: { type: 'string', enum: ['class', 'job', 'event', 'flexible', 'unknown'] },

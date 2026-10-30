@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { preprocessTimetable, TIMETABLE_FORMAT } from './timetable-image.js';
 import { TIMETABLE_RULES } from './timetable-rules.js';
+import { validFixedDate, fixedSchedulesShareDay } from '../scheduler/fixed-occurrence.js';
 
 // 사진에서 읽은 초안은 저장 데이터와 다르다. 불확실한 일정도 삭제하지 않는다.
 export function snapTimetableTime(value, boundary) {
@@ -16,11 +17,13 @@ export function normalizeExtraction(result) {
   const periods = Array.isArray(result.periods) ? result.periods : [];
   const warnings = Array.isArray(result.warnings) ? result.warnings.filter((item) => typeof item === 'string').slice(0, 20).map((item) => item.slice(0, 300)) : [];
   const reviewReasons = Array.isArray(result.reviewReasons) ? result.reviewReasons.filter((item) => typeof item === 'string').slice(0, 20).map((item) => item.slice(0, 300)) : [];
-  if (result.recurrence !== 'weekly') reviewReasons.push('매주 반복되는 일정인지 확인해 주세요.');
+  if (result.recurrence !== 'weekly' && !(result.recurrence === 'dated' && result.lessons.length && result.lessons.every((item) => validFixedDate(item?.date)))) reviewReasons.push('반복 일정인지, 특정 날짜의 일정인지 확인해 주세요.');
   const lessons = result.lessons.map((item) => {
     if (!item || typeof item.title !== 'string') throw new Error('일정 이름 형식 오류');
     const title = item.title.trim().slice(0, 100) || '일정 이름 확인 필요';
-    const days = result.weekdayHeaderVisible === false ? [] : Array.isArray(item.dayOfWeek) ? [...new Set(item.dayOfWeek.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))] : [];
+    const date = validFixedDate(item.date) ? item.date : null;
+    if (item.date && !date) reviewReasons.push(`${title}: 날짜를 확인해 주세요.`);
+    const days = date ? [new Date(`${date}T00:00:00Z`).getUTCDay()] : result.weekdayHeaderVisible === false ? [] : Array.isArray(item.dayOfWeek) ? [...new Set(item.dayOfWeek.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))] : [];
     // 교시형 표는 행의 명시된 시간을 사용한다. 블록 높이에서 추정한 시각은 사용하지 않는다.
     const matchingPeriods = periods.filter((period) => Number.isInteger(item.period) && period.period === item.period);
     const timing = result.timetableType === 'school' ? (matchingPeriods.length === 1 ? matchingPeriods[0] : {}) : item;
@@ -28,7 +31,7 @@ export function normalizeExtraction(result) {
     let end = snapTimetableTime(timing.end, 'end');
     if (start && end && start >= end) end = '';
     if (!start || !end || !days.length) warnings.push(`${title}: 읽지 못한 요일·시간은 일정 목록에서 입력해 주세요. 일정은 삭제하지 않았어요.`);
-    return { id: randomUUID(), kind: item.kind ?? 'class', employeeName: typeof item.employeeName === 'string' ? item.employeeName.trim().slice(0, 100) : null, source: 'timetable', title, location: typeof item.location === 'string' ? item.location.slice(0, 150) : '', dayOfWeek: days, start, end };
+    return { id: randomUUID(), ...(date ? { date } : {}), kind: item.kind ?? 'class', employeeName: typeof item.employeeName === 'string' ? item.employeeName.trim().slice(0, 100) : null, source: 'timetable', title, location: typeof item.location === 'string' ? item.location.slice(0, 150) : '', dayOfWeek: days, start, end };
   });
   const visibleDays = result.weekdayHeaderVisible === false ? [] : Array.isArray(result.visibleDays) ? [...new Set(result.visibleDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))] : [...new Set(lessons.flatMap((lesson) => lesson.dayOfWeek))];
   const flexiblePlans = lessons.filter((item) => item.kind === 'flexible' || item.kind === 'unknown');
@@ -45,8 +48,8 @@ export function assertNoTimetableConflicts(lessons, otherBlocks = []) {
     const a = lessons[index];
     for (const b of [...lessons.slice(index + 1), ...otherBlocks]) {
       const day = a.dayOfWeek.find((value) => b.dayOfWeek?.includes(value));
-      if (day !== undefined && a.start < b.end && b.start < a.end) {
-        throw Object.assign(new Error(`${days[day]}요일 '${a.title}' (${a.start}–${a.end})와 '${b.title}' (${b.start}–${b.end}) 시간이 겹쳐요.`), { status: 409 });
+      if (fixedSchedulesShareDay(a, b) && a.start < b.end && b.start < a.end) {
+        throw Object.assign(new Error(`${a.date ?? b.date ?? `${days[day]}요일`} '${a.title}' (${a.start}–${a.end})와 '${b.title}' (${b.start}–${b.end}) 시간이 겹쳐요.`), { status: 409 });
       }
     }
   }
@@ -76,7 +79,8 @@ export function validateLessons(lessons) {
     }
     if (lesson.travelMinutes !== undefined && (!Number.isInteger(lesson.travelMinutes) || lesson.travelMinutes < 0 || lesson.travelMinutes > 1440)) throw new Error('이동시간은 0~1440분이어야 합니다.');
     if (lesson.kind && !['class', 'job', 'event'].includes(lesson.kind)) throw new Error('유동적인 계획은 고정 시간표로 저장할 수 없어요.');
-    return { ...(lesson.travelMinutes === undefined ? {} : { travelMinutes: lesson.travelMinutes }), id: randomUUID(), kind: lesson.kind ?? 'class', source: 'timetable', title: lesson.title.trim(), location: (lesson.location || '').trim(), dayOfWeek: [...new Set(lesson.dayOfWeek)], start: lesson.start, end: lesson.end };
+    if (lesson.date != null && !validFixedDate(lesson.date)) throw new Error('일정 날짜를 확인해 주세요.');
+    return { ...(lesson.date ? { date: lesson.date } : {}), ...(lesson.travelMinutes === undefined ? {} : { travelMinutes: lesson.travelMinutes }), id: randomUUID(), kind: lesson.kind ?? 'class', source: 'timetable', title: lesson.title.trim(), location: (lesson.location || '').trim(), dayOfWeek: lesson.date ? [new Date(`${lesson.date}T00:00:00Z`).getUTCDay()] : [...new Set(lesson.dayOfWeek)], start: lesson.start, end: lesson.end };
   });
 }
 

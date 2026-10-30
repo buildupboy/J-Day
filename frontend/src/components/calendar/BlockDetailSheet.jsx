@@ -3,6 +3,7 @@ import { api } from '../../api/client.js';
 import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
 import { toMinutes, formatDuration } from '../../utils/time.js';
 import { getTaskById } from '../../data/sampleSchedule.js';
+import { useAppDialogs } from '../common/AppDialogs.jsx';
 
 const KIND_LABEL = {
   fixed: '고정 시간',
@@ -33,11 +34,12 @@ function formatSize(bytes) {
 // task 블록은 상위 작업의 마감일·예상 시간, 하위 작업 체크리스트, 메모·첨부, 완료/미루기를 보여준다.
 // details: hooks/useBlockDetails.js 의 반환값
 export default function BlockDetailSheet({ block, details, onClose }) {
+  const { confirm } = useAppDialogs();
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const remove = async () => {
     const message = `‘${block.title}’ 일정을 캘린더에서 삭제할까요?`;
-    if (!window.confirm(message)) return;
+    if (!(await confirm(message))) return;
     setDeleting(true);
     setDeleteError('');
     try {
@@ -96,7 +98,7 @@ export default function BlockDetailSheet({ block, details, onClose }) {
           </div>
           {block.location && (
             <div>
-              <dt>장소</dt>
+              <dt>메모</dt>
               <dd>{block.location}</dd>
             </div>
           )}
