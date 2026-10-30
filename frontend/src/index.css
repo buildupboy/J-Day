@@ -2510,6 +2510,12 @@ body {
 .my-save-notice { color: var(--text-2); font-size: 12px; }
 .my-dialog { width: calc(100% - 40px); max-width: 390px; max-height: 85dvh; overflow-y: auto; padding: 22px; border: 1px solid var(--line); border-radius: 20px; color: var(--ink); box-shadow: 0 16px 60px #0002; }
 .my-dialog::backdrop { background: #0006; }
+.routine-edit-dialog { margin: auto; padding: 0; max-width: 430px; background: var(--bg); }
+.routine-edit-dialog .edit-form { margin-top: 16px; }
+.routine-edit-trigger { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.routine-edit-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+.timetable-import-dialog { margin: auto; max-width: 560px; }
+.timetable-import-dialog .fixed-page { padding: 0; }
 .app-message-dialog { margin: auto; }
 .app-message-dialog h2 { margin: 0 0 14px; font-size: 20px; }
 .app-message-dialog p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }

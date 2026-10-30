@@ -21,13 +21,14 @@ const PRESETS = [
 const sameDays = (a, b) => a.length === b.length && a.every((d) => b.includes(d));
 
 // 02-3 반복 일정 등록: 고정 일정·루틴처럼 요일마다 반복하는 일정을 넣는다 (POST /api/fixed-blocks).
-export default function RepeatEventPage({ nav, onClose }) {
-  const [kind, setKind] = useState('fixed');
-  const [title, setTitle] = useState('');
-  const [days, setDays] = useState(() => [new Date().getDay()]);
-  const [start, setStart] = useState('09:00');
-  const [end, setEnd] = useState('10:30');
-  const [memo, setMemo] = useState('');
+export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
+  const editing = Boolean(editingBlock);
+  const [kind, setKind] = useState(editingBlock?.kind === 'routine' ? 'routine' : 'fixed');
+  const [title, setTitle] = useState(editingBlock?.title ?? '');
+  const [days, setDays] = useState(() => editingBlock?.dayOfWeek ?? [new Date().getDay()]);
+  const [start, setStart] = useState(editingBlock?.start ?? '09:00');
+  const [end, setEnd] = useState(editingBlock?.end ?? '10:30');
+  const [memo, setMemo] = useState(editingBlock?.memo ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [notice, setNotice] = useState('');
@@ -62,6 +63,12 @@ export default function RepeatEventPage({ nav, onClose }) {
         end,
         ...(memo.trim() ? { memo: memo.trim() } : {}),
       };
+      if (editing) {
+        await api.updateFixedBlock(editingBlock.id, { title: block.title, dayOfWeek: block.dayOfWeek, start, end, memo: memo.trim() });
+        scheduleChanged();
+        onClose();
+        return;
+      }
       const result = await api.createFixedBlock(block);
       scheduleChanged();
       setSaved(true);
@@ -83,11 +90,11 @@ export default function RepeatEventPage({ nav, onClose }) {
         <button type="button" className="d-icon-btn" onClick={onClose} aria-label="닫기">
           <CloseIcon size={20} />
         </button>
-        <h1>반복 일정 추가</h1>
-        <button type="button" className="d-pill-btn" onClick={() => nav.open('voice')}>
+        <h1>{editing ? '루틴 수정' : '반복 일정 추가'}</h1>
+        {nav ? <button type="button" className="d-pill-btn" onClick={() => nav.open('voice')}>
           <MicIcon size={16} />
           말로 하기
-        </button>
+        </button> : <span className="d-icon-btn" aria-hidden="true" />}
       </header>
 
       <div className="d-field" role="group" aria-label="종류">
@@ -98,6 +105,7 @@ export default function RepeatEventPage({ nav, onClose }) {
               key={id}
               type="button"
               aria-pressed={kind === id}
+              disabled={editing}
               className={`d-toggle ${kind === id ? 'is-on' : ''}`}
               onClick={() => setKind(id)}
             >
@@ -168,7 +176,7 @@ export default function RepeatEventPage({ nav, onClose }) {
         <span className="j-mark" aria-hidden="true">
           J
         </span>
-        <p>고른 요일마다 같은 시간에 반복돼요. 이 시간엔 작업을 넣지 않고, 겹치는 작업은 제이가 다른 시간으로 옮겨 드려요.</p>
+        <p>{editing ? '변경한 내용은 이 루틴의 모든 반복 일정에 적용돼요.' : '고른 요일마다 같은 시간에 반복돼요. 이 시간엔 작업을 넣지 않고, 겹치는 작업은 제이가 다른 시간으로 옮겨 드려요.'}</p>
       </div>
 
       {notice && (
@@ -189,7 +197,7 @@ export default function RepeatEventPage({ nav, onClose }) {
           </button>
         ) : (
           <button type="submit" className="d-btn d-btn-dark d-btn-lg" disabled={!canSubmit}>
-            {saving ? '저장하고 다시 배치하는 중…' : '반복 일정 추가'}
+            {saving ? editing ? '저장 중…' : '저장하고 다시 배치하는 중…' : editing ? '수정 내용 저장' : '반복 일정 추가'}
           </button>
         )}
       </div>
