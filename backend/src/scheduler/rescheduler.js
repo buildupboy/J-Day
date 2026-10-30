@@ -42,6 +42,10 @@ export function reschedule(db, { now, reason }) {
     existingBlocks: preserved, now,
   });
   const scheduledBlocks = [...preserved, ...generated].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+  return { scheduledBlocks, changes: diffScheduledBlocks(original, scheduledBlocks, reason), unplaced };
+}
+
+export function diffScheduledBlocks(original, scheduledBlocks, reason) {
   const before = new Map(original.map(block => [block.id, block]));
   const after = new Map(scheduledBlocks.map(block => [block.id, block]));
   const changes = [];
@@ -55,5 +59,5 @@ export function reschedule(db, { now, reason }) {
   for (const block of scheduledBlocks) {
     if (!before.has(block.id)) changes.push({ type: 'added', reason, after: { ...block } });
   }
-  return { scheduledBlocks, changes, unplaced };
+  return changes;
 }
