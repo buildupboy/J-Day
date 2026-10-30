@@ -141,7 +141,7 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
       const schedulerRequest = enqueueSchedule(db, { commandId: request.requestId, taskId: task?.id, reason, now: committedAt });
       const scheduling = scheduler ? dispatchPending(db, { scheduler: progressResult ? () => progressResult : scheduler, now: committedAt }) : { rescheduled: false };
       response = { requestId: request.requestId, intent, status: scheduling.rescheduled ? 'scheduled' : 'pending_schedule',
-        reply: scheduling.rescheduled ? (scheduling.unplaced.length ? '저장했어요. 마감 전에 배치하지 못한 작업시간이 있어요.' : '저장하고 일정을 다시 배치했어요.') : '저장했어요. 스케줄러 배치 요청은 대기 중이에요.',
+        reply: scheduling.rescheduled ? (scheduling.unplaced.length ? '저장했어요. 마감 전에 배치하지 못한 작업시간이 있어요.' : '저장하고 일정을 다시 배치했어요.') : '저장했어요. AI 자동배치를 기다리고 있어요.',
         assumptions: [...extracted.assumptions, ...(breakdown?.assumptions ?? [])],
         result: { task, ...scheduling, ...(breakdown ? { estimate: { baseEstimatedMinutes: breakdown.baseEstimatedMinutes, rangeMinutes: breakdown.rangeMinutes } } : {}) },
         schedulerRequest };

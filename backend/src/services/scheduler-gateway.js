@@ -19,6 +19,10 @@ export function dispatchPending(db, { scheduler, now }) {
   const result = scheduler(db, { now, reason });
   if (!result || !Array.isArray(result.scheduledBlocks) || !Array.isArray(result.changes) || !Array.isArray(result.unplaced)) fail('스케줄러 반환 형식이 명세와 다릅니다.', 502);
   db.scheduledBlocks = result.scheduledBlocks;
+  if (result.rescheduled === false) {
+    if (result.planningContext) db.aiScheduling = { status: 'pending', context: result.planningContext };
+    return { processedCount: 0, ...result };
+  }
   pending.forEach(request => { request.status = 'processed'; request.processedAt = now.toISOString(); });
   return { processedCount: pending.length, rescheduled: true, ...result };
 }

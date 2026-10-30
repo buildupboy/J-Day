@@ -18,6 +18,7 @@ function schedule(db, now, reason, previousBlocks, explain) {
   const result = reschedule(db, { now, reason });
   if (previousBlocks) result.changes = diffScheduledBlocks(previousBlocks, result.scheduledBlocks, reason);
   db.scheduledBlocks = result.scheduledBlocks;
+  db.aiScheduling = { status: 'pending', context: result.planningContext };
   if (explain) result.explanations = explainSchedule(db.tasks, result, { settings: db.user.settings, now });
   return result;
 }
@@ -73,16 +74,16 @@ export function registerTask(db, input, { now, explain = false }) {
   db.tasks.push(task);
   const reviewTasks = input.review === undefined || input.review === false ? [] : addReviews(db, task, input.review);
   const result = schedule(db, now, 'new_task', undefined, explain);
-  return { task, reviewTasks, rescheduled: true, ...result };
+  return { task, reviewTasks, ...result };
 }
 
 export function registerReviews(db, id, options, { now, explain = false }) {
   const task = taskById(db, id);
   const reviewTasks = addReviews(db, task, options);
-  return { task, reviewTasks, rescheduled: true, ...schedule(db, now, 'new_task', undefined, explain) };
+  return { task, reviewTasks, ...schedule(db, now, 'new_task', undefined, explain) };
 }
 
-/** actualMinutesは累計。繰り返した同じ報告で時間を二重加算しない。 */
+/** actualMinutes는 누계이다. 같은 보고를 반복해도 시간을 중복 가산하지 않는다. */
 export function reportProgress(db, id, input, { now, explain = false }) {
   object(input);
   const task = taskById(db, id);
@@ -137,5 +138,5 @@ export function reportProgress(db, id, input, { now, explain = false }) {
     } else if (has('actualMinutes')) history.actualMinutes = task.actualMinutes;
     historyRecorded = true;
   }
-  return { task, historyRecorded, rescheduled: true, ...schedule(db, now, 'progress', previousBlocks, explain) };
+  return { task, historyRecorded, ...schedule(db, now, 'progress', previousBlocks, explain) };
 }

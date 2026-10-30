@@ -33,7 +33,7 @@ async function setup(t, data=fixture()) {
  return {store,request,dbPath,now,setNow:value=>{current=new Date(value);}};
 }
 
-test('과제 등록 → 개인 보정 → 저장·자동 배치·설명, 원본 추정시간 보존',async t=>{
+test('과제 등록 → 개인 보정 → 저장·AI 배치 대기·설명, 원본 추정시간 보존',async t=>{
  const {store,request}=await setup(t);
  const result=await request('POST','/tasks?explain=true',input());
  assert.equal(result.status,201);
@@ -41,7 +41,9 @@ test('과제 등록 → 개인 보정 → 저장·자동 배치·설명, 원본 
  assert.equal(result.body.task.estimatedMinutes,150);
  assert.match(result.body.task.createdAt,/\+09:00$/);
  assert.ok(result.body.scheduledBlocks.every(b=>b.taskId==='task'));
- assert.equal(result.body.explanations.blocks[0].title,'설계');
+ assert.equal(result.body.rescheduled,false);
+ assert.equal(result.body.planningContext.rankedTasks[0].subtasks[0].title,'설계');
+ assert.deepEqual(result.body.scheduledBlocks,[]);
  const saved=await store.readDb();
  assert.deepEqual(saved.scheduledBlocks,result.body.scheduledBlocks);
  assert.equal(saved.tasks.length,1);
@@ -53,6 +55,7 @@ test('과제 등록 → 개인 보정 → 저장·자동 배치·설명, 원본 
 test('진행 보고와 하위작업 완료 → 재배치, 완료 기록 및 누적 시간 중복 방지',async t=>{
  const {store,request,setNow}=await setup(t);
  await request('POST','/tasks',input());
+ await store.updateDb(db=>({...db,scheduledBlocks:[{id:'existing-ai',taskId:'task',subtaskId:'s1',date:'2026-10-30',start:'15:01',end:'16:16',status:'planned',source:'ai'}]}));
  setNow('2026-10-30T16:00:00+09:00');
  const first=await request('PATCH','/tasks/task/progress?explain=true',{progress:0.5,actualMinutes:40,subtaskId:'s1',subtaskDone:true});
  assert.equal(first.status,200);
