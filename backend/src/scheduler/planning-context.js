@@ -1,7 +1,7 @@
 import { unavailableDates } from '../services/scheduling-constraints.js';
 import { blockedWindows } from './blocked-windows.js';
 import { createHash } from 'node:crypto';
-import { DAY, KST, day, minute, clock, datetime, timestamp, positive, instant } from './time.js';
+import { DAY, KST, day, minute, clock, datetime, timestamp, positive, instant, releasedBlock } from './time.js';
 import { remainingWork } from './workload.js';
 import { findFreeSlots } from './allocator.js';
 
@@ -54,8 +54,8 @@ export function rankTasks(tasks, { existingBlocks = [], now } = {}) {
 
 export function protectedBlocks(db, now, window) {
   const time = timestamp(now);
-  return (db.scheduledBlocks ?? []).filter(block => block.status !== 'planned' || day(block.date) - KST + minute(block.start) * 60000 < time
-    || (window && (block.date < window.from || block.date > window.to)));
+  return (db.scheduledBlocks ?? []).filter(block => !releasedBlock(block) && (block.status !== 'planned' || day(block.date) - KST + minute(block.start) * 60000 < time
+    || (window && (block.date < window.from || block.date > window.to))));
 }
 export function availableWindows(date, fixedBlocks, occupied, settings, now) {
   const start = Math.max(minute(settings.dayStart), Math.ceil((timestamp(now) - (day(date) - KST)) / 60000));
@@ -98,8 +98,8 @@ export function preparePlanningContext(db, { now, reason = 'manual', horizonDays
     unavailableDates: settings.unavailableDates,
     fixedBlocks: structuredClone(db.fixedBlocks), protectedBlocks: structuredClone(preserved),
     blockedWindows: days.flatMap(({ date }) => blockedWindows(date, db.fixedBlocks, settings)),
-    existingFutureBlocks: structuredClone((db.scheduledBlocks ?? []).filter(block => !preservedIds.has(block.id))),
-    replaceableBlockIds: (db.scheduledBlocks ?? []).filter(block => !preservedIds.has(block.id)).map(block => block.id), days,
+    existingFutureBlocks: structuredClone((db.scheduledBlocks ?? []).filter(block => !preservedIds.has(block.id) && !releasedBlock(block))),
+    replaceableBlockIds: (db.scheduledBlocks ?? []).filter(block => !preservedIds.has(block.id) && !releasedBlock(block)).map(block => block.id), days,
     planningInstructions: ['빈 시간은 모두 작업으로 채울 목표가 아닙니다.', '식사·개인 시간·휴식과 사용자 선호를 고려해 실행 가능한 양만 제안하세요.',
       '남은 작업을 전부 넣지 않아도 됩니다. 미배치 시간은 서버가 계산합니다.', '날짜와 시작·종료 시각의 선택은 AI가 담당합니다.'] };
   return { ...body, contextId: fingerprint(body) };

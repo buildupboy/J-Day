@@ -199,6 +199,7 @@ LLM 호출은 포함하지 않는다. LLM/프런트엔드 담당자는 이미 �
 - 성공은 201과 { task, reviewTasks, rescheduled: false, scheduledBlocks, changes, unplaced }이다. 과제 추가와 AI 입력을 하나의 updateDb에서 저장하며 실패 시 둘 다 저장하지 않는다. 과거 마감도 AI 입력에 포함되며, 미배치량은 AI 결과 적용 때 계산한다.
 - 시험(type=exam)에 review:true 또는 review:{daysBefore:[7,3,1],minutes:30}을 추가하면 복습 작업을 함께 생성한다. 생략/false이면 생성하지 않는다. 시험 외 유형에 review를 요청하면 400이다.
 - 복습 작업은 입력한 분량을 그대로 쓰며 개인 보정을 다시 적용하지 않는다. 복습은 원본 시험 작업량 외에 추가되는 시간이다.
+- reschedule:false(boolean)를 보내면 작업만 저장하고 배치하지 않는다. 응답은 { task, reviewTasks, rescheduled:false, deferred:true, scheduledBlocks, changes:[], unplaced:[] }이다. 프론트는 작업 추가·수정·삭제·완료 뒤 30초 동안 더 바뀌지 않으면 POST /api/schedule/reschedule을 한 번 보낸다(홈 오늘 할 일 체크는 10초).
 
 ### POST /api/tasks/:id/reviews — 기존 시험의 복습 등록
 
@@ -223,9 +224,10 @@ LLM 호출은 포함하지 않는다. LLM/프런트엔드 담당자는 이미 �
 - subtaskId만 보내면 맥락 지정이며 완료 표시하지 않는다. 완료 표시에는 subtaskDone:true를 함께 보낸다. 완료된 하위작업을 되돌리거나 progress를 낮추는 요청은 409이다.
 - 하위작업 완료 비중보다 progress가 작으면 완료 비중까지 올린다. 모든 하위작업 완료 또는 progress=1이면 Task는 done이고 모든 하위작업도 done이다. 실제 시간이 있거나 진행률이 양수이면 in_progress이다.
 - 특정 수행 기록을 표시하려면 blockId와 blockStatus(done|missed)를 함께 보낸다. 아직 시작하지 않은 블록도 done(미리 완료)은 받고, missed는 400이다. 블록 상태 보고만으로 Task.progress를 추측하지 않는다.
-- 예정 종료 전에 done으로 보고한 블록에는 completedAt(KST)을 남긴다. 다음 재배치에서 시작 전에 끝낸 블록은 지우고, 진행 중에 끝낸 블록은 end를 완료 시각까지로 줄이며 원래 종료는 plannedEnd에 둔다. 비워진 시간은 다시 배치할 수 있다.
+- 예정 종료 전에 done으로 보고한 블록에는 completedAt(KST)을 남긴다. 다음 재배치에서 시작 전에 끝낸 블록은 released:true로 표시해 완료 기록으로 남기되 시간을 차지하지 않게 하고(보호 블록·교체 대상·분석에서 제외, 캘린더에는 표시하지 않고 오늘 할 일에만 완료로 표시), 진행 중에 끝낸 블록은 end를 완료 시각까지로 줄이며 원래 종료는 plannedEnd에 둔다. 비워진 시간은 다시 배치할 수 있다.
+- 작업(progress=1)이나 하위작업을 완료하면 그 작업의 planned 블록 중 이미 시작한 것은 done, 오늘(KST) 아직 시작 전인 것은 done+completedAt(미리 완료)으로 바꾼다. 다른 날의 미래 예정은 재배치 때 제거한다.
 - reschedule:false(boolean)를 보내면 기록만 저장하고 재배치하지 않는다. 응답은 {task,historyRecorded,rescheduled:false,deferred:true,scheduledBlocks,changes,unplaced:[]}이다. 홈은 체크 후 10초 동안 더 체크가 없으면 POST /api/schedule/reschedule {reason:'progress'}를 한 번 보낸다.
-- 작업 또는 하위작업이 완료되면 이미 시작한 해당 planned 블록을 done으로 바꾸고 미래 예정은 재배치 시 제거한다. 이미 done/missed인 이력은 유지한다. 진행 중 블록을 조기 완료해도 기록의 원래 종료 시각은 보존한다.
+- 작업 또는 하위작업이 완료되면 이미 시작한 해당 planned 블록을 done으로 바꾸고, 오늘 시작 전인 블록은 미리 완료로, 다른 날의 미래 예정은 재배치 시 제거한다. 이미 done/missed인 이력은 유지한다. 진행 중 블록을 조기 완료해도 기록의 원래 종료 시각은 보존한다.
 - 성공은 200과 {task,historyRecorded,rescheduled:false,scheduledBlocks,changes,unplaced}이다. 변경 내역에는 수행 상태 갱신도 포함한다.
 - 일반 작업 완료 시 history-taskId라는 결정적 ID로 기록한다. 반복 보고로 중복하지 않으며 완료 후 actualMinutes를 정정하면 같은 기록의 실제시간을 갱신한다. completedAt은 최초 완료 시각을 유지한다.
 - 기록의 estimatedMinutes는 baseEstimatedMinutes가 있으면 원본, 없으면 기존 estimatedMinutes를 사용한다. 원본을 알 수 없는 기존 과제의 보정 기준에는 한계가 있다. 실제시간 미보고 시 0을 기록하고 estimator는 0인 기록을 학습에 사용하지 않는다.
@@ -233,6 +235,22 @@ LLM 호출은 포함하지 않는다. LLM/프런트엔드 담당자는 이미 �
 
 설명은 등록/진행/복습 요청의 ?explain=true로 추가한다. 저장소는 단일 프로세스에서 갱신을 직렬화하고 완성된 임시 파일을 rename으로 교체한다. updateDb 내부에서 같은 저장소의 readDb/updateDb를 중첩 호출하지 않는다.
 
+
+### POST /api/schedule/blocks/extend — 시간이 더 필요할 때
+
+- 요청: { blockId, minutes(5~240 정수) }. 이미 시작한 planned 작업 블록만 늘린다. 시작 전이면 409.
+- 새 종료 = max(예정 종료, 지금) + minutes. 하루(24:00)를 넘기면 409.
+- 같은 날 그 뒤에 잡힌 planned 작업 블록은 같은 만큼 민다. 밀다가 고정 일정·이동·수면·지정 휴식과 겹치거나 24:00을 넘기는 블록은 지우고 dropped로 알려 준다(남은 작업량으로 돌아가며 재배치는 호출자가 요청한다).
+- 응답: { block, shifted:[id], dropped:[id] }. 늘린 블록에는 extendedMinutes(누적)를 남긴다.
+
+### POST /api/schedule/blocks/postpone의 when
+
+- { blockIds, when: 'today'|'tomorrow' }를 보내면 그날(KST)의 빈 시간 중 묶음 전체(첫 시작~마지막 끝)가 들어가는 첫 자리를 찾아 옮긴다. 자리를 찾은 뒤에는 date·start를 직접 보낸 미루기와 같은 검사를 한다. 자리가 없으면 409.
+- 응답은 기존 미루기 응답에 date, start를 더한다.
+
+### 미수행 유예
+
+- 예정 종료 뒤 30분(MISSED_GRACE_MINUTES)까지는 미수행으로 바꾸지 않는다. 홈은 이 동안 '시간이 더 필요하세요?'를 묻고(시간 더·오늘 남은 시간·내일·작업 종료), 응답이 없으면 주기 확인이 미수행으로 바꾸고 재배치한다.
 
 ### GET /api/schedule/today와 /week
 

@@ -74,8 +74,11 @@ export async function registerTask(db, input, { now, explain = false, planner = 
   if (input.breakAfterMinutes !== undefined) task.breakAfterMinutes = integer(input.breakAfterMinutes, 'breakAfterMinutes', 0, 1440);
   const note = memo(input.memo);
   if (note) task.memo = note;
+  if (input.reschedule !== undefined && typeof input.reschedule !== 'boolean') fail('reschedule은 boolean이어야 합니다.');
   db.tasks.push(task);
   const reviewTasks = input.review === undefined || input.review === false ? [] : addReviews(db, task, input.review);
+  // reschedule:false면 저장만 하고 배치는 호출자가 POST /api/schedule/reschedule로 나중에 요청한다.
+  if (input.reschedule === false) return { task, reviewTasks, rescheduled: false, deferred: true, scheduledBlocks: db.scheduledBlocks ?? [], changes: [], unplaced: [] };
   const result = await schedule(db, now, 'new_task', undefined, explain, planner);
   return { task, reviewTasks, ...result };
 }
@@ -128,9 +131,14 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
   task.progress = progress;
   task.status = progress === 1 ? 'done' : progress > 0 || (task.actualMinutes ?? 0) > 0 ? 'in_progress' : 'todo';
   if (progress === 1) task.subtasks?.forEach(subtask => { subtask.done = true; });
+  // 완료한 작업·하위작업의 예정 블록: 이미 시작한 것은 완료로 바꾼다. 오늘 아직 시작 전인 것은 미리 완료로 남겨
+  // 오늘 할 일에 완료로 보이게 하고(재배치 때 시간은 비운다), 다른 날의 미래 예정은 재배치 때 제거한다.
+  const today = kst(now).slice(0, 10);
   for (const block of db.scheduledBlocks ?? []) {
-    if (block.taskId === id && block.status === 'planned' && instant(block, 'start') < now.getTime()
-      && (progress === 1 || task.subtasks?.some(subtask => subtask.id === block.subtaskId && subtask.done))) block.status = 'done';
+    if (block.taskId !== id || block.status !== 'planned'
+      || !(progress === 1 || task.subtasks?.some(subtask => subtask.id === block.subtaskId && subtask.done))) continue;
+    if (instant(block, 'start') < now.getTime()) block.status = 'done';
+    else if (block.date === today) Object.assign(block, { status: 'done', completedAt: kst(now) });
   }
   let historyRecorded = false;
   if (progress === 1 && !task.reviewOf) {

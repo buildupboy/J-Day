@@ -33,7 +33,7 @@ export function analyze(db, period, now = new Date()) {
   // 전체 작업 완료 기록만 사용하고 같은 작업의 중복 기록은 최신 항목으로 통합한다.
   const history = (db.history || []).filter((item) => !item.subtaskId && kstDate(item.completedAt)).sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt));
   const completed = unique(history, (item) => item.taskId ? `task:${item.taskId}` : `legacy:${item.id || JSON.stringify([item.taskTitle, item.type, item.completedAt, item.estimatedMinutes, item.actualMinutes])}`).filter((item) => inside(kstDate(item.completedAt)));
-  const blocks = unique((db.scheduledBlocks || []).filter((block) => inside(kstDate(block.date))), (block) => block.id || JSON.stringify([block.taskId, block.subtaskId, block.date, block.start, block.end]));
+  const blocks = unique((db.scheduledBlocks || []).filter((block) => inside(kstDate(block.date)) && !block.released), (block) => block.id || JSON.stringify([block.taskId, block.subtaskId, block.date, block.start, block.end]));
   const due = tasks.filter((task) => inside(kstDate(task.deadline)));
   const categoryMinutes = Object.fromEntries(TYPES.map((type) => [type, 0]));
   const daily = Array.from({ length: Math.round((new Date(period.end) - new Date(period.from)) / 86400000) }, (_, i) => ({ date: addDays(period.from, i), minutes: 0, completedTasks: 0, missedBlocks: 0, blocks: [] }));

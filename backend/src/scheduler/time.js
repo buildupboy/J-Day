@@ -35,3 +35,8 @@ export function positive(value, name, minimum = 1) {
   if (!Number.isInteger(value) || value < minimum) throw new RangeError(`${name} 값이 올바르지 않습니다.`);
   return value;
 }
+
+/** 시작 전에 미리 완료해 시간을 비운 기록. 완료 이력으로는 남기되 시간을 차지하지 않는다. */
+export function releasedBlock(block) {
+  return block.status === 'done' && block.released === true;
+}

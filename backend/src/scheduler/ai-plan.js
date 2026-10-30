@@ -1,5 +1,5 @@
 import { blockedWindows } from './blocked-windows.js';
-import { minute, day, datetime, timestamp, instant } from './time.js';
+import { minute, day, datetime, timestamp, instant, releasedBlock } from './time.js';
 import { fingerprint, schedulingRevision, availableWindows } from './planning-context.js';
 import { diffScheduledBlocks } from './rescheduler.js';
 import { fail, object, text } from '../services/validation.js';
@@ -20,7 +20,9 @@ export function acceptAiPlan(db, input, { now }) {
   const current = Math.ceil(timestamp(now) / 60000) * 60000;
   const originals = db.scheduledBlocks ?? [], protectedIds = new Set(context.protectedBlocks.map(block => block.id));
   if (originals.some(block => context.replaceableBlockIds.includes(block.id) && instant(block, 'start') < timestamp(now))) fail('기존 예정 블록이 시작됐습니다. AI 배치 입력을 갱신하세요.', 409);
-  const ids = new Set(protectedIds), tasks = new Map(context.rankedTasks.map(task => [task.taskId, task]));
+  // 시간을 비운 미리 완료 기록은 검사 대상이 아니지만 결과에는 그대로 남긴다
+  const released = originals.filter(releasedBlock);
+  const ids = new Set([...protectedIds, ...released.map(block => block.id)]), tasks = new Map(context.rankedTasks.map(task => [task.taskId, task]));
   const allocated = new Map(), allocatedUnits = new Map();
   const normalized = input.blocks.map((value, index) => {
     object(value, 'block');
@@ -89,7 +91,7 @@ export function acceptAiPlan(db, input, { now }) {
       }
     }
   }
-  const scheduledBlocks = all.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+  const scheduledBlocks = [...all, ...released].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
   const unplaced = context.rankedTasks.map(task => ({ taskId: task.taskId, remainingMinutes: task.remainingMinutes - (allocated.get(task.taskId) ?? 0) })).filter(item => item.remainingMinutes > 0);
   const aiScheduling = { ...state, status: 'applied', planHash, appliedAt: now.toISOString(), unplaced,
     appliedRevision: schedulingRevision({ ...db, scheduledBlocks }) };

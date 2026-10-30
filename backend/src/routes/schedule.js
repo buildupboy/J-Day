@@ -9,7 +9,7 @@ import { timeline, weekTimeline, todayKst, mondayKst } from '../scheduler/timeli
 import { day, instant, occursOn } from '../scheduler/time.js';
 import { fail, explainRequested } from '../services/validation.js';
 import { updateFixedBlock } from '../services/fixed-edit.js';
-import { postponeBlocks } from '../services/postpone.js';
+import { postponeBlocks, postponeToFreeSlot, extendBlock } from '../services/postpone.js';
 
 const reasons = new Set(['new_task','missed','progress','manual']);
 export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpdate, now = () => new Date(), planner = reschedule } = {}) {
@@ -60,7 +60,15 @@ export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpd
   router.post('/blocks/postpone', async (req, res, next) => {
     try {
       let result;
-      await updateDb(async db => { result = postponeBlocks(db, req.body, { now: now() }); return db; });
+      // when(today|tomorrow)이 있으면 그날의 첫 빈 자리로, 없으면 사용자가 고른 date·start로 옮긴다
+      await updateDb(async db => { result = req.body?.when ? postponeToFreeSlot(db, req.body, { now: now() }) : postponeBlocks(db, req.body, { now: now() }); return db; });
+      res.json(result);
+    } catch (err) { next(err); }
+  });
+  router.post('/blocks/extend', async (req, res, next) => {
+    try {
+      let result;
+      await updateDb(async db => { result = extendBlock(db, req.body, { now: now() }); return db; });
       res.json(result);
     } catch (err) { next(err); }
   });
