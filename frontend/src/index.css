@@ -5276,3 +5276,391 @@ button:disabled {
 .pattern-rest-remove { display: block; margin: 8px 0 0 auto; padding: 4px 0; border: 0; background: transparent; color: #777; font: inherit; font-size: 12px; cursor: pointer; }
 .pattern-rest-add { width: 100%; margin-top: 14px; padding: 13px; border: 1px solid #ddd; border-radius: 12px; background: #fff; color: #111; font: inherit; font-size: 13px; cursor: pointer; }
 .pattern-rest-add:disabled { opacity: .4; cursor: default; }
+
+/* 날짜·시각 선택 (iOS 캘린더식: 칩을 누르면 아래로 달력·휠이 펼쳐짐) */
+.dt-card {
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.dt-row-wrap + .dt-row-wrap {
+  border-top: 1px solid var(--line);
+}
+
+.dt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+}
+
+.dt-label {
+  font-size: 16px;
+}
+
+.dt-row-wrap.is-off .dt-label {
+  color: var(--faint);
+}
+
+.dt-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.dt-chip {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.dt-chip.is-on {
+  color: var(--accent-link);
+  background: var(--accent-soft);
+}
+
+.dt-chip:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.dt-panel {
+  padding: 4px 0 14px;
+  border-top: 1px solid var(--line);
+}
+
+.dt-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+}
+
+.dt-cal-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dt-cal-caret {
+  display: flex;
+  color: var(--accent);
+  transition: transform 0.15s;
+}
+
+.dt-cal-title.is-on {
+  color: var(--accent-link);
+}
+
+.dt-cal-title.is-on .dt-cal-caret {
+  transform: rotate(90deg);
+}
+
+.dt-cal-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.dt-cal-nav button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.dt-cal-nav button:disabled {
+  color: var(--border-strong);
+  cursor: default;
+}
+
+.dt-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  row-gap: 4px;
+  justify-items: center;
+}
+
+.dt-weekday {
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--subtle);
+}
+
+.dt-day {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.dt-day.is-today {
+  color: var(--accent-link);
+  font-weight: 700;
+}
+
+.dt-day.is-selected {
+  background: var(--accent-soft);
+  color: var(--accent-link);
+  font-weight: 700;
+}
+
+.dt-day:disabled {
+  color: var(--border-strong);
+  cursor: default;
+}
+
+.dt-wheels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 120px));
+  justify-content: center;
+  position: relative;
+}
+
+/* 두 휠의 가운데 띠를 한 줄로 이어 보이게 한다 */
+.dt-wheels::before {
+  content: '';
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  pointer-events: none;
+}
+
+.dt-wheels .wheel-band {
+  display: none;
+}
+
+.dt-wheels .wheel-item {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-wheels .wheel-item.is-on {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.dt-chip.is-empty {
+  color: var(--muted);
+}
+
+/* 메모 · 하위작업 */
+.d-textarea {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: none;
+}
+
+.d-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.memo-count {
+  align-self: flex-end;
+}
+
+.sub-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sub-list {
+  margin: 0;
+  padding: 0 8px 0 14px;
+  list-style: none;
+}
+
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+}
+
+.sub-row + .sub-row {
+  border-top: 1px solid var(--line);
+}
+
+.sub-index {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sub-title {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.sub-min {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sub-min:focus-within {
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+
+.sub-min input {
+  width: 40px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  text-align: right;
+  outline: none;
+}
+
+.sub-remove {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: none;
+  color: var(--subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sub-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: none;
+  color: var(--accent-link);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sub-add:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.sub-sum .d-link {
+  padding: 0;
+}
+
+.sub-item + .sub-item {
+  border-top: 1px solid var(--line);
+}
+
+.sub-row + .sub-row {
+  border-top: 0;
+}
+
+.sub-time {
+  flex: none;
+  min-height: 36px;
+  font-size: 14px;
+}
+
+/* 반복 일정 추가 */
+.preset-row {
+  display: flex;
+  gap: 6px;
+}
+
+.preset-chip {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.preset-chip.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-link);
+  font-weight: 500;
+}
+
+.repeat-days button {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.repeat-days button.is-on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}

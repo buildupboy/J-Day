@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { api } from '../api/client.js';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition.js';
 import { CloseIcon, MicIcon } from '../components/common/Icons.jsx';
-import DateWheel from '../components/tasks/DateWheel.jsx';
-import WheelPicker from '../components/tasks/WheelPicker.jsx';
+import DateTimeRows, { DurationRow } from '../components/common/DateTimeRows.jsx';
 import EstimateAssist from '../components/tasks/EstimateAssist.jsx';
+import SubtaskEditor, { newSubtask, toSavedSubtasks } from '../components/tasks/SubtaskEditor.jsx';
+import MemoField from '../components/common/MemoField.jsx';
 import { parseTaskText, toIsoDate } from '../utils/parseTaskText.js';
 import { estimateTask } from '../utils/estimateTask.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
@@ -15,10 +16,6 @@ const PRIORITIES = [
   { id: 'optional', name: 'Could', rank: '3순위', hint: 'Could · 여유 시간에 배치돼요' },
 ];
 
-const TIMES = [...Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`), '23:59']
-  .sort()
-  .map((t) => ({ value: t, label: t }));
-
 // 03-2 작업 추가: 제목·마감일·예상 시간·중요도를 입력하거나 말로 채운다.
 export default function TasksPage({ onClose }) {
   const [title, setTitle] = useState('');
@@ -27,6 +24,7 @@ export default function TasksPage({ onClose }) {
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [subtasks, setSubtasks] = useState([]);
+  const [memo, setMemo] = useState('');
   const [priority, setPriority] = useState('important');
   const [filled, setFilled] = useState(false); // 말한 내용으로 자동 채웠는지
   const [toast, setToast] = useState('');
@@ -44,13 +42,21 @@ export default function TasksPage({ onClose }) {
   });
 
   const totalMinutes = (Number(hours) || 0) * 60 + (Number(minutes) || 0);
-  const canSubmit = Boolean(title.trim() && date && totalMinutes > 0);
+  // 예상 시간을 비워도 하위작업 시간 합계가 있으면 그 값으로 등록한다
+  const subtaskSum = subtasks.reduce((n, s) => n + (s.title.trim() ? Number(s.estimatedMinutes) || 0 : 0), 0);
+  const effectiveMinutes = totalMinutes || subtaskSum;
+  const canSubmit = Boolean(title.trim() && date && effectiveMinutes > 0);
+
+  const setDuration = (total) => {
+    setHours(String(Math.floor(total / 60)));
+    setMinutes(String(total % 60));
+  };
   const priorityInfo = PRIORITIES.find((p) => p.id === priority);
 
   const applyEstimate = (est) => {
     setHours(String(est.totalHours));
     setMinutes('0');
-    setSubtasks(est.subtasks);
+    setSubtasks(est.subtasks.map((s) => newSubtask(s.title, s.estimatedMinutes)));
   };
 
   const submit = async () => {
@@ -62,8 +68,9 @@ export default function TasksPage({ onClose }) {
       type: estimateTask(title).type,
       deadline: `${date}T${time}:00+09:00`,
       importance: { must: 3, important: 2, optional: 1 }[priority],
-      baseEstimatedMinutes: totalMinutes,
-      subtasks,
+      baseEstimatedMinutes: effectiveMinutes,
+      subtasks: toSavedSubtasks(subtasks, effectiveMinutes),
+      ...(memo.trim() ? { memo: memo.trim() } : {}),
     };
     try {
       const result = await api.createTask(task);
@@ -74,6 +81,7 @@ export default function TasksPage({ onClose }) {
       setHours('');
       setMinutes('');
       setSubtasks([]);
+      setMemo('');
       setFilled(false);
     } catch (err) {
       setSaveError(err.message);
@@ -121,43 +129,29 @@ export default function TasksPage({ onClose }) {
 
       <div className="d-field">
         <p className="d-label">마감일</p>
-        <div className="d-wheel-box is-split">
-          <DateWheel value={date} onChange={setDate} label="마감 날짜" />
-          <WheelPicker items={TIMES} value={time} onChange={setTime} label="마감 시각" />
-        </div>
+        <DateTimeRows
+          minDate={toIsoDate(new Date())}
+          extraMinutes={['59']}
+          rows={[{ id: 'deadline', label: '마감', date, time, onDateChange: setDate, onTimeChange: setTime }]}
+        />
       </div>
 
       <div className="d-field">
         <p className="d-label">예상 소요 시간</p>
-        <div className="d-grid-2">
-          <label className="unit-box">
-            <input
-              type="number"
-              inputMode="numeric"
-              min="0"
-              placeholder="0"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              aria-label="예상 시간(시간)"
-            />
-            <span>시간</span>
-          </label>
-          <label className="unit-box">
-            <input
-              type="number"
-              inputMode="numeric"
-              min="0"
-              max="59"
-              step="5"
-              placeholder="0"
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              aria-label="예상 시간(분)"
-            />
-            <span>분</span>
-          </label>
-        </div>
+        <DurationRow
+          hours={hours}
+          minutes={minutes}
+          onChange={(h, m) => {
+            setHours(h);
+            setMinutes(m);
+          }}
+        />
         <EstimateAssist title={title} onApply={applyEstimate} />
+      </div>
+
+      <div className="d-field">
+        <p className="d-label">하위작업</p>
+        <SubtaskEditor subtasks={subtasks} onChange={setSubtasks} totalMinutes={totalMinutes} onUseSum={setDuration} />
       </div>
 
       <div className="d-field" role="group" aria-label="중요도">
@@ -178,6 +172,8 @@ export default function TasksPage({ onClose }) {
         </div>
         <p className="d-meta">{priorityInfo.hint}</p>
       </div>
+
+      <MemoField id="task-memo" value={memo} onChange={setMemo} placeholder="예: 교수님 메일에 제출 형식 있음" />
 
       <div className="d-form-foot">
         {saveError && (
