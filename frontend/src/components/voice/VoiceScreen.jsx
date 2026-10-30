@@ -79,6 +79,9 @@ export default function VoiceScreen({ nav, onClose, needsStart = false }) {
           role: 'assistant',
           text: res.reply,
           task: ['add_task', 'update_task'].includes(res.intent) || res.result?.cardMode === 'existing' ? res.result?.task ?? null : null,
+          // 한 발화에 여러 작업을 등록한 경우: 저장한 카드 여러 개 + 이미 있던 과제 카드
+          tasks: res.result?.tasks?.length > 1 ? res.result.tasks : null,
+          duplicates: res.result?.duplicates?.length ? res.result.duplicates : null,
           cardMode: res.result?.cardMode,
           updated: res.intent === 'update_task',
           status: res.status,
@@ -252,16 +255,26 @@ export default function VoiceScreen({ nav, onClose, needsStart = false }) {
                       다시 시도
                     </button>
                   )}
-                  {m.task && (
+                  {(m.tasks ?? (m.task && !(m.duplicates && m.cardMode === 'existing') ? [m.task] : [])).map((task) => (
                     <TaskProposalCard
-                      task={m.task}
+                      key={task.id}
+                      task={task}
                       status={m.status}
                       cardMode={m.cardMode}
                       updated={m.updated}
                       onOpenCalendar={() => nav.tab('calendar')}
                       onOpenList={() => nav.tab('tasks', 'upcoming')}
                     />
-                  )}
+                  ))}
+                  {m.duplicates?.map((task) => (
+                    <TaskProposalCard
+                      key={`dup-${task.id}`}
+                      task={task}
+                      cardMode="existing"
+                      onOpenCalendar={() => nav.tab('calendar')}
+                      onOpenList={() => nav.tab('tasks', 'upcoming')}
+                    />
+                  ))}
                 </li>
               )
             )}

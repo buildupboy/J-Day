@@ -130,6 +130,8 @@
 }
 ```
 
+한 발화에 과제가 여러 개면(최대 10개) `add_task` 하나로 처리한다. 의도 해석 결과는 첫 과제를 `slots`, 두 번째부터를 `extraTasks`(같은 필드)에 담는다. 응답 `result.task`는 첫 저장 과제이고, 둘 이상 저장하거나 이미 등록된 과제를 건너뛴 경우 `result.tasks`(저장한 과제)와 `result.duplicates`(이미 있던 과제)가 추가된다. 일부 과제의 마감이 없으면 아무것도 저장하지 않고 `needs_clarification`으로 해당 과제만 묻는다. 전체 재배치 요청은 한 번만 보낸다.
+
 ### GET /api/schedule/today — 오늘 타임라인 조회
 
 ```jsonc

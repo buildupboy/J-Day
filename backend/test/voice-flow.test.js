@@ -258,3 +258,48 @@ test('음성 신규 등록도 4개를 넘는 세부 분해는 저장하지 않�
  const response=await h.request(input('too-many-steps'));
  assert.equal(response.status,502);assert.deepEqual(await h.readDb(),before);
 });
+
+const extra = (title, extraSlots = {}) => ({ title, type: 'etc', deadline: '2026-11-06T23:59:00+09:00', baseEstimatedMinutes: null, importance: null, ...extraSlots });
+
+test('한 발화의 여러 작업은 작업별로 분해·저장하고 한 번에 재배치 요청', async t => {
+  const h = await setup(t);
+  h.setInterpret({ ...extracted(), extraTasks: [extra('발표 준비', { importance: 3 }), extra('독서')] });
+  const result = await h.request(input('multi-1', { text: '보고서랑 발표 준비랑 독서 해야 해' }));
+  assert.equal(result.status, 200); assert.equal(h.breakdownCalls(), 3);
+  assert.deepEqual(result.body.result.tasks.map(task => task.title), ['보고서', '발표 준비', '독서']);
+  assert.equal(result.body.result.task.title, '보고서'); assert.match(result.body.reply, /3개 작업/);
+  const saved = await h.readDb();
+  assert.equal(saved.tasks.length, 3); assert.equal(saved.tasks[1].importance, 3); assert.equal(saved.tasks[2].importance, 2);
+  assert.equal(saved.schedulerRequests.length, 1);
+});
+
+test('여러 작업 중 마감이 빠진 것이 있으면 아무것도 저장하지 않고 그 작업만 묻는다', async t => {
+  const h = await setup(t); const before = await readFile(h.dbPath, 'utf8');
+  h.setInterpret({ ...extracted(), extraTasks: [extra('발표 준비', { deadline: null })] });
+  const result = await h.request(input('multi-2'));
+  assert.equal(result.body.status, 'needs_clarification'); assert.match(result.body.reply, /발표 준비/);
+  assert.doesNotMatch(result.body.reply, /보고서/);
+  assert.equal(h.breakdownCalls(), 0); assert.equal(await readFile(h.dbPath, 'utf8'), before);
+});
+
+test('여러 작업 중 이미 등록된 과제는 건너뛰고 나머지만 저장하며 수정 여부를 묻는다', async t => {
+  const h = await setup(t);
+  assert.equal((await h.request(input('multi-3a'))).status, 200);
+  h.setInterpret({ ...extracted(), extraTasks: [extra('발표 준비'), extra('발표  준비')] });
+  const result = await h.request(input('multi-3b', { text: '보고서랑 발표 준비' }));
+  assert.equal(result.status, 200); assert.deepEqual(result.body.result.tasks.map(task => task.title), ['발표 준비']);
+  assert.deepEqual(result.body.result.duplicates.map(task => task.title), ['보고서']);
+  assert.match(result.body.reply, /‘보고서’은\(는\) 이미 등록된 과제예요/);
+  assert.equal((await h.readDb()).tasks.length, 2);
+  h.setInterpret({ ...extracted(), extraTasks: [extra('발표 준비')] });
+  const all = await h.request(input('multi-3c'));
+  assert.equal(all.body.status, 'needs_clarification'); assert.equal(all.body.result.duplicates.length, 2);
+  assert.equal((await h.readDb()).tasks.length, 2);
+});
+
+test('한 번에 10개를 넘는 작업은 거부', async t => {
+  const h = await setup(t);
+  h.setInterpret({ ...extracted(), extraTasks: Array.from({ length: 10 }, (_, i) => extra(`작업${i}`)) });
+  assert.equal((await h.request(input('multi-4'))).status, 400);
+  assert.equal(h.breakdownCalls(), 0);
+});
