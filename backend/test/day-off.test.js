@@ -14,7 +14,8 @@ test('토요일 휴무 채팅 → AI 전달 → 일요일로 이동·따뜻한 �
  const planner=createAiPlanner({clock:()=>now,completeFn:async request=>{
   calls++;const context=JSON.parse(request.messages[0].content);
   if(action==='block'){assert.deepEqual(context.unavailableDates,['2026-10-31']);assert.deepEqual(context.days.find(d=>d.date==='2026-10-31').slots,[]);}
-  return JSON.stringify({contextId:context.contextId,blocks:[{taskId:'t',subtaskId:null,date:action==='block'?'2026-11-01':'2026-10-31',start:'08:30',end:'09:30',placementReason:'휴무를 피한 배치'}]});
+  // 토요일 운동은 08:30 종료이며, 작업 시작 전 10분 휴식도 유지한다.
+  return JSON.stringify({contextId:context.contextId,blocks:[{taskId:'t',subtaskId:null,date:action==='block'?'2026-11-01':'2026-10-31',start:action==='block'?'08:30':'08:40',end:action==='block'?'09:30':'09:40',placementReason:'휴무를 피한 배치'}]});
  }});
  const service=createVoiceService({...store,interpreter:async()=>extracted(['2026-10-31'],action),scheduler:planner,now:()=>now});
  const request={requestId:'dayoff',text:'나 토요일 쉬고 싶은데 토요일 일정 빼줘'};

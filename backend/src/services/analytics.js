@@ -1,3 +1,4 @@
+import { computeCorrectionFactors } from '../scheduler/estimator.js';
 ﻿const TYPES = ['report', 'coding', 'exam', 'presentation', 'reading', 'etc'];
 export function kstDate(value) {
   if (typeof value !== 'string') return null;
@@ -16,7 +17,7 @@ export function analysisPeriod(from, mode = 'week', now = new Date()) {
   const end = mode === 'month' ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toISOString().slice(0, 10) : addDays(start, 7);
   return { from: start, to: addDays(end, -1), end };
 }
-const numeric = (value) => typeof value === 'number' && Number.isFinite(value) && value > 0;
+const numeric = (value) => Number.isInteger(value) && value > 0;
 const typeOf = (value) => TYPES.includes(value) ? value : 'etc';
 function unique(items, key) { return [...new Map(items.map((item) => [key(item), item])).values()]; }
 function blockMinutes(block) {
@@ -37,7 +38,19 @@ export function analyze(db, period, now = new Date()) {
   const categoryMinutes = Object.fromEntries(TYPES.map((type) => [type, 0]));
   const daily = Array.from({ length: Math.round((new Date(period.end) - new Date(period.from)) / 86400000) }, (_, i) => ({ date: addDays(period.from, i), minutes: 0, completedTasks: 0, missedBlocks: 0, blocks: [] }));
   const bands = ['오전', '오후', '저녁·밤'].map((label) => ({ label, minutes: 0, done: 0, missed: 0, total: 0 }));
-  const patterns = TYPES.map((type) => ({ type, completedTasks: completed.filter((item) => typeOf(item.type) === type).length, missedBlocks: 0, validActualRecords: completed.filter((item) => typeOf(item.type) === type && numeric(item.actualMinutes) && numeric(item.estimatedMinutes)).length }));
+  // 새 추정시간 보정과 같은 계산 함수를 사용하되 통계 범위는 선택한 기간이다.
+  const speedRecords = completed.filter(item => TYPES.includes(item.type) && numeric(item.actualMinutes) && numeric(item.estimatedMinutes));
+  const factors = computeCorrectionFactors(speedRecords);
+  const patterns = TYPES.map(type => {
+    const records = speedRecords.filter(item => item.type === type);
+    const correctionFactor = factors[type] ?? null;
+    return { type, completedTasks: completed.filter(item => typeOf(item.type) === type).length, missedBlocks: 0,
+      validActualRecords: records.length,
+      estimatedMinutes: records.reduce((sum, item) => sum + item.estimatedMinutes, 0),
+      actualMinutes: records.reduce((sum, item) => sum + item.actualMinutes, 0),
+      correctionFactor,
+      differencePercent: correctionFactor === null ? null : Math.round((correctionFactor - 1) * 100) };
+  });
   for (const block of blocks) {
     const minutes = blockMinutes(block), type = typeOf(taskMap.get(block.taskId)?.type);
     categoryMinutes[type] += minutes;
@@ -61,7 +74,7 @@ export function analyze(db, period, now = new Date()) {
     dueTasks: { total: due.length, completed: due.filter((task) => task.status === 'done').length, items: due.map((task) => ({ id: task.id, title: task.title, deadline: task.deadline, status: task.status })) },
     missedBlocks: missed.length, missedTasks: new Set(missed.map((block) => block.taskId).filter(Boolean)).size,
     overdueTasks: due.filter((task) => task.status !== 'done' && new Date(task.deadline.length === 10 ? task.deadline + 'T23:59:59+09:00' : task.deadline) < now).length,
-    capabilities: { correction: false, settingsWrite: false, goals: false, progressHistory: false },
+    capabilities: { correction: true, settingsWrite: true, goals: false, progressHistory: false },
     profile: { name: db.user?.name || '사용자', settings: db.user?.settings || {} }, suggestions,
-    notes: ['현재 저장된 배치 기준이며 재배치로 삭제된 과거 계획은 포함하지 않아요.', '계획 시간은 실제 작업시간이 아니에요. missed는 완료 미확인 상태이며 작업을 전혀 하지 않았다는 의미가 아니에요.', '개인 보정 함수와 설정 수정 API가 현재 체크아웃에 구현되어 있지 않아 보정·자동 적용은 제공하지 않아요.'] };
+    notes: ['현재 저장된 배치 기준이며 재배치로 삭제된 과거 계획은 포함하지 않아요.', '계획 시간은 실제 작업시간이 아니에요. missed는 완료 미확인 상태이며 작업을 전혀 하지 않았다는 의미가 아니에요.', '작업 속도는 선택한 기간의 완료 기록에서 예상 시간 합계와 실제 시간 합계를 비교해요. 새 작업의 추정시간 보정에는 전체 유효 수행 기록을 사용하므로 기간별 분석과 다를 수 있어요.'] };
 }

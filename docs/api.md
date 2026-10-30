@@ -269,3 +269,26 @@ DB에는 선택적 aiScheduling 상태를 저장한다. AI가 만든 ScheduledBl
 | 메서드·경로 | 본문 | 설명 |
 |---|---|---|
 | `POST /api/schedule/blocks/postpone` | `{ blockIds: string[], date: 'YYYY-MM-DD', start: 'HH:mm' }` | 같은 작업의 배치 블록을 사용자가 고른 시각부터 같은 길이·간격으로 옮김. 이동한 블록은 `postponed: true`, `status: 'planned'`. 과거 시각, 완료 블록, 마감 초과, 고정 일정·수면·휴식 또는 다른 작업과 겹침(작업 사이 휴식 포함)은 400/409 |
+
+### 생활 설정 저장과 AI 재배치 결과
+
+- PATCH /api/user/settings는 {settings: {...변경 필드}, confirmReschedule: true}를 받는다.
+- 확인 누락은 409, 입력 오류는 400이며 저장하지 않는다. 파일 저장 실패도 오류 응답을 반환한다.
+- 유효한 설정은 AI 재배치 실패와 관계없이 저장한다. AI 실패 시 기존 일정·작업·완료 이력을 유지하고 이전 aiScheduling은 null로 무효화한다.
+- HTTP 200 응답에 settingsSaved: true, schedulingStatus(applied / awaiting_ai / failed), changes, unplaced를 포함한다.
+- failed는 schedulingError 안내를 포함한다. 이때 changes와 unplaced는 빈 배열이며 배치 성공이나 잔량 없음을 의미하지 않는다.
+- 재배치 재시도는 POST /api/schedule/reschedule의 reason: manual을 사용한다. 설정 저장 응답은 AI 시도 완료까지 기다릴 수 있다.
+- 분석 API의 capabilities.settingsWrite는 true이다. correction: true는 작업 속도 분석 제공을 뜻한다. 새 작업 등록 시 개인 보정 계산도 사용한다.
+
+- PATCH /api/user/settings에 restPeriods가 포함되면 매일 반복 휴식과 최신 fixedBlocks를 비교한다. 수업·알바·루틴과 겹치면 일정명·시간 및 다른 시간 선택 안내를 담은 {error}와 HTTP 409를 반환한다. 설정 저장이나 AI 재배치 전에 검사하며, 자정 초과는 나누어 검사하고 경계가 맞닿는 것은 허용한다.
+
+
+### 분석 API의 작업 속도
+
+GET /api/analytics/week와 /month의 patterns[]에 유형별 estimatedMinutes, actualMinutes,
+correctionFactor(실제 합계 / 예상 합계), differencePercent(비율 차이 %, 정수 반올림)를 추가한다.
+선택한 기간의 중복 제거된 전체 작업 완료 이력 중 두 시간이 모두 양의 정수인 기록만 사용한다.
+기존 estimator.computeCorrectionFactors를 재사용하며, 개별 기록 비율의 단순 평균을 내지 않는다.
+유효 기록이 없으면 validActualRecords와 두 합계는 0, correctionFactor/differencePercent는 null이다.
+차이가 양수면 예상보다 오래, 음수면 적게 걸린 것이다. 0%는 반올림 기준 거의 비슷한 경우다.
+이 API는 조회 전용이며 DB나 새 작업 보정 방식을 변경하지 않는다. 신규 작업 보정은 전체 이력 기준이므로 선택 기간의 표시값과 다를 수 있다.
