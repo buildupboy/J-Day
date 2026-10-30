@@ -1,5 +1,4 @@
 {
-  "aiScheduling": null,
   "pushSubscriptions": [],
   "user": {
     "id": "u1",
@@ -19,62 +18,960 @@
     }
   },
   "fixedBlocks": [
-    { "id": "fb-run", "kind": "routine", "title": "아침 운동", "dayOfWeek": [0, 1, 2, 3, 4, 5, 6], "start": "07:00", "end": "07:40" },
-
-    { "id": "fb-ds-mon", "kind": "class", "title": "자료구조", "location": "공학관 301", "dayOfWeek": [1], "start": "09:00", "end": "10:30" },
-    { "id": "fb-ds-wed", "kind": "class", "title": "자료구조", "location": "공학관 301", "dayOfWeek": [3], "start": "09:00", "end": "10:30" },
-    { "id": "fb-db", "kind": "class", "title": "데이터베이스", "location": "공학관 205", "dayOfWeek": [1, 3], "start": "13:00", "end": "14:30" },
-    { "id": "fb-os", "kind": "class", "title": "운영체제", "location": "공학관 402", "dayOfWeek": [2, 4], "start": "10:30", "end": "12:00" },
-    { "id": "fb-eng", "kind": "class", "title": "대학영어", "location": "인문관 110", "dayOfWeek": [2, 4], "start": "15:00", "end": "16:30" },
-    { "id": "fb-stat", "kind": "class", "title": "확률과통계", "location": "자연관 203", "dayOfWeek": [5], "start": "10:00", "end": "13:00" },
-
-    { "id": "fb-job", "kind": "job", "title": "편의점 알바", "location": "학교 앞 편의점", "dayOfWeek": [2, 4], "start": "19:00", "end": "23:00" }
+    {
+      "id": "fb-run",
+      "kind": "routine",
+      "title": "아침 운동",
+      "dayOfWeek": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "start": "07:00",
+      "end": "07:40"
+    },
+    {
+      "id": "fb-ds-mon",
+      "kind": "class",
+      "title": "자료구조",
+      "location": "공학관 301",
+      "dayOfWeek": [
+        1
+      ],
+      "start": "09:00",
+      "end": "10:30"
+    },
+    {
+      "id": "fb-ds-wed",
+      "kind": "class",
+      "title": "자료구조",
+      "location": "공학관 301",
+      "dayOfWeek": [
+        3
+      ],
+      "start": "09:00",
+      "end": "10:30"
+    },
+    {
+      "id": "fb-db",
+      "kind": "class",
+      "title": "데이터베이스",
+      "location": "공학관 205",
+      "dayOfWeek": [
+        1,
+        3
+      ],
+      "start": "13:00",
+      "end": "14:30"
+    },
+    {
+      "id": "fb-os",
+      "kind": "class",
+      "title": "운영체제",
+      "location": "공학관 402",
+      "dayOfWeek": [
+        2,
+        4
+      ],
+      "start": "10:30",
+      "end": "12:00"
+    },
+    {
+      "id": "fb-eng",
+      "kind": "class",
+      "title": "대학영어",
+      "location": "인문관 110",
+      "dayOfWeek": [
+        2,
+        4
+      ],
+      "start": "15:00",
+      "end": "16:30"
+    },
+    {
+      "id": "fb-stat",
+      "kind": "class",
+      "title": "확률과통계",
+      "location": "자연관 203",
+      "dayOfWeek": [
+        5
+      ],
+      "start": "10:00",
+      "end": "13:00"
+    },
+    {
+      "id": "fb-job",
+      "kind": "job",
+      "title": "편의점 알바",
+      "location": "학교 앞 편의점",
+      "dayOfWeek": [
+        2,
+        4
+      ],
+      "start": "19:00",
+      "end": "23:00"
+    },
+    {
+      "id": "fb-study",
+      "kind": "event",
+      "title": "알고리즘 스터디",
+      "location": "도서관 스터디룸",
+      "dayOfWeek": [
+        1
+      ],
+      "start": "18:00",
+      "end": "19:30"
+    },
+    {
+      "id": "fb-club",
+      "kind": "event",
+      "title": "동아리 정기모임",
+      "location": "학생회관 203",
+      "dayOfWeek": [
+        3
+      ],
+      "start": "18:30",
+      "end": "20:00"
+    },
+    {
+      "id": "fb-team",
+      "kind": "event",
+      "title": "캡스톤 팀 회의",
+      "location": "공학관 로비",
+      "date": "2026-11-02",
+      "start": "15:00",
+      "end": "16:30"
+    },
+    {
+      "id": "fb-dentist",
+      "kind": "fixed",
+      "title": "치과 예약",
+      "location": "동아치과",
+      "date": "2026-11-04",
+      "start": "17:00",
+      "end": "18:00"
+    },
+    {
+      "id": "fb-family",
+      "kind": "event",
+      "title": "가족 저녁 식사",
+      "date": "2026-11-07",
+      "start": "18:00",
+      "end": "20:00"
+    },
+    {
+      "id": "fb-friend",
+      "kind": "event",
+      "title": "친구 생일 모임",
+      "location": "서면",
+      "date": "2026-11-14",
+      "start": "17:30",
+      "end": "21:00"
+    }
   ],
   "tasks": [
     {
-      "id": "t-db-report",
-      "importance": 2,
-      "title": "데이터베이스 ERD 설계 보고서",
-      "deadline": "2026-11-04T23:59:00+09:00",
-      "type": "report",
+      "id": "t-ds-hw",
+      "title": "자료구조 연결리스트 구현 과제",
+      "type": "coding",
+      "deadline": "2026-11-03T23:59:00+09:00",
+      "importance": 3,
       "subtasks": [
-        { "id": "st-1", "title": "요구사항 정리", "estimatedMinutes": 60, "done": true },
-        { "id": "st-2", "title": "ERD 작성", "estimatedMinutes": 120, "done": false },
-        { "id": "st-3", "title": "보고서 작성", "estimatedMinutes": 90, "done": false }
+        {
+          "id": "s-ds-1",
+          "title": "자료구조 설계",
+          "estimatedMinutes": 30,
+          "done": true
+        },
+        {
+          "id": "s-ds-2",
+          "title": "연결리스트 구현",
+          "estimatedMinutes": 120,
+          "done": false
+        },
+        {
+          "id": "s-ds-3",
+          "title": "테스트 및 제출",
+          "estimatedMinutes": 90,
+          "done": false
+        }
       ],
-      "estimatedMinutes": 270,
-      "actualMinutes": 0,
-      "progress": 0.2,
+      "baseEstimatedMinutes": 240,
+      "estimatedMinutes": 240,
+      "actualMinutes": 40,
+      "progress": 0.13,
       "status": "in_progress",
-      "createdAt": "2026-10-27T20:00:00+09:00"
+      "createdAt": "2026-10-28T20:00:00+09:00"
     },
     {
-      "id": "t-os-hw",
+      "id": "t-db-rep",
+      "title": "데이터베이스 ERD 설계 보고서",
+      "type": "report",
+      "deadline": "2026-11-04T23:59:00+09:00",
       "importance": 2,
-      "title": "운영체제 스케줄링 시뮬레이터 과제",
-      "deadline": "2026-11-06T23:59:00+09:00",
-      "type": "coding",
       "subtasks": [
-        { "id": "st-4", "title": "FCFS·SJF 구현", "estimatedMinutes": 120, "done": false },
-        { "id": "st-5", "title": "RR 구현 및 테스트", "estimatedMinutes": 120, "done": false },
-        { "id": "st-6", "title": "결과 정리", "estimatedMinutes": 60, "done": false }
+        {
+          "id": "s-db-1",
+          "title": "요구사항 정리",
+          "estimatedMinutes": 60,
+          "done": true
+        },
+        {
+          "id": "s-db-2",
+          "title": "ERD 작성",
+          "estimatedMinutes": 120,
+          "done": false
+        },
+        {
+          "id": "s-db-3",
+          "title": "보고서 작성",
+          "estimatedMinutes": 90,
+          "done": false
+        }
       ],
+      "baseEstimatedMinutes": 270,
+      "estimatedMinutes": 270,
+      "actualMinutes": 70,
+      "progress": 0.22,
+      "status": "in_progress",
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-lib",
+      "title": "도서관 책 반납",
+      "type": "etc",
+      "deadline": "2026-11-04T18:00:00+09:00",
+      "importance": 1,
+      "subtasks": [],
+      "baseEstimatedMinutes": 15,
+      "estimatedMinutes": 15,
+      "actualMinutes": 0,
+      "progress": 0,
+      "status": "todo",
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-eng-ppt",
+      "title": "대학영어 조별 발표 PPT",
+      "type": "presentation",
+      "deadline": "2026-11-05T15:00:00+09:00",
+      "importance": 2,
+      "subtasks": [
+        {
+          "id": "s-eng-1",
+          "title": "자료 조사",
+          "estimatedMinutes": 45,
+          "done": false
+        },
+        {
+          "id": "s-eng-2",
+          "title": "슬라이드 제작",
+          "estimatedMinutes": 75,
+          "done": false
+        },
+        {
+          "id": "s-eng-3",
+          "title": "발표 연습",
+          "estimatedMinutes": 30,
+          "done": false
+        }
+      ],
+      "baseEstimatedMinutes": 150,
+      "estimatedMinutes": 150,
+      "actualMinutes": 0,
+      "progress": 0,
+      "status": "todo",
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-os-exam",
+      "title": "운영체제 중간고사 복습",
+      "type": "exam",
+      "deadline": "2026-11-06T10:30:00+09:00",
+      "importance": 3,
+      "subtasks": [
+        {
+          "id": "s-os-1",
+          "title": "스케줄링 정리",
+          "estimatedMinutes": 90,
+          "done": false
+        },
+        {
+          "id": "s-os-2",
+          "title": "동기화·교착상태 정리",
+          "estimatedMinutes": 120,
+          "done": false
+        },
+        {
+          "id": "s-os-3",
+          "title": "기출문제 풀이",
+          "estimatedMinutes": 90,
+          "done": false
+        }
+      ],
+      "baseEstimatedMinutes": 300,
       "estimatedMinutes": 300,
       "actualMinutes": 0,
       "progress": 0,
       "status": "todo",
-      "createdAt": "2026-10-29T18:00:00+09:00"
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-prob",
+      "title": "확률과통계 연습문제 풀이",
+      "type": "etc",
+      "deadline": "2026-11-06T23:59:00+09:00",
+      "importance": 2,
+      "subtasks": [],
+      "baseEstimatedMinutes": 120,
+      "estimatedMinutes": 120,
+      "actualMinutes": 0,
+      "progress": 0,
+      "status": "todo",
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-read",
+      "title": "인문학 독서 감상문",
+      "type": "reading",
+      "deadline": "2026-11-09T23:59:00+09:00",
+      "importance": 1,
+      "subtasks": [
+        {
+          "id": "s-read-1",
+          "title": "책 읽기",
+          "estimatedMinutes": 80,
+          "done": false
+        },
+        {
+          "id": "s-read-2",
+          "title": "감상문 작성",
+          "estimatedMinutes": 60,
+          "done": false
+        }
+      ],
+      "baseEstimatedMinutes": 140,
+      "estimatedMinutes": 140,
+      "actualMinutes": 0,
+      "progress": 0,
+      "status": "todo",
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-algo",
+      "title": "알고리즘 스터디 문제 풀이",
+      "type": "coding",
+      "deadline": "2026-11-10T23:59:00+09:00",
+      "importance": 2,
+      "subtasks": [],
+      "baseEstimatedMinutes": 180,
+      "estimatedMinutes": 180,
+      "actualMinutes": 0,
+      "progress": 0,
+      "status": "todo",
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-cover",
+      "title": "자기소개서 초안 작성",
+      "type": "report",
+      "deadline": "2026-11-12T23:59:00+09:00",
+      "importance": 2,
+      "subtasks": [
+        {
+          "id": "s-cover-1",
+          "title": "문항 분석",
+          "estimatedMinutes": 30,
+          "done": false
+        },
+        {
+          "id": "s-cover-2",
+          "title": "초안 작성",
+          "estimatedMinutes": 90,
+          "done": false
+        }
+      ],
+      "baseEstimatedMinutes": 120,
+      "estimatedMinutes": 120,
+      "actualMinutes": 0,
+      "progress": 0,
+      "status": "todo",
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-cap",
+      "title": "캡스톤 중간 보고서",
+      "type": "report",
+      "deadline": "2026-11-13T23:59:00+09:00",
+      "importance": 3,
+      "subtasks": [
+        {
+          "id": "s-cap-1",
+          "title": "자료 조사",
+          "estimatedMinutes": 120,
+          "done": false
+        },
+        {
+          "id": "s-cap-2",
+          "title": "목차 구성과 초안 작성",
+          "estimatedMinutes": 180,
+          "done": false
+        },
+        {
+          "id": "s-cap-3",
+          "title": "그림·표 정리",
+          "estimatedMinutes": 90,
+          "done": false
+        },
+        {
+          "id": "s-cap-4",
+          "title": "검토 및 제출",
+          "estimatedMinutes": 90,
+          "done": false
+        }
+      ],
+      "baseEstimatedMinutes": 480,
+      "estimatedMinutes": 480,
+      "actualMinutes": 0,
+      "progress": 0,
+      "status": "todo",
+      "createdAt": "2026-10-28T20:00:00+09:00"
+    },
+    {
+      "id": "t-done-essay",
+      "title": "영어 에세이 작성",
+      "type": "report",
+      "deadline": "2026-10-30T23:59:00+09:00",
+      "importance": 2,
+      "subtasks": [
+        {
+          "id": "s-es-1",
+          "title": "구성 잡기",
+          "estimatedMinutes": 40,
+          "done": true
+        },
+        {
+          "id": "s-es-2",
+          "title": "본문 작성",
+          "estimatedMinutes": 110,
+          "done": true
+        },
+        {
+          "id": "s-es-3",
+          "title": "퇴고",
+          "estimatedMinutes": 30,
+          "done": true
+        }
+      ],
+      "baseEstimatedMinutes": 180,
+      "estimatedMinutes": 180,
+      "actualMinutes": 210,
+      "progress": 1,
+      "status": "done",
+      "createdAt": "2026-10-25T21:00:00+09:00"
+    },
+    {
+      "id": "t-done-lab",
+      "title": "운영체제 실습 보고서",
+      "type": "report",
+      "deadline": "2026-10-29T23:59:00+09:00",
+      "importance": 2,
+      "subtasks": [
+        {
+          "id": "s-lab-1",
+          "title": "실습 진행",
+          "estimatedMinutes": 60,
+          "done": true
+        },
+        {
+          "id": "s-lab-2",
+          "title": "결과 정리",
+          "estimatedMinutes": 60,
+          "done": true
+        }
+      ],
+      "baseEstimatedMinutes": 120,
+      "estimatedMinutes": 120,
+      "actualMinutes": 105,
+      "progress": 1,
+      "status": "done",
+      "createdAt": "2026-10-24T21:00:00+09:00"
     }
   ],
-  "scheduledBlocks": [],
+  "scheduledBlocks": [
+    {
+      "id": "sb-t-done-essay-2026-10-28-1500",
+      "taskId": "t-done-essay",
+      "subtaskId": "s-es-1",
+      "date": "2026-10-28",
+      "start": "15:00",
+      "end": "15:30",
+      "status": "done"
+    },
+    {
+      "id": "sb-t-db-rep-2026-10-29-0830",
+      "taskId": "t-db-rep",
+      "subtaskId": "s-db-1",
+      "date": "2026-10-29",
+      "start": "08:30",
+      "end": "09:30",
+      "status": "done"
+    },
+    {
+      "id": "sb-t-done-lab-2026-10-29-1300",
+      "taskId": "t-done-lab",
+      "subtaskId": "s-lab-1",
+      "date": "2026-10-29",
+      "start": "13:00",
+      "end": "14:00",
+      "status": "done"
+    },
+    {
+      "id": "sb-t-done-lab-2026-10-29-1700",
+      "taskId": "t-done-lab",
+      "subtaskId": "s-lab-2",
+      "date": "2026-10-29",
+      "start": "17:00",
+      "end": "17:45",
+      "status": "done"
+    },
+    {
+      "id": "sb-t-done-essay-2026-10-30-1400",
+      "taskId": "t-done-essay",
+      "subtaskId": "s-es-2",
+      "date": "2026-10-30",
+      "start": "14:00",
+      "end": "15:30",
+      "status": "done"
+    },
+    {
+      "id": "sb-t-done-essay-2026-10-30-1540",
+      "taskId": "t-done-essay",
+      "subtaskId": "s-es-3",
+      "date": "2026-10-30",
+      "start": "15:40",
+      "end": "17:10",
+      "status": "done"
+    },
+    {
+      "id": "sb-t-ds-hw-2026-10-30-1800",
+      "taskId": "t-ds-hw",
+      "subtaskId": "s-ds-1",
+      "date": "2026-10-30",
+      "start": "18:00",
+      "end": "18:30",
+      "status": "done"
+    },
+    {
+      "id": "sb-t-ds-hw-2026-10-31-0810",
+      "taskId": "t-ds-hw",
+      "subtaskId": "s-ds-2",
+      "date": "2026-10-31",
+      "start": "08:10",
+      "end": "09:40",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-ds-hw-2026-10-31-0950",
+      "taskId": "t-ds-hw",
+      "subtaskId": "s-ds-2",
+      "date": "2026-10-31",
+      "start": "09:50",
+      "end": "10:20",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-ds-hw-2026-10-31-1030",
+      "taskId": "t-ds-hw",
+      "subtaskId": "s-ds-3",
+      "date": "2026-10-31",
+      "start": "10:30",
+      "end": "11:00",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-lib-2026-10-31-1110",
+      "taskId": "t-lib",
+      "date": "2026-10-31",
+      "start": "11:10",
+      "end": "11:25",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-db-rep-2026-10-31-1135",
+      "taskId": "t-db-rep",
+      "subtaskId": "s-db-2",
+      "date": "2026-10-31",
+      "start": "11:35",
+      "end": "13:05",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-db-rep-2026-10-31-1315",
+      "taskId": "t-db-rep",
+      "subtaskId": "s-db-2",
+      "date": "2026-10-31",
+      "start": "13:15",
+      "end": "13:45",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-db-rep-2026-10-31-1355",
+      "taskId": "t-db-rep",
+      "subtaskId": "s-db-3",
+      "date": "2026-10-31",
+      "start": "13:55",
+      "end": "14:10",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-ds-hw-2026-11-01-0810",
+      "taskId": "t-ds-hw",
+      "subtaskId": "s-ds-3",
+      "date": "2026-11-01",
+      "start": "08:10",
+      "end": "09:10",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-db-rep-2026-11-01-0920",
+      "taskId": "t-db-rep",
+      "subtaskId": "s-db-3",
+      "date": "2026-11-01",
+      "start": "09:20",
+      "end": "10:35",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-eng-ppt-2026-11-01-1045",
+      "taskId": "t-eng-ppt",
+      "subtaskId": "s-eng-1",
+      "date": "2026-11-01",
+      "start": "10:45",
+      "end": "11:30",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-eng-ppt-2026-11-01-1140",
+      "taskId": "t-eng-ppt",
+      "subtaskId": "s-eng-2",
+      "date": "2026-11-01",
+      "start": "11:40",
+      "end": "12:55",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-eng-ppt-2026-11-01-1305",
+      "taskId": "t-eng-ppt",
+      "subtaskId": "s-eng-3",
+      "date": "2026-11-01",
+      "start": "13:05",
+      "end": "13:35",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-os-exam-2026-11-01-1345",
+      "taskId": "t-os-exam",
+      "subtaskId": "s-os-1",
+      "date": "2026-11-01",
+      "start": "13:45",
+      "end": "14:00",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-os-exam-2026-11-02-0810",
+      "taskId": "t-os-exam",
+      "subtaskId": "s-os-1",
+      "date": "2026-11-02",
+      "start": "08:10",
+      "end": "08:50",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-os-exam-2026-11-02-1040",
+      "taskId": "t-os-exam",
+      "subtaskId": "s-os-1",
+      "date": "2026-11-02",
+      "start": "10:40",
+      "end": "11:15",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-os-exam-2026-11-02-1125",
+      "taskId": "t-os-exam",
+      "subtaskId": "s-os-2",
+      "date": "2026-11-02",
+      "start": "11:25",
+      "end": "12:40",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-prob-2026-11-02-1640",
+      "taskId": "t-prob",
+      "date": "2026-11-02",
+      "start": "16:40",
+      "end": "17:50",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-prob-2026-11-02-1940",
+      "taskId": "t-prob",
+      "date": "2026-11-02",
+      "start": "19:40",
+      "end": "20:30",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-read-2026-11-02-2040",
+      "taskId": "t-read",
+      "subtaskId": "s-read-1",
+      "date": "2026-11-02",
+      "start": "20:40",
+      "end": "21:10",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-os-exam-2026-11-03-0810",
+      "taskId": "t-os-exam",
+      "subtaskId": "s-os-2",
+      "date": "2026-11-03",
+      "start": "08:10",
+      "end": "08:55",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-os-exam-2026-11-03-0905",
+      "taskId": "t-os-exam",
+      "subtaskId": "s-os-3",
+      "date": "2026-11-03",
+      "start": "09:05",
+      "end": "10:05",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-os-exam-2026-11-03-1210",
+      "taskId": "t-os-exam",
+      "subtaskId": "s-os-3",
+      "date": "2026-11-03",
+      "start": "12:10",
+      "end": "12:40",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-read-2026-11-03-1250",
+      "taskId": "t-read",
+      "subtaskId": "s-read-1",
+      "date": "2026-11-03",
+      "start": "12:50",
+      "end": "13:40",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-read-2026-11-03-1350",
+      "taskId": "t-read",
+      "subtaskId": "s-read-2",
+      "date": "2026-11-03",
+      "start": "13:50",
+      "end": "14:50",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-algo-2026-11-03-1640",
+      "taskId": "t-algo",
+      "date": "2026-11-03",
+      "start": "16:40",
+      "end": "17:35",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-algo-2026-11-04-0810",
+      "taskId": "t-algo",
+      "date": "2026-11-04",
+      "start": "08:10",
+      "end": "08:50",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-algo-2026-11-04-1040",
+      "taskId": "t-algo",
+      "date": "2026-11-04",
+      "start": "10:40",
+      "end": "12:05",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cover-2026-11-04-1215",
+      "taskId": "t-cover",
+      "subtaskId": "s-cover-1",
+      "date": "2026-11-04",
+      "start": "12:15",
+      "end": "12:45",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cover-2026-11-04-1440",
+      "taskId": "t-cover",
+      "subtaskId": "s-cover-2",
+      "date": "2026-11-04",
+      "start": "14:40",
+      "end": "16:10",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-04-2010",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-1",
+      "date": "2026-11-04",
+      "start": "20:10",
+      "end": "21:05",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-05-0810",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-1",
+      "date": "2026-11-05",
+      "start": "08:10",
+      "end": "09:15",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-05-0925",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-2",
+      "date": "2026-11-05",
+      "start": "09:25",
+      "end": "10:20",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-05-1210",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-2",
+      "date": "2026-11-05",
+      "start": "12:10",
+      "end": "12:40",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-06-0810",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-2",
+      "date": "2026-11-06",
+      "start": "08:10",
+      "end": "09:15",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-06-1310",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-2",
+      "date": "2026-11-06",
+      "start": "13:10",
+      "end": "13:40",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-06-1350",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-3",
+      "date": "2026-11-06",
+      "start": "13:50",
+      "end": "14:45",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-07-0810",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-3",
+      "date": "2026-11-07",
+      "start": "08:10",
+      "end": "08:45",
+      "status": "planned"
+    },
+    {
+      "id": "sb-t-cap-2026-11-07-0855",
+      "taskId": "t-cap",
+      "subtaskId": "s-cap-4",
+      "date": "2026-11-07",
+      "start": "08:55",
+      "end": "10:25",
+      "status": "planned"
+    }
+  ],
   "voiceCommands": [],
   "schedulerRequests": [],
   "history": [
-    { "id": "h1", "taskTitle": "자료구조 연결리스트 과제", "type": "coding", "estimatedMinutes": 180, "actualMinutes": 230, "completedAt": "2026-09-20T22:00:00+09:00" },
-    { "id": "h2", "taskTitle": "자료구조 스택/큐 과제", "type": "coding", "estimatedMinutes": 150, "actualMinutes": 175, "completedAt": "2026-10-05T23:10:00+09:00" },
-    { "id": "h3", "taskTitle": "대학영어 에세이", "type": "report", "estimatedMinutes": 120, "actualMinutes": 190, "completedAt": "2026-09-28T01:30:00+09:00" },
-    { "id": "h4", "taskTitle": "데이터베이스 정규화 리포트", "type": "report", "estimatedMinutes": 150, "actualMinutes": 200, "completedAt": "2026-10-12T21:40:00+09:00" },
-    { "id": "h5", "taskTitle": "확률과통계 중간고사 준비", "type": "exam", "estimatedMinutes": 480, "actualMinutes": 540, "completedAt": "2026-10-20T23:00:00+09:00" },
-    { "id": "h6", "taskTitle": "운영체제 발표 자료", "type": "presentation", "estimatedMinutes": 120, "actualMinutes": 110, "completedAt": "2026-10-15T20:00:00+09:00" }
-  ]
+    {
+      "id": "h1",
+      "taskTitle": "자료구조 연결리스트 과제",
+      "type": "coding",
+      "estimatedMinutes": 180,
+      "actualMinutes": 230,
+      "completedAt": "2026-09-20T22:00:00+09:00"
+    },
+    {
+      "id": "h2",
+      "taskTitle": "자료구조 스택/큐 과제",
+      "type": "coding",
+      "estimatedMinutes": 150,
+      "actualMinutes": 175,
+      "completedAt": "2026-10-05T23:10:00+09:00"
+    },
+    {
+      "id": "h3",
+      "taskTitle": "대학영어 에세이",
+      "type": "report",
+      "estimatedMinutes": 120,
+      "actualMinutes": 190,
+      "completedAt": "2026-09-28T01:30:00+09:00"
+    },
+    {
+      "id": "h4",
+      "taskTitle": "데이터베이스 정규화 리포트",
+      "type": "report",
+      "estimatedMinutes": 150,
+      "actualMinutes": 200,
+      "completedAt": "2026-10-12T21:40:00+09:00"
+    },
+    {
+      "id": "h5",
+      "taskTitle": "확률과통계 중간고사 준비",
+      "type": "exam",
+      "estimatedMinutes": 480,
+      "actualMinutes": 540,
+      "completedAt": "2026-10-20T23:00:00+09:00"
+    },
+    {
+      "id": "h6",
+      "taskTitle": "운영체제 발표 자료",
+      "type": "presentation",
+      "estimatedMinutes": 120,
+      "actualMinutes": 110,
+      "completedAt": "2026-10-15T20:00:00+09:00"
+    },
+    {
+      "id": "history-t-done-essay",
+      "taskId": "t-done-essay",
+      "taskTitle": "영어 에세이 작성",
+      "type": "report",
+      "estimatedMinutes": 180,
+      "actualMinutes": 210,
+      "completedAt": "2026-10-30T17:10:00+09:00"
+    },
+    {
+      "id": "history-t-done-lab",
+      "taskId": "t-done-lab",
+      "taskTitle": "운영체제 실습 보고서",
+      "type": "report",
+      "estimatedMinutes": 120,
+      "actualMinutes": 105,
+      "completedAt": "2026-10-29T17:45:00+09:00"
+    }
+  ],
+  "deletedCalendarItems": []
 }
