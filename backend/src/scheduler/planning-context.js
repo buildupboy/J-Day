@@ -44,6 +44,7 @@ export function rankTasks(tasks, { existingBlocks = [], now } = {}) {
       progress: task.progress, estimatedMinutes: task.estimatedMinutes,
       ...(task.notBefore === undefined ? {} : { notBefore: task.notBefore }),
       ...(task.reviewOf === undefined ? {} : { reviewOf: task.reviewOf }),
+      ...(task.skipInnerBreak ? { skipInnerBreak: true } : {}),
       remainingMinutes: units.reduce((sum, unit) => sum + unit.remaining, 0),
       subtasks: units.map(unit => ({ ...(unit.subtaskId === undefined ? {} : { subtaskId: unit.subtaskId }),
         title: task.subtasks?.find(subtask => subtask.id === unit.subtaskId)?.title ?? task.title,

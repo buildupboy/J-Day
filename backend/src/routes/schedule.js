@@ -10,6 +10,7 @@ import { day, instant, occursOn } from '../scheduler/time.js';
 import { fail, explainRequested } from '../services/validation.js';
 import { updateFixedBlock } from '../services/fixed-edit.js';
 import { postponeBlocks } from '../services/postpone.js';
+import { findShortMergeGroups, mergeQuestion, applyShortMerge, declineShortMerge } from '../scheduler/short-merge.js';
 
 const reasons = new Set(['new_task','missed','progress','manual']);
 export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpdate, now = () => new Date(), planner = reschedule } = {}) {
@@ -61,6 +62,24 @@ export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpd
     try {
       let result;
       await updateDb(async db => { result = postponeBlocks(db, req.body, { now: now() }); return db; });
+      res.json(result);
+    } catch (err) { next(err); }
+  });
+  // 30분 미만 짧은 블록이 이어져 있을 때의 묶기 제안·수락·거절
+  router.get('/merge-suggestions', async (req, res, next) => {
+    try { res.json({ groups: findShortMergeGroups(await readDb(), { now: now() }).map(group => ({ ...group, question: mergeQuestion(group) })) }); } catch (err) { next(err); }
+  });
+  router.post('/merge-short', async (req, res, next) => {
+    try {
+      let result;
+      await updateDb(async db => { result = applyShortMerge(db, req.body?.blockIds, { now: now() }); return db; });
+      res.json(result);
+    } catch (err) { next(err); }
+  });
+  router.post('/merge-short/decline', async (req, res, next) => {
+    try {
+      let result;
+      await updateDb(async db => { result = declineShortMerge(db, req.body?.id); return db; });
       res.json(result);
     } catch (err) { next(err); }
   });

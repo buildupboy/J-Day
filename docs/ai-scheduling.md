@@ -187,3 +187,15 @@ node --test
 ~~~
 
 모델·실제 DB 대신 임시 DB와 모델 응답 대역을 사용한다. UI 화면은 이 작업의 검증 범위에 포함하지 않는다.
+
+## 짧은 작업 묶기 (30분 미만)
+
+배치가 끝난 직후, 남은 작업 전체가 30분 미만 블록 하나에 들어 있는 서로 다른 작업이 쉬는 시간만 두고 나란히 놓이면 제이가 "이어서 하시겠어요?"라고 묻는다. 후보 탐색은 `backend/src/scheduler/short-merge.js`의 순수 함수 `findShortMergeGroups`가 하며, 진행 중이거나 완료 기록이 있는 작업, 블록이 여러 개로 나뉜 작업, 지난 블록, 거절한 묶음은 제외한다.
+
+| API | 설명 |
+|---|---|
+| GET /api/schedule/merge-suggestions | 현재 묶기 후보 `{ groups: [{ id, date, blockIds, titles, minutes, totalMinutes }] }` |
+| POST /api/schedule/merge-short `{ blockIds }` | 수락. 작업들을 `기타 작업`(type=etc, 마감=가장 이른 마감, 중요도=가장 높은 값) 하나의 하위작업으로 옮기고 블록을 쉬는 시간 없이 이어 붙인다. 원래 작업은 제거된다 |
+| POST /api/schedule/merge-short/decline `{ id }` | 거절. 같은 묶음은 다시 묻지 않는다 (`shortMergeDeclined`) |
+
+묶인 작업에는 `skipInnerBreak: true`가 붙고, 이후 AI 재배치와 검증은 이 작업의 하위작업 블록 사이에 휴식을 요구하지 않는다. 마지막 블록 뒤와 다른 작업 사이에는 기존 휴식 규칙이 적용된다. 프론트는 앱 전체에서 `schedule-changed` 이벤트·재배치 종료·화면 복귀 시 후보를 조회해 어느 화면에서든 팝업(`ShortMergePrompt`)으로 묻는다. "나중에"는 이번 접속에서만 숨긴다.

@@ -65,7 +65,9 @@ export function acceptAiPlan(db, input, { now }) {
       }
       const gap = Math.max(minute(other.start) - end, start - minute(other.end));
       const earlier = start >= minute(other.end) ? other : block;
-      const rest = db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? context.settings.breakMinutes;
+      const earlierTask = db.tasks.find(task => task.id === earlier.taskId);
+      // 짧은 작업을 묶은 작업은 하위작업 블록 사이에 쉬는 시간을 두지 않는다. 마지막 블록 뒤에는 그대로 적용한다.
+      const rest = earlier.taskId === block.taskId && earlierTask?.skipInnerBreak ? 0 : earlierTask?.breakAfterMinutes ?? context.settings.breakMinutes;
       if (gap < rest) fail('다른 블록과 겹치거나 휴식 시간이 부족합니다.');
       if (start < minute(other.end) && minute(other.start) < end) fail('다른 블록과 겹칩니다.');
     }
@@ -79,13 +81,15 @@ export function acceptAiPlan(db, input, { now }) {
   }
   for (const task of context.rankedTasks) {
     let precedingEnd = -Infinity, precedingIncomplete = false;
+    // 짧은 작업을 묶은 작업은 하위작업 사이에 쉬는 시간을 요구하지 않는다.
+    const successorGap = (task.skipInnerBreak ? 0 : context.settings.breakMinutes) * 60000;
     for (const unit of task.subtasks) {
       const blocks = normalized.filter(block => block.taskId === task.taskId && block.subtaskId === unit.subtaskId);
       if (unit.subtaskId !== undefined && blocks.length && (precedingIncomplete || blocks.some(block => instant(block, 'start') < precedingEnd))) fail('하위작업 순서 또는 선행 작업 완료 조건을 위반했습니다.');
       const placed = allocatedUnits.get(JSON.stringify([task.taskId, unit.subtaskId ?? null])) ?? 0;
       if (unit.subtaskId !== undefined) {
         if (unit.remainingMinutes > placed) precedingIncomplete = true;
-        precedingEnd = Math.max(precedingEnd, ...blocks.map(block => instant(block, 'end') + context.settings.breakMinutes * 60000), unit.reservedUntil ? datetime(unit.reservedUntil) + context.settings.breakMinutes * 60000 : -Infinity);
+        precedingEnd = Math.max(precedingEnd, ...blocks.map(block => instant(block, 'end') + successorGap), unit.reservedUntil ? datetime(unit.reservedUntil) + successorGap : -Infinity);
       }
     }
   }
