@@ -3,7 +3,7 @@ import { api } from '../../api/client.js';
 import { mockInterpret } from '../../data/mockInterpret.js';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis.js';
-import { MicIcon, SparkIcon, ArrowRightIcon } from '../common/Icons.jsx';
+import { MicIcon, SparkIcon, ArrowRightIcon, KeyboardIcon } from '../common/Icons.jsx';
 import TaskProposalCard from './TaskProposalCard.jsx';
 import jayImage from '../../assets/jay.webp';
 
@@ -20,6 +20,7 @@ export default function VoiceScreen({ onClose }) {
   const [messages, setMessages] = useState([]);
   const [thinking, setThinking] = useState(false);
   const [text, setText] = useState('');
+  const [typing, setTyping] = useState(false); // 키보드 버튼으로 넘어온 경우 입력창에 바로 포커스
   const threadRef = useRef(null);
   const { speak, cancel } = useSpeechSynthesis();
 
@@ -53,6 +54,14 @@ export default function VoiceScreen({ onClose }) {
   }, [messages, thinking]);
 
   useEffect(() => cancel, [cancel]);
+
+  // 마이크 탭을 누르면 바로 듣기 시작한다. setTimeout은 StrictMode의 이중 실행 방지용
+  useEffect(() => {
+    if (!supported) return undefined;
+    const t = setTimeout(start, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supported]);
 
   const updateMessage = (id, patch) =>
     setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
@@ -103,14 +112,25 @@ export default function VoiceScreen({ onClose }) {
               <i key={i} style={{ animationDelay: `${(i % 9) * 0.09}s` }} />
             ))}
           </div>
-          <button type="button" className="big-mic is-listening" onClick={stop} aria-label="듣기 중지">
-            <MicIcon size={30} />
-          </button>
+          <div className="mic-row">
+            <button
+              type="button"
+              className="keyboard-button"
+              onClick={() => {
+                setTyping(true);
+                stop();
+              }}
+              aria-label="키보드로 입력"
+            >
+              <KeyboardIcon size={26} />
+            </button>
+            <button type="button" className="big-mic is-listening" onClick={stop} aria-label="듣기 중지">
+              <MicIcon size={30} />
+            </button>
+            <span />
+          </div>
           <p className="example-title">이렇게 말해 보세요</p>
           <p className="example-line">{EXAMPLES.map((e) => `"${e}"`).join(' · ')}</p>
-          <button type="button" className="to-keyboard" onClick={stop}>
-            키보드로 입력할래요
-          </button>
         </div>
       </div>
     );
@@ -185,6 +205,7 @@ export default function VoiceScreen({ onClose }) {
         {!supported && <p className="dock-error">이 브라우저는 음성 인식을 지원하지 않아요. 직접 입력해 주세요.</p>}
         <form className="dock-form" onSubmit={submitText}>
           <input
+            autoFocus={typing}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="제이에게 메시지 보내기"

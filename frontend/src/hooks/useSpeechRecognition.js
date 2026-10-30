@@ -55,8 +55,12 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
   const start = useCallback(() => {
     if (!recognitionRef.current) return;
     setError(null);
-    recognitionRef.current.start();
-    setListening(true);
+    try {
+      recognitionRef.current.start();
+      setListening(true);
+    } catch {
+      // 이미 듣는 중이면 InvalidStateError가 나므로 무시한다
+    }
   }, []);
 
   const stop = useCallback(() => {

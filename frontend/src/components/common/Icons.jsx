@@ -128,3 +128,10 @@ export const PlusCircleIcon = (p) => (
     <path d="M12 8v8M8 12h8" />
   </Svg>
 );
+
+export const KeyboardIcon = (p) => (
+  <Svg {...p}>
+    <rect x="3" y="6" width="18" height="12" rx="2" />
+    <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h10" />
+  </Svg>
+);
