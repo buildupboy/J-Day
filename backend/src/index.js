@@ -11,7 +11,8 @@ import timetableRouter from './routes/timetable.js';
 import analyticsRouter from './routes/analytics.js';
 import { createUserSettingsRouter } from './routes/user-settings.js';
 import { createPushRouter } from './routes/push.js';
-import { initStore } from './store/index.js';
+import { initStore, readDb, updateDb } from './store/index.js';
+import { createBackgroundScheduler } from './services/background-scheduler.js';
 import { createMissedMonitor } from './scheduler/missed-monitor.js';
 import { reportProgress } from './services/task-service.js';
 
@@ -26,11 +27,14 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, service: 'j-day-backend', time: new Date().toISOString() });
 });
 
-app.use('/api/tasks', createTasksRouter({ planner: planSchedule }));
+// 저장 후 뒤에서 일정을 배치하는 담당. 작업 추가와 채팅 등록이 하나를 공유해 동시에 두 번 돌지 않게 한다.
+const background = createBackgroundScheduler({ readDb, updateDb, scheduler: planSchedule });
+
+app.use('/api/tasks', createTasksRouter({ planner: planSchedule, background }));
 app.use('/api/schedule', createScheduleRouter({ planner: planSchedule }));
 app.use('/api/fixed-blocks', createFixedBlocksRouter({ planner: planSchedule }));
 // 실제 배치는 AI, 우선순위/잔량 계산과 결과 검증만 코드에서 담당한다.
-app.use('/api/chat', createChatRouter({ scheduler: planSchedule,
+app.use('/api/chat', createChatRouter({ scheduler: planSchedule, backgroundScheduler: background,
   progressReporter: (db, id, input, options) => reportProgress(db, id, input, { ...options, planner: planSchedule }) }));
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/user', createUserSettingsRouter({ scheduler: planSchedule }));

@@ -15,12 +15,12 @@ export function computeCorrectionFactors(history) {
   return Object.fromEntries([...totals].map(([type, total]) => [type, total.actual / total.estimated]));
 }
 
-/** 원본 추정시간에 한 번만 적용한다. 1분 단위 올림으로 작업량 손실을 피한다. */
+/** 원본 추정시간에 한 번만 적용한다. 보정이 있으면 5분 단위로 올림해 작업량 손실을 피한다. */
 export function applyCorrection(baseMinutes, type, factors) {
   if (!Number.isInteger(baseMinutes) || baseMinutes < 0 || !types.has(type)) throw new RangeError('기본 시간과 과제 유형을 확인하세요.');
   const factor = Object.hasOwn(factors, type) ? factors[type] : 1;
   if (!Number.isFinite(factor) || factor <= 0) throw new RangeError('보정 계수는 양수여야 합니다.');
-  const result = Math.ceil(baseMinutes * factor);
+  const result = factor === 1 ? baseMinutes : Math.ceil(baseMinutes * factor / 5) * 5;
   if (!Number.isSafeInteger(result)) throw new RangeError('보정 시간이 너무 큽니다.');
   return result;
 }

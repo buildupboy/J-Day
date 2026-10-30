@@ -4,6 +4,7 @@ import { createExamReviewTasks } from '../scheduler/reviews.js';
 import { reschedule, diffScheduledBlocks } from '../scheduler/rescheduler.js';
 import { explainSchedule } from '../scheduler/explanations.js';
 import { instant } from '../scheduler/time.js';
+import { enqueueSchedule } from './scheduler-gateway.js';
 import { fail, object, integer, text, iso, memo } from './validation.js';
 import { continueTask } from './continue-task.js';
 import { syncGroupedTask } from './grouped-task.js';
@@ -45,7 +46,7 @@ function addReviews(db, task, options) {
 }
 
 /** 구조화된 LLM/UI 입력을 검증하여 저장 가능한 Task와 배치 결과를 만든다. */
-export async function registerTask(db, input, { now, explain = false, planner = reschedule }) {
+export async function registerTask(db, input, { now, explain = false, planner = reschedule, deferScheduling = false }) {
   object(input);
   const title = text(input.title, 'title');
   if (!types.has(input.type)) fail('지원하지 않는 과제 유형입니다.');
@@ -81,6 +82,11 @@ export async function registerTask(db, input, { now, explain = false, planner = 
   const reviewTasks = input.review === undefined || input.review === false ? [] : addReviews(db, task, input.review);
   // reschedule:false면 저장만 하고 배치는 호출자가 POST /api/schedule/reschedule로 나중에 요청한다.
   if (input.reschedule === false) return { task, reviewTasks, rescheduled: false, deferred: true, scheduledBlocks: db.scheduledBlocks ?? [], changes: [], unplaced: [] };
+  // 배치(AI 호출)는 오래 걸리므로 저장만 하고 요청을 대기열에 넣는다. 호출자가 뒤에서 배치를 시작한다.
+  if (deferScheduling) {
+    enqueueSchedule(db, { commandId: id, taskId: id, reason: 'new_task', now });
+    return { task, reviewTasks, rescheduled: false, deferred: true, schedulingInBackground: true, scheduledBlocks: db.scheduledBlocks ?? [], changes: [], unplaced: [] };
+  }
   const result = await schedule(db, now, 'new_task', undefined, explain, planner);
   return { task, reviewTasks, ...result };
 }

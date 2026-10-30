@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우선순위 점수 수식</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<style>
+  body { margin: 0; padding: 32px 16px; background: #fff; color: #111; font-family: "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; }
+  .eq { font-size: 1.6rem; padding: 24px 0; overflow-x: auto; text-align: center; }
+  h2 { font-size: 1rem; color: #555; margin: 28px 0 8px; }
+  pre { background: #f4f5f8; padding: 14px 16px; border-radius: 10px; overflow-x: auto; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
+  p.note { color: #555; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <div class="eq" id="main"></div>
+  <div class="eq" id="parts"></div>
+  <p class="note">마감이 지난 작업은 \(S=100\)으로 고정합니다. (아래 LaTeX 원문을 복사해 쓰세요)</p>
+
+  <h2>LaTeX 원문 — 전체 식</h2>
+  <pre id="src-main"></pre>
+  <h2>LaTeX 원문 — 항목별 식</h2>
+  <pre id="src-parts"></pre>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+  const main = String.raw`S = 100 \times \left( 0.4\,U + 0.2\,P + 0.3\,I + 0.1\,K \right)`;
+  const parts = String.raw`\begin{aligned}
+U &= \frac{1}{1 + d} \\[6pt]
+P &= \min\!\left( 1,\ \frac{m}{480\,d} \right) \\[6pt]
+I &= \frac{\text{importance}}{3} \\[6pt]
+K &= \frac{60}{60 + m}
+\end{aligned}
+\qquad
+\begin{aligned}
+&d:\ \text{마감까지 남은 일수 (남은 시간}\,/\,24\text{h)} \\
+&m:\ \text{남은 작업시간 (분)} \\
+&\text{importance}\in\{1,2,3\}
+\end{aligned}`;
+  katex.render(main, document.getElementById('main'), { displayMode: true, throwOnError: false });
+  katex.render(parts, document.getElementById('parts'), { displayMode: true, throwOnError: false });
+  document.getElementById('src-main').textContent = main;
+  document.getElementById('src-parts').textContent = parts;
+</script>
+</body>
+</html>

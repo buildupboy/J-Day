@@ -70,8 +70,8 @@ GET /api/schedule/context는 최근 준비한 planningContext, schedulingStatus,
 |---|---|
 | contextId | 요청 식별자. 결과 적용 시 그대로 전달 |
 | sourceRevision | 작업·설정·고정 일정·저장된 블록의 스냅샷 |
-| rankedTasks | 미완료 작업과 하위작업별 남은 분량, priorityRank |
-| priorityPolicy | 마감 빠른 순 → 중요도 높은 순 → 남은 시간 짧은 순 → 입력 순서 |
+| rankedTasks | 미완료 작업과 하위작업별 남은 분량, priorityScore(0~100), priorityRank |
+| priorityPolicy | priorityScore 높은 순 → (동점) 마감 빠른 순 → 중요도 높은 순 → 남은 시간 짧은 순 → 입력 순서 |
 | priorityIsAdvisory | true. AI의 참고 순서이며 해당 순서로 시각을 강제하지 않음 |
 | recommendedSlotMinutes | 기존 minSlotMinutes를 AI의 권장 작업 단위로 전달. 결과 검증의 최소 블록 길이로 강제하지 않음 |
 | fixedBlocks | 요일별 반복 고정 일정. AI가 수정할 수 없음 |
@@ -84,6 +84,8 @@ GET /api/schedule/context는 최근 준비한 planningContext, schedulingStatus,
 | days[].requiredBufferMinutes | 확보 가능한 빈 시간 범위에서 유지할 여유 시간 |
 | settings | 하루 시간 범위, 최대 블록, 휴식, 하루 한도, 여유 시간 등 |
 | planningInstructions | 빈 시간을 전부 채우지 말고 식사·개인 시간·선호를 고려하라는 안내 |
+
+priorityScore는 `backend/src/scheduler/weight.js`의 `schedulingWeight`로 계산한다. 마감 임박도 0.4 + 작업량 압박(남은 분 ÷ 마감까지 쓸 수 있는 시간, 하루 480분 가정) 0.2 + 중요도 0.3 + 짧은 작업 0.1 가중합이며, 마감이 지난 작업은 100이다. 마감이 하루 늦더라도 훨씬 중요하거나 작업량이 큰 작업이 앞설 수 있다.
 
 rankedTasks의 remainingMinutes는 보정된 작업량, progress, Subtask.done, 진행 중인 보존 예약의 현재 이후 분량을 반영한다. 교체할 미래 planned는 남은 작업량에서 빼지 않는다. 하위작업별 reservedUntil은 이미 예약된 선행 작업의 종료 시각이며 예약이 없으면 null이다.
 
@@ -185,3 +187,15 @@ node --test
 ~~~
 
 모델·실제 DB 대신 임시 DB와 모델 응답 대역을 사용한다. UI 화면은 이 작업의 검증 범위에 포함하지 않는다.
+
+## 짧은 작업 묶기 (30분 미만)
+
+배치가 끝난 직후, 남은 작업 전체가 30분 미만 블록 하나에 들어 있는 서로 다른 작업이 쉬는 시간만 두고 나란히 놓이면 제이가 "이어서 하시겠어요?"라고 묻는다. 후보 탐색은 `backend/src/scheduler/short-merge.js`의 순수 함수 `findShortMergeGroups`가 하며, 진행 중이거나 완료 기록이 있는 작업, 블록이 여러 개로 나뉜 작업, 지난 블록, 거절한 묶음은 제외한다.
+
+| API | 설명 |
+|---|---|
+| GET /api/schedule/merge-suggestions | 현재 묶기 후보 `{ groups: [{ id, date, blockIds, titles, minutes, totalMinutes }] }` |
+| POST /api/schedule/merge-short `{ blockIds }` | 수락. 작업들을 `기타 작업`(type=etc, 마감=가장 이른 마감, 중요도=가장 높은 값) 하나의 하위작업으로 옮기고 블록을 쉬는 시간 없이 이어 붙인다. 원래 작업은 제거된다 |
+| POST /api/schedule/merge-short/decline `{ id }` | 거절. 같은 묶음은 다시 묻지 않는다 (`shortMergeDeclined`) |
+
+묶인 작업에는 `skipInnerBreak: true`가 붙고, 이후 AI 재배치와 검증은 이 작업의 하위작업 블록 사이에 휴식을 요구하지 않는다. 마지막 블록 뒤와 다른 작업 사이에는 기존 휴식 규칙이 적용된다. 프론트는 앱 전체에서 `schedule-changed` 이벤트·재배치 종료·화면 복귀 시 후보를 조회해 어느 화면에서든 팝업(`ShortMergePrompt`)으로 묻는다. "나중에"는 이번 접속에서만 숨긴다.

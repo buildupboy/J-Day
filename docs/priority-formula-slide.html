@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우선순위 점수 슬라이드</title>
+<style>
+  :root {
+    --bg: #0f1530;
+    --panel: #19214a;
+    --ink: #f4f6ff;
+    --muted: #aab3d9;
+    --urgency: #ff922b;
+    --pressure: #9775fa;
+    --importance: #f06595;
+    --short: #22b8cf;
+    --accent: #748ffc;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #05081a; }
+  body { display: grid; place-items: center; }
+  /* 16:9 슬라이드. 창 크기에 맞춰 통째로 확대·축소된다. */
+  .slide {
+    container-type: inline-size;
+    width: min(100vw, 177.78vh);
+    aspect-ratio: 16 / 9;
+    background: radial-gradient(circle at 15% 10%, #1d2866 0%, var(--bg) 55%);
+    color: var(--ink);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    padding: 5cqw 6cqw;
+    display: flex; flex-direction: column;
+  }
+  .kicker { color: var(--accent); font-size: 1.5cqw; font-weight: 700; letter-spacing: 0.08em; }
+  h1 { margin: 0.6cqw 0 0; font-size: 3.6cqw; letter-spacing: -0.02em; }
+  .lead { margin: 0.8cqw 0 0; color: var(--muted); font-size: 1.7cqw; }
+
+  .formula {
+    margin: 3cqw 0 2.4cqw;
+    background: var(--panel); border-radius: 1.6cqw;
+    padding: 2.6cqw 2cqw;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: 1cqw 1.1cqw; font-size: 2.5cqw; font-weight: 700;
+  }
+  .formula .op { color: var(--muted); font-weight: 500; }
+  .formula .score { color: var(--accent); }
+  .chip { padding: 0.5cqw 1.2cqw; border-radius: 0.9cqw; color: #10142e; white-space: nowrap; font-size: 2.3cqw; }
+  .u { background: var(--urgency); }
+  .p { background: var(--pressure); }
+  .i { background: var(--importance); }
+  .s { background: var(--short); }
+
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.4cqw; }
+  .cell {
+    background: var(--panel); border-radius: 1.3cqw; padding: 1.6cqw 1.5cqw;
+    border-top: 0.45cqw solid var(--c);
+  }
+  .cell h2 { margin: 0 0 1cqw; font-size: 1.9cqw; color: var(--c); }
+  .eq { font-family: "Cambria Math", "Times New Roman", "Noto Serif KR", serif; font-size: 1.9cqw; min-height: 6.2cqw; display: flex; align-items: center; }
+  .frac { display: inline-flex; flex-direction: column; align-items: center; margin: 0 0.4cqw; }
+  .frac > span:first-child { border-bottom: 0.18cqw solid currentColor; padding: 0 0.5cqw 0.2cqw; }
+  .frac > span:last-child { padding: 0.2cqw 0.5cqw 0; }
+  .cell p { margin: 0.8cqw 0 0; color: var(--muted); font-size: 1.35cqw; line-height: 1.45; }
+
+  .foot {
+    margin-top: auto; display: flex; justify-content: space-between; gap: 2cqw;
+    color: var(--muted); font-size: 1.35cqw;
+  }
+  .foot strong { color: var(--ink); }
+</style>
+</head>
+<body>
+  <main class="slide">
+    <div class="kicker">J-DAY · 스케줄링 규칙</div>
+    <h1>우선순위 점수로 배치 순서를 정합니다</h1>
+    <p class="lead">마감이 임박하고, 해야 할 양이 시간에 비해 많고, 중요할수록 먼저 배치합니다.</p>
+
+    <section class="formula" aria-label="우선순위 점수 식">
+      <span class="score">점수</span><span class="op">=</span><span>100</span><span class="op">×</span><span class="op">(</span>
+      <span class="chip u">0.4 · 긴급도</span><span class="op">+</span>
+      <span class="chip p">0.2 · 작업량 압박</span><span class="op">+</span>
+      <span class="chip i">0.3 · 중요도</span><span class="op">+</span>
+      <span class="chip s">0.1 · 짧은 정도</span><span class="op">)</span>
+    </section>
+
+    <section class="grid">
+      <article class="cell" style="--c: var(--urgency)">
+        <h2>긴급도</h2>
+        <div class="eq"><span class="frac"><span>1</span><span>1 + 남은일수</span></span></div>
+        <p>마감이 가까울수록 1에 가까움</p>
+      </article>
+      <article class="cell" style="--c: var(--pressure)">
+        <h2>작업량 압박</h2>
+        <div class="eq">min(1,&nbsp;<span class="frac"><span>남은 작업시간</span><span>남은일수 × 480분</span></span>)</div>
+        <p>마감까지 쓸 시간 대비 작업이 클수록 1에 가까움</p>
+      </article>
+      <article class="cell" style="--c: var(--importance)">
+        <h2>중요도</h2>
+        <div class="eq"><span class="frac"><span>중요도</span><span>3</span></span></div>
+        <p>낮음 1/3 · 보통 2/3 · 높음 1</p>
+      </article>
+      <article class="cell" style="--c: var(--short)">
+        <h2>짧은 정도</h2>
+        <div class="eq"><span class="frac"><span>60</span><span>60 + 남은 작업시간(분)</span></span></div>
+        <p>짧은 작업일수록 1에 가까움 (동점 보조)</p>
+      </article>
+    </section>
+
+    <div class="foot">
+      <span><strong>마감이 지난 작업은 100점 고정</strong> · 동점이면 마감 → 중요도 → 짧은 작업 순</span>
+      <span>점수는 순서만 정하고, 시간 배치는 AI · 검증은 서버가 담당</span>
+    </div>
+  </main>
+</body>
+</html>

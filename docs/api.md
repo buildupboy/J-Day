@@ -130,6 +130,10 @@
 }
 ```
 
+한 발화에 과제가 여러 개면(최대 10개) `add_task` 하나로 처리한다. 의도 해석 결과는 첫 과제를 `slots`, 두 번째부터를 `extraTasks`(같은 필드)에 담는다. 응답 `result.task`는 첫 저장 과제이고, 둘 이상 저장하거나 이미 등록된 과제를 건너뛴 경우 `result.tasks`(저장한 과제)와 `result.duplicates`(이미 있던 과제)가 추가된다. 일부 과제의 마감이 없으면 아무것도 저장하지 않고 `needs_clarification`으로 해당 과제만 묻는다. 전체 재배치 요청은 한 번만 보낸다.
+
+예상 시간을 말하지 않았고(`baseEstimatedMinutes`=null) 제이의 추정도 요청하지 않은(`estimateByAi`=false) 과제가 있으면 아무것도 저장하지 않고 `needs_clarification`으로 해당 과제들의 시간을 한 번에 묻는다. 사용자가 시간을 알려 주거나 "제이가 정해줘"라고 하면(`estimateByAi`=true) 저장한다. `estimateByAi`는 `slots`와 `extraTasks` 각 항목에 들어간다.
+
 ### GET /api/schedule/today — 오늘 타임라인 조회
 
 ```jsonc
@@ -355,3 +359,12 @@ incompleteTasks는 선택 기간에 마감하는 status가 done이 아닌 작업
 - 상위 Task는 type=etc, title=기타 작업으로 묶는다. sourceTasks에 원래 작업을 보존하고, 하위작업에는 sourceTaskId/type/deadline 및 해당 시 notBefore/sourceSubtaskId를 보존한다. 분석과 history는 원래 작업별 분류·마감·완료·실제시간으로 집계한다. 묶음 자체의 중복 완료 기록을 만들지 않는다.
 - 여러 번 연결해도 연속 작업 합계는 maxBlockMinutes를 넘지 않는다. 0분 경과, 30분 이상 블록, 미완료 단위, 고정 일정·지정 휴식·휴무일·마감·시작 가능 시각 충돌은 거절한다. 이미 진행한 다른 작업 및 시험·복습은 새 묶음으로 옮기지 않는다.
 - 원래 휴게 설정은 변경하지 않는다. continuationOf는 수락한 다음 블록의 연결을 가리키며 AI가 새로 만들 수 없다.
+
+### 배치 뒤로 미루기 (채팅 등록)
+
+`/api/chat/interpret`는 `add_task`·`update_task`를 저장한 뒤 AI 일정 배치를 기다리지 않고 바로 응답한다(`status: pending_schedule`, `schedulingInBackground: true`). 배치는 서버가 뒤에서 한 번에 하나씩 실행하며, 저장소 잠금을 쥐지 않고 사본으로 계획한 뒤 그동안 작업·고정 일정·설정·블록이 바뀌지 않았을 때만 반영한다(바뀌었으면 결과를 버리고 최대 3번 다시 계산). 실패해도 과제는 저장돼 있고 배치 요청은 대기로 남는다.
+
+- `GET /api/chat/scheduler/status` → `{ running, error, pending }`
+- `POST /api/chat/scheduler/run` → `{ started }` 배치 재시도
+
+`POST /api/tasks`(직접 작업 추가)도 같은 방식이다. 저장 후 `201`과 함께 `schedulingInBackground: true`, `rescheduled: false`를 돌려주고, 배치는 채팅 등록과 공유하는 담당이 뒤에서 처리한다. 진행 상태는 `GET /api/chat/scheduler/status`로 확인한다.

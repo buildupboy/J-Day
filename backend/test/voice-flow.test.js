@@ -41,7 +41,8 @@ async function setup(t, options = {}) {
     });
     return { status: response.status, body: await response.json() };
   }
-  return { ...store, dbPath, request, setInterpret: value => { interpretation = value; },
+  const get = async route => (await fetch(`http://127.0.0.1:${server.address().port}/api/chat${route}`)).json();
+  return { ...store, dbPath, request, get, setInterpret: value => { interpretation = value; },
     setEstimate: value => { estimateResult = value; }, calls: () => calls, breakdownCalls: () => breakdownCalls };
 }
 
@@ -75,7 +76,7 @@ test('같은 requestId의 병렬/재시도는 한 번만 등록, 다른 발화�
 test('추정값이 없을 때 별도 LLM 추정, 질문 답변 대화는 전달, 모델의 배치시각은 받지 않는다', async t => {
   const conversation = [{ role: 'user', content: '보고서 있어' }, { role: 'assistant', content: '언제까지인가요?' }];
   const h = await setup(t, { onInterpret: (text, context, messages) => assert.deepEqual(messages, conversation) });
-  h.setInterpret(extracted('add_task', { baseEstimatedMinutes: null }));
+  h.setInterpret(extracted('add_task', { baseEstimatedMinutes: null, estimateByAi: true }));
   assert.equal((await h.request(input('followup', { text: '11월 4일까지', conversation }))).status, 200);
   assert.equal(h.breakdownCalls(), 1);
 });
@@ -189,7 +190,7 @@ test('기존 일정 재등록은 변경 질문, 동의 후 같은 ID 수정·재
   h.setInterpret(extracted('add_task', { deadline: '2026-11-06T23:59:00+09:00' }));
   const question = await h.request(input('duplicate'));
   assert.equal(question.body.status, 'needs_clarification');
-  assert.match(question.body.reply, /해당 과제를 수정할까요/);
+  assert.match(question.body.reply, /위 과제와 다른 새 과제인가요/);
   assert.equal(question.body.result.cardMode, 'existing');
   assert.deepEqual(question.body.result.task, task);
   assert.deepEqual((await h.readDb()).tasks, before.tasks);
@@ -232,7 +233,7 @@ test('모델이 중복 요청을 clarify로 분류해도 기존 저장 카드와
   h.setInterpret({ ...extracted('clarify', { taskId: task.id, deadline: '2026-11-06T15:00:00+09:00' }), reply: '기존 일정을 변경할까요?' });
   const result = await h.request(input('clarify-duplicate'));
   assert.equal(result.body.status, 'needs_clarification');
-  assert.match(result.body.reply, /해당 과제를 수정할까요/);
+  assert.match(result.body.reply, /위 과제와 다른 새 과제인가요/);
   assert.equal(result.body.result.cardMode, 'existing');
   assert.equal(result.body.result.task.deadline, task.deadline);
   assert.deepEqual(await h.readDb(), before);
@@ -257,4 +258,148 @@ test('음성 신규 등록도 4개를 넘는 세부 분해는 저장하지 않�
  h.setEstimate({...estimate(),subtasks:Array.from({length:5},(_,i)=>({title:`세부 단계 ${i}`,estimatedMinutes:24}))});
  const response=await h.request(input('too-many-steps'));
  assert.equal(response.status,502);assert.deepEqual(await h.readDb(),before);
+});
+
+const extra = (title, extraSlots = {}) => ({ title, type: 'etc', deadline: '2026-11-06T23:59:00+09:00', baseEstimatedMinutes: null, importance: null, estimateByAi: true, ...extraSlots });
+
+test('한 발화의 여러 작업은 작업별로 분해·저장하고 한 번에 재배치 요청', async t => {
+  const h = await setup(t);
+  h.setInterpret({ ...extracted(), extraTasks: [extra('발표 준비', { importance: 3 }), extra('독서')] });
+  const result = await h.request(input('multi-1', { text: '보고서랑 발표 준비랑 독서 해야 해' }));
+  assert.equal(result.status, 200); assert.equal(h.breakdownCalls(), 3);
+  assert.deepEqual(result.body.result.tasks.map(task => task.title), ['보고서', '발표 준비', '독서']);
+  assert.equal(result.body.result.task.title, '보고서'); assert.match(result.body.reply, /3개 작업/);
+  const saved = await h.readDb();
+  assert.equal(saved.tasks.length, 3); assert.equal(saved.tasks[1].importance, 3); assert.equal(saved.tasks[2].importance, 2);
+  assert.equal(saved.schedulerRequests.length, 1);
+});
+
+test('여러 작업 중 마감이 빠진 것이 있으면 아무것도 저장하지 않고 그 작업만 묻는다', async t => {
+  const h = await setup(t); const before = await readFile(h.dbPath, 'utf8');
+  h.setInterpret({ ...extracted(), extraTasks: [extra('발표 준비', { deadline: null })] });
+  const result = await h.request(input('multi-2'));
+  assert.equal(result.body.status, 'needs_clarification'); assert.match(result.body.reply, /발표 준비/);
+  assert.doesNotMatch(result.body.reply, /보고서/);
+  assert.equal(h.breakdownCalls(), 0); assert.equal(await readFile(h.dbPath, 'utf8'), before);
+});
+
+test('여러 작업 중 이미 등록된 과제는 건너뛰고 나머지만 저장하며 수정 여부를 묻는다', async t => {
+  const h = await setup(t);
+  assert.equal((await h.request(input('multi-3a'))).status, 200);
+  h.setInterpret({ ...extracted(), extraTasks: [extra('발표 준비'), extra('발표  준비')] });
+  const result = await h.request(input('multi-3b', { text: '보고서랑 발표 준비' }));
+  assert.equal(result.status, 200); assert.deepEqual(result.body.result.tasks.map(task => task.title), ['발표 준비']);
+  assert.deepEqual(result.body.result.duplicates.map(task => task.title), ['보고서']);
+  assert.match(result.body.reply, /‘보고서’은\(는\) 이미 등록된 과제라 건너뛰었어요/);
+  assert.equal((await h.readDb()).tasks.length, 2);
+  h.setInterpret({ ...extracted(), extraTasks: [extra('발표 준비')] });
+  const all = await h.request(input('multi-3c'));
+  assert.equal(all.body.status, 'needs_clarification'); assert.equal(all.body.result.duplicates.length, 2);
+  assert.equal((await h.readDb()).tasks.length, 2);
+});
+
+test('한 번에 10개를 넘는 작업은 거부', async t => {
+  const h = await setup(t);
+  h.setInterpret({ ...extracted(), extraTasks: Array.from({ length: 10 }, (_, i) => extra(`작업${i}`)) });
+  assert.equal((await h.request(input('multi-4'))).status, 400);
+  assert.equal(h.breakdownCalls(), 0);
+});
+
+test('모델이 clarify로 분류해도 여러 과제 중 일부만 중복이면 새 과제는 저장하고 중복만 안내', async t => {
+  const h = await setup(t);
+  assert.equal((await h.request(input('part-1'))).status, 200);
+  h.setInterpret({ ...extracted('clarify'), reply: '이미 등록된 과제예요. 수정할까요?', extraTasks: [extra('알고리즘'), extra('빅데이터')] });
+  const result = await h.request(input('part-2', { text: '보고서랑 알고리즘, 빅데이터 해야 해' }));
+  assert.equal(result.status, 200); assert.deepEqual(result.body.result.tasks.map(task => task.title), ['알고리즘', '빅데이터']);
+  assert.deepEqual(result.body.result.duplicates.map(task => task.title), ['보고서']);
+  assert.match(result.body.reply, /2개 작업을 .*‘보고서’은\(는\) 이미 등록된 과제라 건너뛰었어요/);
+  assert.equal((await h.readDb()).tasks.length, 3);
+  // 새 과제 정보가 부족하면 저장하지 않고 중복 안내만 한다
+  h.setInterpret({ ...extracted('clarify'), reply: '이미 등록된 과제예요. 수정할까요?', extraTasks: [extra('물리', { deadline: null })] });
+  const partial = await h.request(input('part-3'));
+  assert.equal(partial.body.status, 'needs_clarification'); assert.equal(partial.body.result.duplicates.length, 1);
+  assert.equal((await h.readDb()).tasks.length, 3);
+});
+
+test('시간을 말하지 않고 제이의 추정도 요청하지 않은 과제는 저장 전에 한 번에 되묻는다', async t => {
+  const h = await setup(t); const before = await readFile(h.dbPath, 'utf8');
+  h.setInterpret(extracted('add_task', { baseEstimatedMinutes: null }));
+  const one = await h.request(input('time-1'));
+  assert.equal(one.body.status, 'needs_clarification'); assert.match(one.body.reply, /‘보고서’.*제이가 정해줘/);
+  assert.deepEqual(one.body.result.quickReplies, ['제이가 정해줘']);
+  h.setInterpret({ ...extracted('add_task', { baseEstimatedMinutes: null }), extraTasks: [extra('알고리즘', { estimateByAi: false }), extra('빅데이터', { baseEstimatedMinutes: 90, estimateByAi: false })] });
+  const many = await h.request(input('time-2'));
+  assert.equal(many.body.status, 'needs_clarification');
+  assert.match(many.body.reply, /‘보고서’, ‘알고리즘’은\(는\) 각각/); assert.doesNotMatch(many.body.reply, /빅데이터/);
+  assert.deepEqual(many.body.result.quickReplies, ['다 제이가 정해줘']);
+  assert.equal(h.breakdownCalls(), 0); assert.equal(await readFile(h.dbPath, 'utf8'), before);
+  // 시간을 말하거나 제이에게 맡기면 저장한다
+  h.setInterpret({ ...extracted('add_task', { baseEstimatedMinutes: null, estimateByAi: true }), extraTasks: [extra('알고리즘', { baseEstimatedMinutes: 120, estimateByAi: false })] });
+  const saved = await h.request(input('time-3'));
+  assert.equal(saved.status, 200); assert.equal(saved.body.result.tasks.length, 2);
+});
+
+
+test('같은 이름 과제는 다른 과제인지 묻고, 다르다고 하면 제목을 구분해 등록하며 빠진 정보는 되묻는다', async t => {
+  const h = await setup(t);
+  assert.equal((await h.request(input('dup-1'))).status, 200);
+  // 같은 이름을 마감·시간 없이 말하면 기존 카드를 보여 주며 다른 과제인지, 빠진 정보는 무엇인지 안내
+  h.setInterpret(extracted('add_task', { deadline: null, baseEstimatedMinutes: null }));
+  const ask = await h.request(input('dup-2'));
+  assert.equal(ask.body.status, 'needs_clarification'); assert.equal(ask.body.result.cardMode, 'existing');
+  assert.match(ask.body.reply, /다른 새 과제인가요\? 다른 과제라면 마감일과 예상 소요시간도/);
+  assert.deepEqual(ask.body.result.quickReplies, ['다른 과제예요', '같은 과제예요, 수정해 주세요']);
+  // 다른 과제라고 답하면 마감이 없을 때 되묻는다
+  h.setInterpret(extracted('add_task', { deadline: null, baseEstimatedMinutes: 90, distinctFromExisting: true }));
+  assert.match((await h.request(input('dup-3'))).body.reply, /언제까지/);
+  // 정보가 갖춰지면 '보고서 2'로 등록하고 기존 과제는 그대로
+  h.setInterpret(extracted('add_task', { baseEstimatedMinutes: 120, distinctFromExisting: true }));
+  const saved = await h.request(input('dup-4'));
+  assert.equal(saved.status, 200); assert.equal(saved.body.result.task.title, '보고서 2');
+  assert.deepEqual((await h.readDb()).tasks.map(task => task.title), ['보고서', '보고서 2']);
+  assert.equal((await h.request(input('dup-5'))).body.result.task.title, '보고서 3');
+});
+
+const settled = async h => { for (let i = 0; i < 100; i++) { const status = await h.get('/scheduler/status'); if (!status.running) return status; await new Promise(resolve => setTimeout(resolve, 10)); } throw new Error('배치가 끝나지 않았습니다.'); };
+
+test('배치는 뒤에서 진행: 저장 후 바로 응답하고 배치 중에도 조회되며 끝나면 반영', async t => {
+  let release; const gate = new Promise(resolve => { release = resolve; });
+  const scheduler = async db => { await gate; const task = db.tasks.at(-1);
+    return { rescheduled: true, changes: [], unplaced: [], scheduledBlocks: [{ id: 'sb', taskId: task.id, date: '2026-10-31', start: '10:00', end: '11:00', status: 'planned' }] }; };
+  const h = await setup(t, { scheduler, backgroundScheduling: true });
+  const res = await h.request(input('bg-1'));
+  assert.equal(res.body.status, 'pending_schedule'); assert.equal(res.body.schedulingInBackground, true); assert.match(res.body.reply, /배치하는 중/);
+  assert.equal((await h.readDb()).tasks.length, 1);
+  assert.equal((await h.get('/scheduler/status')).running, true);
+  release();
+  const status = await settled(h);
+  assert.equal(status.error, null); assert.equal(status.pending, 0);
+  const saved = await h.readDb();
+  assert.deepEqual(saved.scheduledBlocks.map(block => block.id), ['sb']); assert.equal(saved.schedulerRequests[0].status, 'processed');
+});
+
+test('배치가 실패해도 과제는 저장돼 있고 요청은 대기로 남으며 다시 실행할 수 있다', async t => {
+  let fail = true;
+  const scheduler = async db => { if (fail) throw new Error('전체 일정을 배치하는 AI 응답이 제한시간(120초)을 넘겼어요.');
+    return { rescheduled: true, changes: [], unplaced: [], scheduledBlocks: [{ id: 'sb', taskId: db.tasks.at(-1).id, date: '2026-10-31', start: '10:00', end: '11:00', status: 'planned' }] }; };
+  const h = await setup(t, { scheduler, backgroundScheduling: true });
+  assert.equal((await h.request(input('bg-2'))).status, 200);
+  const failed = await settled(h);
+  assert.match(failed.error, /제한시간/); assert.equal(failed.pending, 1); assert.equal((await h.readDb()).tasks.length, 1);
+  fail = false;
+  assert.deepEqual(await h.request({}, '/scheduler/run'), { status: 200, body: { started: true } });
+  const done = await settled(h);
+  assert.equal(done.error, null); assert.equal(done.pending, 0); assert.equal((await h.readDb()).scheduledBlocks.length, 1);
+});
+
+test('배치 계산 중 일정이 바뀌면 오래된 결과는 버리고 다시 계산', async t => {
+  let calls = 0, edit;
+  const scheduler = async db => { calls++;
+    if (calls === 1) await edit();
+    return { rescheduled: true, changes: [], unplaced: [], scheduledBlocks: [{ id: `sb${calls}`, taskId: db.tasks[0].id, date: '2026-10-31', start: '10:00', end: '11:00', status: 'planned' }] }; };
+  const h = await setup(t, { scheduler, backgroundScheduling: true });
+  edit = () => h.updateDb(async db => { db.fixedBlocks.push({ id: 'new-fixed', kind: 'class', title: '수업', dayOfWeek: [6], start: '09:00', end: '10:00' }); return db; });
+  assert.equal((await h.request(input('bg-3'))).status, 200);
+  await settled(h);
+  assert.equal(calls, 2); assert.deepEqual((await h.readDb()).scheduledBlocks.map(block => block.id), ['sb2']);
 });

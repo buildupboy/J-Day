@@ -66,6 +66,26 @@ export default function VoiceScreen({ nav, onClose, needsStart = false }) {
     return () => clearTimeout(timer);
   }, [thinking]);
 
+  // 저장은 끝났고 서버가 뒤에서 일정을 배치하는 중이면, 끝날 때까지 기다렸다가 화면을 새로 고친다.
+  const watchScheduling = () => {
+    api.waitForScheduling()
+      .then((status) => {
+        scheduleChanged();
+        if (status.error) {
+          setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', isError: true, retryScheduling: true,
+            text: `저장은 됐지만 일정을 배치하지 못했어요. (${status.error})` }]);
+        }
+      })
+      .catch((error) => {
+        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', isError: true, retryScheduling: true, text: `일정 배치 상태를 확인하지 못했어요. ${error.message}` }]);
+      });
+  };
+  const retryScheduling = async () => {
+    try { await api.runScheduler(); watchScheduling(); } catch (error) {
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', isError: true, text: `다시 배치하지 못했어요. ${error.message}` }]);
+    }
+  };
+
   const send = async (raw, viaVoice = false, retry = null) => {
     const content = raw.trim();
     if (!content) return;
@@ -105,12 +125,17 @@ export default function VoiceScreen({ nav, onClose, needsStart = false }) {
           role: 'assistant',
           text: res.reply,
           task: ['add_task', 'update_task'].includes(res.intent) || res.result?.cardMode === 'existing' ? res.result?.task ?? null : null,
+          // 한 발화에 여러 작업을 등록한 경우: 저장한 카드 여러 개 + 이미 있던 과제 카드
+          tasks: res.result?.tasks?.length > 1 ? res.result.tasks : null,
+          duplicates: res.result?.duplicates?.length ? res.result.duplicates : null,
+          quickReplies: res.result?.quickReplies?.length ? res.result.quickReplies : null,
           cardMode: res.result?.cardMode,
           updated: res.intent === 'update_task',
           status: res.status,
         },
       ]);
       if (res.status === 'scheduled' || res.status === 'pending_schedule') scheduleChanged();
+      if (res.schedulingInBackground) watchScheduling();
       if (viaVoice && !mutedRef.current) speak(res.reply.replace(/\n/g, ' '));
     } catch (error) {
       cancel();
@@ -263,7 +288,7 @@ export default function VoiceScreen({ nav, onClose, needsStart = false }) {
           </div>
         ) : (
           <ul className="thread-list">
-            {messages.map((m) =>
+            {messages.map((m, index) =>
               m.role === 'user' ? (
                 <li key={m.id} className="bubble-user">
                   {m.text}
@@ -281,16 +306,40 @@ export default function VoiceScreen({ nav, onClose, needsStart = false }) {
                       다시 시도
                     </button>
                   )}
-                  {m.task && (
+                  {m.retryScheduling && (
+                    <button type="button" className="chip" onClick={retryScheduling}>
+                      다시 배치
+                    </button>
+                  )}
+                  {(m.tasks ?? (m.task &&!(m.duplicates && m.cardMode === 'existing') ? [m.task] : [])).map((task) => (
                     <TaskProposalCard
-                      task={m.task}
+                      key={task.id}
+                      task={task}
                       status={m.status}
                       cardMode={m.cardMode}
                       updated={m.updated}
                       onOpenCalendar={() => nav.tab('calendar')}
                       onOpenList={() => nav.tab('tasks', 'upcoming')}
                     />
+                  ))}
+                  {m.quickReplies && index === messages.length - 1 && !thinking && (
+                    <div className="chip-row">
+                      {m.quickReplies.map((reply) => (
+                        <button key={reply} type="button" className="chip" onClick={() => send(reply)}>
+                          {reply}
+                        </button>
+                      ))}
+                    </div>
                   )}
+                  {m.duplicates?.map((task) => (
+                    <TaskProposalCard
+                      key={`dup-${task.id}`}
+                      task={task}
+                      cardMode="existing"
+                      onOpenCalendar={() => nav.tab('calendar')}
+                      onOpenList={() => nav.tab('tasks', 'upcoming')}
+                    />
+                  ))}
                 </li>
               )
             )}

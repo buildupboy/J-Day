@@ -3,6 +3,7 @@ import { blockedWindows } from './blocked-windows.js';
 import { createHash } from 'node:crypto';
 import { DAY, KST, day, minute, clock, datetime, timestamp, positive, instant, releasedBlock } from './time.js';
 import { remainingWork } from './workload.js';
+import { schedulingWeight } from './weight.js';
 import { findFreeSlots } from './allocator.js';
 
 export function fingerprint(value) {
@@ -43,13 +44,16 @@ export function rankTasks(tasks, { existingBlocks = [], now } = {}) {
       progress: task.progress, estimatedMinutes: task.estimatedMinutes,
       ...(task.notBefore === undefined ? {} : { notBefore: task.notBefore }),
       ...(task.reviewOf === undefined ? {} : { reviewOf: task.reviewOf }),
+      ...(task.skipInnerBreak ? { skipInnerBreak: true } : {}),
       remainingMinutes: units.reduce((sum, unit) => sum + unit.remaining, 0),
       subtasks: units.map(unit => ({ ...(unit.subtaskId === undefined ? {} : { subtaskId: unit.subtaskId }),
         title: task.subtasks?.find(subtask => subtask.id === unit.subtaskId)?.title ?? task.title,
         ...(task.subtasks?.find(subtask => subtask.id === unit.subtaskId)?.notBefore ? { notBefore: task.subtasks.find(subtask => subtask.id === unit.subtaskId).notBefore } : {}),
         remainingMinutes: unit.remaining, reservedUntil: Number.isFinite(unit.reservedUntil) ? new Date(unit.reservedUntil).toISOString() : null })) };
   }).filter(task => task.remainingMinutes > 0)
-    .sort((a, b) => datetime(a.deadline) - datetime(b.deadline) || b.importance - a.importance || a.remainingMinutes - b.remainingMinutes)
+    .map(task => ({ ...task, priorityScore: schedulingWeight({ ...task, now }) }))
+    // 점수가 같으면 마감 빠름 → 중요도 높음 → 남은 시간 짧음 → 입력 순서(안정 정렬)
+    .sort((a, b) => b.priorityScore - a.priorityScore || datetime(a.deadline) - datetime(b.deadline) || b.importance - a.importance || a.remainingMinutes - b.remainingMinutes)
     .map((task, index) => ({ ...task, priorityRank: index + 1 }));
 }
 
@@ -94,7 +98,7 @@ export function preparePlanningContext(db, { now, reason = 'manual', horizonDays
   const body = { schemaVersion: 1, timezone: 'Asia/Seoul', reason,
     generatedAt: new Date(time + KST).toISOString().replace('Z', '+09:00'),
     sourceRevision: schedulingRevision(db), window: { from: days[0].date, to: days.at(-1).date }, settings,
-    priorityPolicy: ['deadline_ascending', 'importance_descending', 'remaining_minutes_ascending', 'input_order'],
+    priorityPolicy: ['priority_score_descending', 'deadline_ascending', 'importance_descending', 'remaining_minutes_ascending', 'input_order'],
     priorityIsAdvisory: true, recommendedSlotMinutes: settings.minSlotMinutes, rankedTasks: rankTasks(db.tasks, { existingBlocks: preserved, now }),
     unavailableDates: settings.unavailableDates,
     fixedBlocks: structuredClone(db.fixedBlocks), protectedBlocks: structuredClone(preserved),

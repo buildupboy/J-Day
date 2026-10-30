@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import BottomNav from './components/common/BottomNav.jsx';
 import RescheduleNotice from './components/common/RescheduleNotice.jsx';
 import UndoToast from './components/common/UndoToast.jsx';
+import ShortMergePrompt from './components/common/ShortMergePrompt.jsx';
 import AddSheet from './components/common/AddSheet.jsx';
 import VoiceScreen from './components/voice/VoiceScreen.jsx';
 import HomePage from './pages/HomePage.jsx';
@@ -104,6 +105,7 @@ export default function App() {
       {reminderMessage && <div className="toast" role="status">{reminderMessage}</div>}
       <RescheduleNotice />
       <UndoToast />
+      <ShortMergePrompt />
       {overlay === 'voice' && <VoiceScreen key={needsStart ? 'gate' : 'live'} nav={nav} onClose={close} needsStart={needsStart} />}
     </div>
   );
