@@ -25,3 +25,9 @@ test('추천 API는 DB·스케줄러를 읽거나 호출하지 않고 분 단위
  const response=await fetch(`http://127.0.0.1:${server.address().port}/tasks/estimate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
  assert.equal(response.status,200);assert.equal((await response.json()).baseEstimatedMinutes,95);assert.equal(calls,1);
 });
+
+
+test('AI가 큰 단계 4개보다 많이 분해한 응답은 적용하지 않음',async()=>{
+ const estimator=createTaskEstimator({completeFn:async()=>JSON.stringify({...result(),baseEstimatedMinutes:100,rangeMinutes:[80,120],subtasks:Array.from({length:5},(_,i)=>({title:`단계 ${i}`,estimatedMinutes:20}))})});
+ await assert.rejects(estimator(input),{status:502});
+});

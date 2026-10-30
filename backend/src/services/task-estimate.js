@@ -1,3 +1,4 @@
+import { MAX_TASK_STEPS } from '../prompts/task-granularity.js';
 import { createHash } from 'node:crypto';
 import { complete } from './llm.js';
 import { ESTIMATE_SCHEMA, ESTIMATE_SYSTEM_PROMPT } from '../prompts/estimate.js';
@@ -24,7 +25,7 @@ export function createTaskEstimator({ completeFn = complete, clock = Date.now } 
       let result; try { result = JSON.parse(raw); } catch { fail('AI 추정 결과를 읽지 못했어요. 다시 시도해 주세요.',502); }
       assertSchema(result,ESTIMATE_SCHEMA);
       integer(result.baseEstimatedMinutes,'예상 시간',1);
-      if (!result.subtasks.length || result.subtasks.length > 10) fail('AI 작업 분할은 1~10개여야 합니다.',502);
+      if (!result.subtasks.length || result.subtasks.length > MAX_TASK_STEPS) fail('AI 작업 분할은 큰 단계 1~4개여야 합니다.',502);
       result.subtasks.forEach(item => { item.title=validText(item.title,'하위작업',120); integer(item.estimatedMinutes,'하위작업 시간',1); });
       if (result.subtasks.reduce((sum,item)=>sum+item.estimatedMinutes,0)!==result.baseEstimatedMinutes) fail('AI 추정시간 합계가 일치하지 않아요. 다시 시도해 주세요.',502);
       if (result.rangeMinutes.length!==2 || !result.rangeMinutes.every(n=>Number.isSafeInteger(n)&&n>0&&n<=1000000) || result.rangeMinutes[0]>result.baseEstimatedMinutes || result.rangeMinutes[1]<result.baseEstimatedMinutes) fail('AI 추정 범위가 올바르지 않아요.',502);

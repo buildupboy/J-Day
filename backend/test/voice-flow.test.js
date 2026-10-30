@@ -250,3 +250,11 @@ test('같은 이름 여러 개는 대상 질문, 정확한 ID 지정 시 해당 
   assert.equal(exact.body.result.task.id, task.id);
   assert.equal(exact.body.result.cardMode, 'existing');
 });
+
+
+test('음성 신규 등록도 4개를 넘는 세부 분해는 저장하지 않음',async t=>{
+ const h=await setup(t);const before=await h.readDb();
+ h.setEstimate({...estimate(),subtasks:Array.from({length:5},(_,i)=>({title:`세부 단계 ${i}`,estimatedMinutes:24}))});
+ const response=await h.request(input('too-many-steps'));
+ assert.equal(response.status,502);assert.deepEqual(await h.readDb(),before);
+});
