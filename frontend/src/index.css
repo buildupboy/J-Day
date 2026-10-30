@@ -1031,20 +1031,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 14px;
 }
 
 .todo-sheet-title h2 {
   flex: 1;
   margin: 0 0 0 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: center;
   font-size: 18px;
-}
-
-.todo-sheet-name {
-  margin: 4px 0 14px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
 }
 
 .todo-edit {

@@ -59,7 +59,7 @@ export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }
     <div className="sheet-backdrop" onClick={onClose}>
       <section className="sheet sheet-auto todo-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="todo-sheet-title">
-          <h2>할일</h2>
+          <h2>{meta.title ?? todo.title}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="닫기">
             ✕
           </button>
@@ -77,9 +77,7 @@ export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }
               저장
             </button>
           </div>
-        ) : (
-          <p className="todo-sheet-name">{meta.title ?? todo.title}</p>
-        )}
+        ) : null}
 
         <div className="todo-sheet-top">
           <button type="button" className="big-action" onClick={() => setEditing(true)}>
