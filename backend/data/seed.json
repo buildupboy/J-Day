@@ -9,7 +9,8 @@
       "maxBlockMinutes": 90,
       "breakMinutes": 10,
       "maxDailyMinutes": 1440,
-      "bufferMinutes": 0
+      "bufferMinutes": 0,
+      "distribution": "early"
     }
   },
   "fixedBlocks": [
