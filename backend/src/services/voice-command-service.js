@@ -1,3 +1,5 @@
+import { updateAvailability, availabilityReply } from './scheduling-constraints.js';
+import { MAX_TASK_STEPS } from '../prompts/task-granularity.js';
 import { randomUUID, createHash } from 'node:crypto';
 import * as llm from './llm.js';
 import { INTERPRET_SCHEMA, BREAKDOWN_SCHEMA, TASK_TYPES } from '../prompts/schemas.js';
@@ -126,6 +128,8 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
     const context = { now: kstInstant(current), today: kstDate(current), timezone: 'Asia/Seoul',
       tasks: snapshot.tasks.map(({ id, title, type, deadline, progress, actualMinutes, status, baseEstimatedMinutes, importance }) => ({ id, title, type, deadline, progress, actualMinutes, status, baseEstimatedMinutes, importance })) };
     const extracted = await interpreter(request.text, context, request.conversation);
+    // 기존 의도 해석기/테스트 응답도 호환하며 새 모델 스키마는 두 필드를 필수 반환한다.
+    if (extracted?.slots) extracted.slots = { unavailableDates: null, availabilityAction: null, ...extracted.slots };
     assertSchema(extracted, INTERPRET_SCHEMA);
     const { intent, slots } = extracted;
     const duplicateQuestion = tasks => {
@@ -164,7 +168,7 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
       breakdown = await breakdownTask({ ...input, utterance: request.text, conversation: request.conversation });
       assertSchema(breakdown, BREAKDOWN_SCHEMA);
       integer(breakdown.baseEstimatedMinutes, 'baseEstimatedMinutes', 1);
-      if (!breakdown.subtasks.length || breakdown.subtasks.length > 20) fail('하위작업은 1~20개여야 합니다.', 502);
+      if (!breakdown.subtasks.length || breakdown.subtasks.length > MAX_TASK_STEPS) fail('하위작업은 큰 단계 1~4개여야 합니다.', 502);
       for (const subtask of breakdown.subtasks) { subtask.title = validText(subtask.title, 'subtask.title'); integer(subtask.estimatedMinutes, 'subtask.estimatedMinutes', 1); }
       if (breakdown.subtasks.reduce((sum, subtask) => sum + subtask.estimatedMinutes, 0) !== breakdown.baseEstimatedMinutes) fail('AI 추정시간과 하위작업 합계가 일치하지 않습니다.', 502);
       if (input.baseEstimatedMinutes !== null && breakdown.baseEstimatedMinutes !== input.baseEstimatedMinutes) fail('사용자가 지정한 예상시간이 변경됐습니다.', 502);
@@ -177,6 +181,7 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
       if (duplicate) { response = duplicate; return db; }
       if (intent === 'add_task') { const question = duplicateQuestion(db.tasks); if (question) { response = question; return db; } }
       const committedAt = now();
+      const availability = intent === 'reschedule' ? updateAvailability(db, slots, committedAt) : null;
       let progressResult;
       const task = intent === 'add_task' ? createTask(db, input, breakdown, committedAt)
         : intent === 'update_task' ? updateTask(db, slots, committedAt)
@@ -187,9 +192,9 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
       const schedulerRequest = enqueueSchedule(db, { commandId: request.requestId, taskId: task?.id, reason, now: committedAt });
       const scheduling = scheduler ? await dispatchPending(db, { scheduler: progressResult ? () => progressResult : scheduler, now: committedAt }) : { rescheduled: false };
       response = { requestId: request.requestId, intent, status: scheduling.rescheduled ? 'scheduled' : 'pending_schedule',
-        reply: scheduling.rescheduled ? (scheduling.unplaced.length ? '저장했어요. 마감 전에 배치하지 못한 작업시간이 있어요.' : '저장하고 일정을 다시 배치했어요.') : '저장했어요. AI 자동배치를 기다리고 있어요.',
+        reply: availability ? availabilityReply(availability, scheduling, db, now()) : scheduling.rescheduled ? (scheduling.unplaced.length ? '저장했어요. 마감 전에 배치하지 못한 작업시간이 있어요.' : '저장하고 일정을 다시 배치했어요.') : '저장했어요. AI 자동배치를 기다리고 있어요.',
         assumptions: [...extracted.assumptions, ...(breakdown?.assumptions ?? [])],
-        result: { task, ...(['add_task', 'update_task'].includes(intent) ? { cardMode: 'saved' } : {}), ...scheduling, ...(breakdown ? { estimate: { baseEstimatedMinutes: breakdown.baseEstimatedMinutes, rangeMinutes: breakdown.rangeMinutes } } : {}) },
+        result: { task, ...(availability ? { availability } : {}), ...(['add_task', 'update_task'].includes(intent) ? { cardMode: 'saved' } : {}), ...scheduling, ...(breakdown ? { estimate: { baseEstimatedMinutes: breakdown.baseEstimatedMinutes, rangeMinutes: breakdown.rangeMinutes } } : {}) },
         schedulerRequest };
       (db.voiceCommands ??= []).push({ id: request.requestId, hash: request.hash, createdAt: committedAt.toISOString(), response });
       return db;

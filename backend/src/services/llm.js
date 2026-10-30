@@ -10,12 +10,13 @@ export function createLlmClient({ fetchImpl = globalThis.fetch, env = process.en
     const model = env.OPENAI_MODEL || env.LLM_MODEL;
     if (!apiKey || !model) throw failure('백엔드 .env에 OPENAI_API_KEY와 OPENAI_MODEL을 설정해 주세요.', 503);
     const planning = name === 'schedule_plan';
-    const timeout = Number(planning ? env.LLM_PLANNING_TIMEOUT_MS || 120000 : env.LLM_TIMEOUT_MS || 60000);
-    const timeoutSetting = planning ? 'LLM_PLANNING_TIMEOUT_MS' : 'LLM_TIMEOUT_MS';
+    const estimating = name === 'task_estimate';
+    const timeout = Number(planning ? env.LLM_PLANNING_TIMEOUT_MS || 120000 : estimating ? env.LLM_ESTIMATE_TIMEOUT_MS || 25000 : env.LLM_TIMEOUT_MS || 60000);
+    const timeoutSetting = planning ? 'LLM_PLANNING_TIMEOUT_MS' : estimating ? 'LLM_ESTIMATE_TIMEOUT_MS' : 'LLM_TIMEOUT_MS';
     if (!Number.isInteger(timeout) || timeout < 100 || timeout > 120000) throw failure(`${timeoutSetting}는 100~120000이어야 합니다.`, 503);
     const started = Date.now();
     onTelemetry({ stage: name, event: 'started', timeoutMs: timeout });
-    const timeoutError = () => Object.assign(failure(`${planning ? '전체 일정을 배치하는' : '요청을 해석하는'} AI 응답이 제한시간(${timeout / 1000}초)을 넘겼어요. 다시 시도를 눌러 주세요.`, 504), { stage: name });
+    const timeoutError = () => Object.assign(failure(`${planning ? '전체 일정을 배치하는' : estimating ? '예상 시간을 추정하는' : '요청을 해석하는'} AI 응답이 제한시간(${timeout / 1000}초)을 넘겼어요. 다시 시도를 눌러 주세요.`, 504), { stage: name });
     let response;
     try {
       response = await fetchImpl('https://api.openai.com/v1/chat/completions', {

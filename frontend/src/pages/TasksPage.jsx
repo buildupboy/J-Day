@@ -6,7 +6,7 @@ import DateWheel from '../components/tasks/DateWheel.jsx';
 import WheelPicker from '../components/tasks/WheelPicker.jsx';
 import EstimateAssist from '../components/tasks/EstimateAssist.jsx';
 import { parseTaskText, toIsoDate } from '../utils/parseTaskText.js';
-import { estimateTask } from '../utils/estimateTask.js';
+import { inferTaskType } from '../utils/taskType.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 
 const PRIORITIES = [
@@ -27,6 +27,7 @@ export default function TasksPage({ onClose }) {
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [subtasks, setSubtasks] = useState([]);
+  const [estimatedType, setEstimatedType] = useState(null);
   const [priority, setPriority] = useState('important');
   const [filled, setFilled] = useState(false); // 말한 내용으로 자동 채웠는지
   const [toast, setToast] = useState('');
@@ -37,7 +38,7 @@ export default function TasksPage({ onClose }) {
     onFinalResult: (text) => {
       const parsed = parseTaskText(text);
       if (!parsed.title && !parsed.deadline) return;
-      if (parsed.title) setTitle(parsed.title);
+      if (parsed.title) { setTitle(parsed.title); setSubtasks([]); setEstimatedType(null); }
       if (parsed.deadline) setDate(parsed.deadline);
       setFilled(true);
     },
@@ -48,8 +49,9 @@ export default function TasksPage({ onClose }) {
   const priorityInfo = PRIORITIES.find((p) => p.id === priority);
 
   const applyEstimate = (est) => {
-    setHours(String(est.totalHours));
-    setMinutes('0');
+    setHours(String(Math.floor(est.baseEstimatedMinutes / 60)));
+    setMinutes(String(est.baseEstimatedMinutes % 60));
+    setEstimatedType(est.type);
     setSubtasks(est.subtasks);
   };
 
@@ -59,7 +61,7 @@ export default function TasksPage({ onClose }) {
     setSaveError('');
     const task = {
       title: title.trim(),
-      type: estimateTask(title).type,
+      type: estimatedType ?? inferTaskType(title),
       deadline: `${date}T${time}:00+09:00`,
       importance: { must: 3, important: 2, optional: 1 }[priority],
       baseEstimatedMinutes: totalMinutes,
@@ -74,6 +76,7 @@ export default function TasksPage({ onClose }) {
       setHours('');
       setMinutes('');
       setSubtasks([]);
+      setEstimatedType(null);
       setFilled(false);
     } catch (err) {
       setSaveError(err.message);
@@ -115,7 +118,7 @@ export default function TasksPage({ onClose }) {
           className="d-input d-input-lg"
           value={title}
           placeholder="예: 선형대수학 과제 5"
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => { setTitle(e.target.value); setSubtasks([]); setEstimatedType(null); }}
         />
       </div>
 
@@ -137,7 +140,7 @@ export default function TasksPage({ onClose }) {
               min="0"
               placeholder="0"
               value={hours}
-              onChange={(e) => setHours(e.target.value)}
+              onChange={(e) => { setHours(e.target.value); setSubtasks([]); }}
               aria-label="예상 시간(시간)"
             />
             <span>시간</span>
@@ -151,7 +154,7 @@ export default function TasksPage({ onClose }) {
               step="5"
               placeholder="0"
               value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
+              onChange={(e) => { setMinutes(e.target.value); setSubtasks([]); }}
               aria-label="예상 시간(분)"
             />
             <span>분</span>

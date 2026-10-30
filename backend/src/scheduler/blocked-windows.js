@@ -11,6 +11,7 @@ export function blockedWindows(date, fixedBlocks, settings) {
   const stamp = day(date), weekday = new Date(stamp).getUTCDay();
   const result = [...sleepIntervals(settings).map(b => ({ ...b, date, kind: 'sleep' })),
     ...restIntervals(settings).map(b => ({ ...b, date, kind: 'rest' }))];
+  if ((settings.unavailableDates ?? []).includes(date)) result.push({ date, start: '00:00', end: '24:00', kind: 'day_off' });
   for (const fixed of fixedBlocks) {
     const travel = fixed.travelMinutes ?? settings.travelMinutes ?? 0;
     if (!Number.isSafeInteger(travel) || travel < 0 || travel > 1440) throw new RangeError('이동시간은 0~1440분 정수여야 합니다.');

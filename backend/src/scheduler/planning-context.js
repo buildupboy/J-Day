@@ -1,3 +1,4 @@
+import { unavailableDates } from '../services/scheduling-constraints.js';
 import { blockedWindows } from './blocked-windows.js';
 import { createHash } from 'node:crypto';
 import { DAY, KST, day, minute, clock, datetime, timestamp, positive, instant } from './time.js';
@@ -13,7 +14,7 @@ export function fingerprint(value) {
   return createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
 }
 export function schedulingRevision(db) {
-  return fingerprint({ tasks: db.tasks, fixedBlocks: db.fixedBlocks, settings: db.user?.settings, scheduledBlocks: db.scheduledBlocks ?? [] });
+  return fingerprint({ tasks: db.tasks, fixedBlocks: db.fixedBlocks, settings: db.user?.settings, schedulingConstraints: db.schedulingConstraints ?? {}, scheduledBlocks: db.scheduledBlocks ?? [] });
 }
 export function planningSettings(settings) {
   const start = minute(settings.dayStart), end = minute(settings.dayEnd);
@@ -70,9 +71,12 @@ export function availableWindows(date, fixedBlocks, occupied, settings, now) {
 /** 일정 후보와 제약을 전달한다. 빈 시간을 작업 블록으로 채우지 않는다. */
 export function preparePlanningContext(db, { now, reason = 'manual', horizonDays = 14 }) {
   const time = timestamp(now), settings = planningSettings(db.user.settings);
+  settings.unavailableDates = unavailableDates(db);
   settings.taskRestMinutes = Object.fromEntries(db.tasks.filter(task => task.breakAfterMinutes !== undefined).map(task => [task.id, task.breakAfterMinutes]));
   if (!Number.isInteger(horizonDays) || horizonDays < 1 || horizonDays > 31) throw new RangeError('horizonDays는 1~31이어야 합니다.');
   const first = day(new Date(time + KST).toISOString().slice(0, 10));
+  const daysOff = settings.unavailableDates.filter(value => day(value) >= first && day(value) < first + 31 * DAY);
+  horizonDays = Math.max(horizonDays, ...daysOff.map(value => (day(value) - first) / DAY + 1));
   const window = { from: new Date(first).toISOString().slice(0, 10), to: new Date(first + (horizonDays - 1) * DAY).toISOString().slice(0, 10) };
   const preserved = protectedBlocks(db, now, window);
   const preservedIds = new Set(preserved.map(block => block.id));
@@ -91,6 +95,7 @@ export function preparePlanningContext(db, { now, reason = 'manual', horizonDays
     sourceRevision: schedulingRevision(db), window: { from: days[0].date, to: days.at(-1).date }, settings,
     priorityPolicy: ['deadline_ascending', 'importance_descending', 'remaining_minutes_ascending', 'input_order'],
     priorityIsAdvisory: true, recommendedSlotMinutes: settings.minSlotMinutes, rankedTasks: rankTasks(db.tasks, { existingBlocks: preserved, now }),
+    unavailableDates: settings.unavailableDates,
     fixedBlocks: structuredClone(db.fixedBlocks), protectedBlocks: structuredClone(preserved),
     blockedWindows: days.flatMap(({ date }) => blockedWindows(date, db.fixedBlocks, settings)),
     existingFutureBlocks: structuredClone((db.scheduledBlocks ?? []).filter(block => !preservedIds.has(block.id))),

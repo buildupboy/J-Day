@@ -68,3 +68,9 @@ test('배치 타임아웃과 본문 읽기 타임아웃도 단계가 담긴 504 
     await assert.rejects(client.complete({ system:'test', messages:[], name:'schedule_plan' }), error => error.status === 504 && error.stage === 'schedule_plan' && error.message.includes('120초') && !error.message.includes('sensitive'));
   }
 });
+
+
+test('추정 전용 호출은 배치와 별개로 기본 25초 제한',async()=>{
+ const limits=[];const client=createLlmClient({env,onTelemetry:()=>{},timeoutSignal:ms=>{limits.push(ms);return new AbortController().signal;},fetchImpl:async()=>response('{}')});
+ await client.complete({system:'test',messages:[],name:'task_estimate'});assert.deepEqual(limits,[25000]);
+});
