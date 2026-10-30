@@ -15,7 +15,7 @@ export function createMissedMonitor({ readDb = storedRead, updateDb = storedUpda
       const current = now();
       if (detectMissedBlocks(db.scheduledBlocks ?? [], db.tasks, current).length === 0) return db;
       result = reschedule(db, { now: current, reason: 'missed' });
-      return { ...db, scheduledBlocks: result.scheduledBlocks };
+      return { ...db, scheduledBlocks: result.scheduledBlocks, aiScheduling: { status: 'pending', context: result.planningContext } };
     });
     return result;
   }

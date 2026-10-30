@@ -24,9 +24,8 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/tasks', tasksRouter);
 app.use('/api/schedule', scheduleRouter);
-// 기본값은 미연결. 친구의 스케줄러 구현을 병합한 후에만 활성화한다.
-const scheduler = process.env.VOICE_SCHEDULER_ENABLED === 'true'
-  ? (await import('./scheduler/rescheduler.js')).reschedule : null;
+// AI 배치 입력을 준비한다. 실제 시간 배치와 LLM 호출은 담당 팀원이 연결한다.
+const scheduler = (await import('./scheduler/rescheduler.js')).reschedule;
 app.use('/api/chat', createChatRouter({ scheduler, progressReporter: reportProgress }));
 app.use('/api/analytics', analyticsRouter);
 

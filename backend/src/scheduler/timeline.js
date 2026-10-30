@@ -13,7 +13,7 @@ export function timeline(db, date, { explain = false, now } = {}) {
     })),
     ...scheduled.map(block => {
       const task = tasks.get(block.taskId), subtask = task?.subtasks?.find(subtask => subtask.id === block.subtaskId);
-      return { source: 'scheduled', ...block, title: subtask?.title ?? task?.title ?? block.taskId };
+      return { ...block, source: 'scheduled', ...(block.source ? { placementSource: block.source } : {}), title: subtask?.title ?? task?.title ?? block.taskId };
     }),
   ].sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.source.localeCompare(b.source));
   const result = { date, items };
