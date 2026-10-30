@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J-Day 우선순위 점수</title>
+<style>
+  :root {
+    --bg: #f6f7fb;
+    --card: #ffffff;
+    --ink: #1c2233;
+    --muted: #5b6478;
+    --line: #e3e7f0;
+    --accent: #3b5bdb;
+    --urgency: #e8590c;
+    --pressure: #7048e8;
+    --importance: #d6336c;
+    --short: #0c8599;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px 48px;
+    background: var(--bg); color: var(--ink);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.55;
+  }
+  main { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 24px; margin-bottom: 16px;
+  }
+  .main-formula {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: 10px 14px; font-size: 24px; font-weight: 600; padding: 12px 0;
+  }
+  .term { padding: 6px 12px; border-radius: 10px; color: #fff; white-space: nowrap; font-size: 20px; }
+  .t-urgency { background: var(--urgency); }
+  .t-pressure { background: var(--pressure); }
+  .t-importance { background: var(--importance); }
+  .t-short { background: var(--short); }
+  .op { color: var(--muted); font-weight: 500; }
+  .score { color: var(--accent); }
+  .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 4px; }
+  .frac > span:first-child { border-bottom: 2px solid currentColor; padding: 0 6px 2px; }
+  .frac > span:last-child { padding: 2px 6px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 14px; }
+  td.name { white-space: nowrap; font-weight: 700; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+  code, .eq { font-family: "Cambria Math", "Times New Roman", "Noto Serif KR", serif; font-size: 17px; }
+  .notes { margin: 0; padding-left: 20px; }
+  .notes li { margin: 6px 0; }
+  .tag { display: inline-block; font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #edf2ff; color: var(--accent); margin-right: 6px; }
+  .small { color: var(--muted); font-size: 14px; }
+  @media (max-width: 640px) {
+    .main-formula { font-size: 18px; }
+    .term { font-size: 16px; padding: 4px 8px; }
+    td.name { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>우선순위 점수</h1>
+  <p class="sub">마감이 임박하고, 해야 할 양이 시간에 비해 많고, 중요할수록 먼저 배치합니다.</p>
+
+  <section class="card" aria-label="점수 식">
+    <div class="main-formula">
+      <span class="score">점수</span><span class="op">=</span><span>100</span><span class="op">×</span><span class="op">(</span>
+      <span class="term t-urgency">0.4 · 긴급도</span><span class="op">+</span>
+      <span class="term t-pressure">0.2 · 작업량 압박</span><span class="op">+</span>
+      <span class="term t-importance">0.3 · 중요도</span><span class="op">+</span>
+      <span class="term t-short">0.1 · 짧은 정도</span><span class="op">)</span>
+    </div>
+  </section>
+
+  <section class="card" aria-label="항목별 식">
+    <table>
+      <thead>
+        <tr><th>항목</th><th>식</th><th>의미</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="name"><span class="dot" style="background:var(--urgency)"></span>긴급도</td>
+          <td class="eq">
+            <span class="frac"><span>1</span><span>1 + 남은일수</span></span>
+          </td>
+          <td>마감이 가까울수록 1에 가깝습니다.<br><span class="small">남은일수 = 마감까지 남은 시간 ÷ 24시간</span></td>
+        </tr>
+        <tr>
+          <td class="name"><span class="dot" style="background:var(--pressure)"></span>작업량 압박</td>
+          <td class="eq">
+            min ( 1 ,
+            <span class="frac"><span>남은 작업시간</span><span>남은일수 × 480분</span></span> )
+          </td>
+          <td>마감까지 쓸 수 있는 시간 대비 작업이 클수록 1에 가깝습니다.<br><span class="small">하루 8시간(480분) 작업 가능을 가정</span></td>
+        </tr>
+        <tr>
+          <td class="name"><span class="dot" style="background:var(--importance)"></span>중요도</td>
+          <td class="eq">
+            <span class="frac"><span>중요도</span><span>3</span></span>
+          </td>
+          <td>낮음 1/3, 보통 2/3, 높음 1</td>
+        </tr>
+        <tr>
+          <td class="name"><span class="dot" style="background:var(--short)"></span>짧은 정도</td>
+          <td class="eq">
+            <span class="frac"><span>60</span><span>60 + 남은 작업시간(분)</span></span>
+          </td>
+          <td>짧은 작업일수록 1에 가깝습니다. 동점 처리를 돕는 보조 항목입니다.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card" aria-label="규칙">
+    <ul class="notes">
+      <li><span class="tag">마감 지남</span>마감이 지난 작업은 점수를 <strong>100</strong>으로 고정해 가장 먼저 처리합니다.</li>
+      <li><span class="tag">동점</span>점수가 같으면 마감이 빠른 순 → 중요도가 높은 순 → 남은 시간이 짧은 순 → 입력 순서로 정합니다.</li>
+      <li><span class="tag">남은 작업시간</span>전체 소요시간에서 이미 끝낸 하위작업 시간을 뺀 값입니다.</li>
+      <li><span class="tag">역할</span>이 점수는 배치 <em>순서</em>를 정합니다. 실제 시간은 AI가 배치하고, 고정 일정·휴식·하루 작업량 한도는 서버가 검증합니다.</li>
+    </ul>
+  </section>
+
+  <p class="small">가중치(0.4 / 0.2 / 0.3 / 0.1)와 480분은 휴리스틱으로 정한 값이며 시연 데이터로 조정할 수 있습니다. 구현: <code>backend/src/scheduler/weight.js</code></p>
+</main>
+</body>
+</html>
