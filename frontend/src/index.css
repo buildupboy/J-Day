@@ -1159,3 +1159,65 @@ body {
 .sheet-auto > * {
   flex-shrink: 0;
 }
+
+/* 메모 미리보기·편집 */
+.memo-preview {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 14px;
+  border: 1px solid #f3efc4;
+  border-radius: 16px;
+  background: #fffde8;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  white-space: pre-wrap;
+  cursor: pointer;
+}
+
+.memo-layer {
+  z-index: 30;
+}
+
+.sheet-handle {
+  align-self: center;
+  width: 56px;
+  height: 5px;
+  margin-bottom: 14px;
+  border-radius: 3px;
+  background: #d4d6dc;
+}
+
+.memo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.memo-bar h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.memo-bar button {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.memo-bar .memo-delete {
+  color: #e5484d;
+}
+
+.memo-editor {
+  min-height: 180px;
+  margin-bottom: 0;
+  font-size: 17px;
+}

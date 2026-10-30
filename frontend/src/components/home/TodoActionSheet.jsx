@@ -22,6 +22,13 @@ export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }
   const [draft, setDraft] = useState(todo.title);
   const [timerSec, setTimerSec] = useState(null); // null: 꺼짐, 숫자: 경과 초
   const [running, setRunning] = useState(false);
+  const [memoOpen, setMemoOpen] = useState(false);
+  const [memoDraft, setMemoDraft] = useState('');
+
+  const openMemo = () => {
+    setMemoDraft(meta.memo ?? '');
+    setMemoOpen(true);
+  };
 
   useEffect(() => {
     if (!running) return undefined;
@@ -94,18 +101,17 @@ export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }
           </button>
         </div>
 
-        <div className="sheet-row">
+        <button type="button" className="sheet-row" onClick={openMemo}>
           <span className="row-icon" style={{ background: '#ffd21f' }}>
             <NoteIcon size={20} />
           </span>
           메모
-        </div>
-        <textarea
-          className="todo-memo"
-          rows={5}
-          value={meta.memo ?? ''}
-          onChange={(e) => onPatch({ memo: e.target.value })}
-        />
+        </button>
+        {meta.memo && (
+          <button type="button" className="memo-preview" onClick={openMemo}>
+            {meta.memo}
+          </button>
+        )}
 
         <button type="button" className="sheet-row" onClick={() => onPatch({ alarm: !meta.alarm })}>
           <span className="row-icon" style={{ background: '#f06bf0' }}>
@@ -163,6 +169,49 @@ export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }
           보관함으로 이동
         </button>
       </section>
+
+      {memoOpen && (
+        <div
+          className="sheet-backdrop memo-layer"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMemoOpen(false);
+          }}
+        >
+          <section className="sheet sheet-auto memo-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="memo-bar">
+              <button
+                type="button"
+                className="memo-delete"
+                onClick={() => {
+                  onPatch({ memo: '' });
+                  setMemoOpen(false);
+                }}
+              >
+                삭제
+              </button>
+              <h2>할일</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  onPatch({ memo: memoDraft.trim() });
+                  setMemoOpen(false);
+                }}
+              >
+                완료
+              </button>
+            </div>
+            <textarea
+              className="todo-memo memo-editor"
+              autoFocus
+              rows={8}
+              value={memoDraft}
+              onChange={(e) => setMemoDraft(e.target.value)}
+            />
+          </section>
+        </div>
+      )}
     </div>
   );
 }
