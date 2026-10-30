@@ -61,3 +61,7 @@ export function getBlocksForDate(date) {
   const dow = (date.getDay() + 6) % 7;
   return dow >= 5 ? SAMPLE.filter((b) => b.kind === 'task').slice(0, dow - 4) : SAMPLE;
 }
+
+export function getTasks() {
+  return Object.values(TASKS);
+}

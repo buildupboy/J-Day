@@ -63,3 +63,22 @@ export const UserIcon = (p) => (
     <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
   </Svg>
 );
+
+export const ClockIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 8v4l3 2" />
+  </Svg>
+);
+
+export const ChevronIcon = (p) => (
+  <Svg {...p}>
+    <path d="m9 6 6 6-6 6" />
+  </Svg>
+);
+
+export const CheckIcon = (p) => (
+  <Svg {...p}>
+    <path d="m5 12 5 5 9-10" />
+  </Svg>
+);

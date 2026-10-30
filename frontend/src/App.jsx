@@ -28,7 +28,7 @@ export default function App() {
   } else if (tab === 'analytics') {
     page = <AnalyticsPage onOpenMy={openMy} />;
   } else {
-    page = <HomePage onOpenMy={openMy} />;
+    page = <HomePage onOpenMy={openMy} onNavigate={selectTab} />;
   }
 
   return (

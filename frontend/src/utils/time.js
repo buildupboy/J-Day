@@ -25,3 +25,19 @@ export function formatDuration(minutes) {
   if (h && m) return `${h}시간 ${m}분`;
   return h ? `${h}시간` : `${m}분`;
 }
+
+/** 겹치는 구간을 합쳐서, [from, to] 안에서 비어 있는 시간(분)을 구한다. 15분 미만 틈은 제외 */
+export function freeMinutes(blocks, from, to, minGap = 15) {
+  const spans = blocks
+    .map((b) => [Math.max(toMinutes(b.start), from), Math.min(toMinutes(b.end), to)])
+    .filter(([s, e]) => e > s)
+    .sort((a, b) => a[0] - b[0]);
+  let cursor = from;
+  let free = 0;
+  for (const [s, e] of spans) {
+    if (s - cursor >= minGap) free += s - cursor;
+    cursor = Math.max(cursor, e);
+  }
+  if (to - cursor >= minGap) free += to - cursor;
+  return free;
+}
