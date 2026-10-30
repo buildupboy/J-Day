@@ -13,20 +13,22 @@
 
 ## 데이터 구조
 
-### FixedBlock — 고정 일정 (수업·알바·루틴)
+### FixedBlock — 고정 일정 (수업·알바·루틴·일정)
 
-매주 반복되는, 스케줄러가 건드리지 않는 시간.
+스케줄러가 건드리지 않는 시간. `date`가 없으면 `dayOfWeek`마다 반복하고, 있으면 그날 하루만 있다(`scheduler/time.js`의 `occursOn`).
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | `id` | string | |
-| `kind` | `'class' \| 'job' \| 'routine'` | 수업 / 알바 / 루틴 |
+| `kind` | `'class' \| 'job' \| 'fixed' \| 'routine' \| 'event'` | 수업 / 알바 / 기타 고정 일정 / 루틴 / 일정 |
 | `title` | string | 예: "자료구조" |
 | `location` | string? | |
-| `dayOfWeek` | number[] | 반복 요일 (0=일 … 6=토) |
+| `dayOfWeek` | number[] | 반복 요일 (0=일 … 6=토). `date`가 있으면 그날의 요일 |
+| `date` | `YYYY-MM-DD`? | 하루만 있는 일정의 날짜 |
 | `start` | `HH:mm` | |
 | `end` | `HH:mm` | |
-| `memo` | string? | 메모 (1000자 이하). 없으면 생략 |
+| `openEnd` | boolean? | 끝 시간을 정하지 않은 일정. `end`에는 그날 다음 고정 일정 시작(없으면 23:59)을 저장 |
+| `memo` | string? | 메모 (1000자 이하). 없으면 생략하며, 값이 있으면 타임라인 항목에도 그대로 실린다 |
 
 ```json
 { "id": "fb-job", "kind": "job", "title": "편의점 알바", "dayOfWeek": [2, 4], "start": "19:00", "end": "23:00" }
@@ -44,6 +46,7 @@
 | `importance` | number? | 1=낮음, 2=보통(기본), 3=높음 |
 | `type` | `'report' \| 'coding' \| 'exam' \| 'presentation' \| 'reading' \| 'etc'` | 과제 유형 (개인 보정 계수의 기준) |
 | `subtasks` | `Subtask[]` | 하위작업 |
+| `memo` | string? | 메모 (1000자 이하, 앞뒤 공백 제거, 비면 저장 안 함) |
 | `estimatedMinutes` | number | 보정 후 총 추정시간 |
 | `baseEstimatedMinutes` | number? | 원본 추정시간 |
 | `actualMinutes` | number? | 누적 수행시간 |
@@ -97,6 +100,19 @@
 | ✅ | POST | `/api/schedule/reschedule` | AI 배치 입력 준비 |
 | ✅ | GET | `/api/schedule/context` | 준비 입력·대기 상태 조회 |
 | ✅ | POST | `/api/schedule/apply` | AI 결과 검증·적용 |
+| ✅ | GET | `/api/fixed-blocks` | 고정 일정 전체 목록 |
+| ✅ | POST | `/api/fixed-blocks` | 일정·루틴·알바·수업 등록 후 AI 재배치 |
+| ✅ | DELETE | `/api/fixed-blocks/:id` | 일정·루틴·알바 삭제 후 AI 재배치 (수업은 409) |
+
+### POST /api/fixed-blocks — 일정·루틴 등록
+
+요청: `{ kind: 'event' | 'routine' | 'fixed' | 'job' | 'class', title, start, end, date?, dayOfWeek?, location?, openEnd?, memo? }`.
+수업(`class`)은 요일 반복만 가능하고, 시간표 저장과 같은 규칙으로 다른 반복 일정과 겹치면 409이다. 저장 시 `source: 'manual'`을 붙인다.
+`date`를 주면 그날 하루만, 아니면 `dayOfWeek`(필수)마다 반복한다. 자정을 넘기는 일정(`start >= end`)은 400이다.
+저장 직후 `planner(db, { reason: 'manual' })`로 다시 배치해 겹치는 작업을 옮긴다. 배치가 실패해도 일정은 저장한다.
+
+응답 201: `{ block, rescheduled: true, unplaced }` 또는 배치 실패 시 `{ block, rescheduled: false, rescheduleError }`.
+`DELETE /api/fixed-blocks/:id`도 같은 모양으로 200을 돌려준다.
 
 ### POST /api/chat/interpret — 음성 텍스트 해석
 

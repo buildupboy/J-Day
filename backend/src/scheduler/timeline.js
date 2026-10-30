@@ -5,7 +5,6 @@ import { restIntervals } from './rest.js';
 
 export function todayKst(now) { return new Date(timestamp(now) + KST).toISOString().slice(0, 10); }
 export function timeline(db, date, { explain = false, now } = {}) {
-  const weekday = new Date(day(date)).getUTCDay();
   const tasks = new Map(db.tasks.map(task => [task.id, task]));
   const scheduled = (db.scheduledBlocks ?? []).filter(block => block.date === date);
   const items = [

@@ -57,6 +57,7 @@ function groupOf(deadline, today) {
 
 function UpcomingView({ nav }) {
   const [tasks, setTasks] = useState(null);
+  const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
   const [selectedTask, setSelectedTask] = useState(null);
   const details = useBlockDetails();
@@ -64,9 +65,13 @@ function UpcomingView({ nav }) {
   useEffect(() => {
     let active = true;
     const load = () =>
-      api
-        .getTasks()
-        .then((data) => active && (setTasks(data), setError('')))
+      Promise.all([api.getTasks(), api.getFixedBlocks()])
+        .then(([taskList, fixed]) => {
+          if (!active) return;
+          setTasks(taskList);
+          setEvents(fixed.filter((b) => b.kind === 'event' && b.date));
+          setError('');
+        })
         .catch((err) => active && setError(err.message));
     load();
     window.addEventListener('schedule-changed', load);
@@ -77,9 +82,11 @@ function UpcomingView({ nav }) {
   }, []);
 
   const today = new Date();
-  const upcoming = (tasks ?? [])
-    .filter((t) => t.status !== 'done' && daysUntil(t.deadline, today) >= 0)
-    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+  // 마감이 남은 작업과 하루짜리 일정을 날짜·시각 순으로 함께 보여 준다
+  const upcoming = [
+    ...(tasks ?? []).filter((t) => t.status !== 'done' && daysUntil(t.deadline, today) >= 0).map((t) => ({ ...t, at: t.deadline.slice(0, 16) })),
+    ...events.filter((e) => daysUntil(e.date, today) >= 0).map((e) => ({ ...e, isEvent: true, deadline: e.date, at: `${e.date}T${e.start}` })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
   const groups = [];
   for (const task of upcoming) {
     const name = groupOf(task.deadline, today);
@@ -114,6 +121,23 @@ function UpcomingView({ nav }) {
           <h2>{group.name}</h2>
           {group.items.map((task) => {
             const date = new Date(`${task.deadline.slice(0, 10)}T00:00:00`);
+            if (task.isEvent) {
+              return (
+                <div key={task.id} className="up-row">
+                  <div className="up-date">
+                    <strong>{date.getDate()}</strong>
+                    <span>{SHORT_WEEKDAY[date.getDay()]}</span>
+                  </div>
+                  <div className="up-body">
+                    <p className="up-title">{task.title}</p>
+                    <p className="up-meta">
+                      일정 · {task.start} – {task.openEnd ? '끝 시간 미정' : task.end}
+                    </p>
+                  </div>
+                  <span className="d-badge">{dDay(daysUntil(task.date, today))}</span>
+                </div>
+              );
+            }
             const priority = priorityOf(task);
             const must = priority.tone === 'must';
             const left = daysUntil(task.deadline, today);

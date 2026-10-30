@@ -6,9 +6,8 @@ import { acceptAiPlan } from '../scheduler/ai-plan.js';
 import { schedulingRevision } from '../scheduler/planning-context.js';
 import { explainSchedule } from '../scheduler/explanations.js';
 import { timeline, weekTimeline, todayKst, mondayKst } from '../scheduler/timeline.js';
-import { day, instant } from '../scheduler/time.js';
+import { day, instant, occursOn } from '../scheduler/time.js';
 import { fail, explainRequested } from '../services/validation.js';
-import { fixedOccursOn } from '../scheduler/fixed-occurrence.js';
 import { updateFixedBlock } from '../services/fixed-edit.js';
 import { postponeBlocks } from '../services/postpone.js';
 
@@ -46,9 +45,8 @@ export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpd
       if (!['fixed', 'scheduled'].includes(source)) fail('지원하지 않는 일정 종류입니다.');
       try { if (typeof date !== 'string') throw new Error(); day(date); } catch { fail('유효한 일정 날짜가 필요합니다.'); }
       await updateDb(async db => {
-        const weekday = new Date(day(date)).getUTCDay();
         const exists = source === 'fixed'
-          ? db.fixedBlocks.some(item => item.id === id && fixedOccursOn(item, date))
+          ? db.fixedBlocks.some(item => item.id === id && occursOn(item, date))
           : db.scheduledBlocks.some(item => item.id === id && item.date === date);
         if (!exists) fail('일정을 찾을 수 없습니다.', 404);
         const deleted = db.deletedCalendarItems ??= [];

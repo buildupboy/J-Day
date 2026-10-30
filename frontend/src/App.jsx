@@ -7,6 +7,7 @@ import CalendarPage from './pages/CalendarPage.jsx';
 import SchedulePage from './pages/SchedulePage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import NewEventPage from './pages/NewEventPage.jsx';
+import RepeatEventPage from './pages/RepeatEventPage.jsx';
 import FixedSchedulePage from './pages/FixedSchedulePage.jsx';
 import FinishTaskPage from './pages/FinishTaskPage.jsx';
 import MyPage from './pages/MyPage.jsx';
@@ -16,7 +17,7 @@ import useReminders from './hooks/useReminders.js';
 export default function App() {
   const [tab, setTab] = useState('home');
   const [scheduleView, setScheduleView] = useState('upcoming'); // 일정 탭: 'upcoming' | 'setup'
-  const [overlay, setOverlay] = useState(null); // 'add' | 'newEvent' | 'addTask' | 'fixed' | 'voice' | 'finish'
+  const [overlay, setOverlay] = useState(null); // 'add' | 'newEvent' | 'repeat' | 'addTask' | 'fixed' | 'voice' | 'finish'
   const [finishing, setFinishing] = useState(null); // 작업 종료 화면에 넘길 { block, blocks, taskById }
   const [failedImport, setFailedImport] = useState(null);
 
@@ -56,6 +57,11 @@ export default function App() {
       {overlay === 'newEvent' && (
         <div className="screen-overlay">
           <NewEventPage nav={nav} onClose={close} />
+        </div>
+      )}
+      {overlay === 'repeat' && (
+        <div className="screen-overlay">
+          <RepeatEventPage nav={nav} onClose={close} />
         </div>
       )}
       {overlay === 'addTask' && (

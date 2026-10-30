@@ -8,7 +8,7 @@ import { fixedOccursOn } from './fixed-occurrence.js';
  * 고정 일정(수업·알바·루틴) 앞뒤로 작업 사이 휴식(breakMinutes)만큼 비워 두어 작업과 붙지 않게 한다.
  */
 export function blockedWindows(date, fixedBlocks, settings) {
-  const stamp = day(date), weekday = new Date(stamp).getUTCDay();
+  const stamp = day(date);
   const result = [...sleepIntervals(settings).map(b => ({ ...b, date, kind: 'sleep' })),
     ...restIntervals(settings).map(b => ({ ...b, date, kind: 'rest' }))];
   if ((settings.unavailableDates ?? []).includes(date)) result.push({ date, start: '00:00', end: '24:00', kind: 'day_off' });

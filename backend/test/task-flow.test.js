@@ -121,3 +121,11 @@ test('동시 등록과 진행 보고가 다른 작업·기록을 유실하지 �
  assert.equal(saved.tasks.length,3);assert.ok(saved.tasks.every(t=>t.status==='done'));
  assert.equal(saved.history.length,4);assert.equal(new Set(saved.history.map(h=>h.id)).size,4);
 });
+
+test('작업 메모는 앞뒤 공백을 지워 저장하고 1000자를 넘으면 거부',async t=>{
+ const {request}=await setup(t);
+ const created=await request('POST','/tasks',input({memo:'  교수님 메일 확인 '}));
+ assert.equal(created.status,201);assert.equal(created.body.task.memo,'교수님 메일 확인');
+ assert.equal((await request('POST','/tasks',input({id:'blank',memo:'   '}))).body.task.memo,undefined);
+ assert.equal((await request('POST','/tasks',input({id:'long',memo:'x'.repeat(1001)}))).status,400);
+});

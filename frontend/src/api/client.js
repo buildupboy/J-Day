@@ -57,4 +57,9 @@ export const api = {
   getTodaySchedule: () => request('/schedule/today'),
   getWeekSchedule: (from) => request(`/schedule/week?from=${encodeURIComponent(from)}`),
   reschedule: (reason = 'manual') => request('/schedule/reschedule', { method: 'POST', body: { reason } }),
+
+  // 고정 일정(일정·루틴·알바). 저장·삭제 후 서버가 작업을 다시 배치한다
+  getFixedBlocks: () => request('/fixed-blocks'),
+  createFixedBlock: (block) => request('/fixed-blocks', { method: 'POST', body: block }),
+  deleteFixedBlock: (id) => request(`/fixed-blocks/${id}`, { method: 'DELETE' }),
 };

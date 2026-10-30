@@ -5,6 +5,7 @@ import cors from 'cors';
 import { createTasksRouter } from './routes/tasks.js';
 import { planSchedule } from './services/ai-planner.js';
 import { createScheduleRouter } from './routes/schedule.js';
+import { createFixedBlocksRouter } from './routes/fixed-blocks.js';
 import { createChatRouter } from './routes/chat.js';
 import timetableRouter from './routes/timetable.js';
 import analyticsRouter from './routes/analytics.js';
@@ -26,6 +27,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/tasks', createTasksRouter({ planner: planSchedule }));
 app.use('/api/schedule', createScheduleRouter({ planner: planSchedule }));
+app.use('/api/fixed-blocks', createFixedBlocksRouter({ planner: planSchedule }));
 // 실제 배치는 AI, 우선순위/잔량 계산과 결과 검증만 코드에서 담당한다.
 app.use('/api/chat', createChatRouter({ scheduler: planSchedule,
   progressReporter: (db, id, input, options) => reportProgress(db, id, input, { ...options, planner: planSchedule }) }));

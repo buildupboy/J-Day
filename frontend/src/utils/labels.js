@@ -10,7 +10,7 @@ export const PRIORITY = {
 export const priorityOf = (task) => PRIORITY[task?.importance ?? 2];
 
 // 고정 일정 종류
-export const FIXED_KIND_LABEL = { class: '수업', job: '알바', routine: '루틴', event: '일정' };
+export const FIXED_KIND_LABEL = { class: '수업', job: '알바', fixed: '고정 일정', routine: '루틴', event: '일정' };
 
 export const TASK_TYPE_LABEL = {
   report: '과제',
