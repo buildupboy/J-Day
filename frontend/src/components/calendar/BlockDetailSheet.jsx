@@ -50,16 +50,17 @@ export default function BlockDetailSheet({ block, details, onClose }) {
     }
   };
   const task = block.task ?? (block.taskId ? getTaskById(block.taskId) : null);
-  const slotMinutes = toMinutes(block.end) - toMinutes(block.start);
+  const slotMinutes = block.start && block.end ? toMinutes(block.end) - toMinutes(block.start) : 0;
   const status = details.statusOf(block.id);
 
   const isDone = (st) => st.done !== details.toggled.has(st.id);
-  const doneSubtasks = task ? task.subtasks.filter(isDone) : [];
+  const subtasks = task?.subtasks ?? [];
+  const doneSubtasks = subtasks.filter(isDone);
   const doneMinutes = doneSubtasks.reduce((sum, st) => sum + st.estimatedMinutes, 0);
 
   // 블록을 완료 처리하면 이 블록의 하위 작업도 함께 완료로 맞춘다 (완료 취소 시에는 체크를 건드리지 않는다)
   const markDone = () => {
-    const sub = task?.subtasks.find((st) => st.id === block.subtaskId);
+    const sub = subtasks.find((st) => st.id === block.subtaskId);
     if (sub && status !== 'done' && !isDone(sub)) details.toggleSubtask(sub.id);
     details.setStatus(block.id, 'done');
   };
@@ -73,11 +74,11 @@ export default function BlockDetailSheet({ block, details, onClose }) {
             <h2>{block.title}</h2>
           </div>
           <div className="sheet-head-actions">
-          <button type="button" className="icon-button delete-calendar-button" onClick={remove} disabled={deleting} aria-label="일정 삭제" title="일정 삭제" aria-busy={deleting}>
+          {block.source && <button type="button" className="icon-button delete-calendar-button" onClick={remove} disabled={deleting} aria-label="일정 삭제" title="일정 삭제" aria-busy={deleting}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
             </svg>
-          </button>
+          </button>}
           <button type="button" className="icon-button" onClick={onClose} aria-label="닫기">
             ✕
           </button>
@@ -90,7 +91,7 @@ export default function BlockDetailSheet({ block, details, onClose }) {
           <div>
             <dt>시간</dt>
             <dd>
-              {block.start}–{block.end} · {formatDuration(slotMinutes)}
+              {block.start && block.end ? `${block.start}–${block.end} · ${formatDuration(slotMinutes)}` : '아직 배치된 시간이 없어요'}
             </dd>
           </div>
           {block.location && (
@@ -129,14 +130,14 @@ export default function BlockDetailSheet({ block, details, onClose }) {
               <div className="subtask-head">
                 <h3>하위 작업</h3>
                 <span>
-                  {doneSubtasks.length} / {task.subtasks.length} 완료
+                  {doneSubtasks.length} / {subtasks.length} 완료
                 </span>
               </div>
               <div className="progress">
-                <i style={{ width: `${(doneSubtasks.length / task.subtasks.length) * 100}%` }} />
+                <i style={{ width: `${subtasks.length ? (doneSubtasks.length / subtasks.length) * 100 : 0}%` }} />
               </div>
               <ul className="subtask-list">
-                {task.subtasks.map((st) => (
+                {subtasks.map((st) => (
                   <li key={st.id}>
                     <label>
                       <input
@@ -192,7 +193,7 @@ export default function BlockDetailSheet({ block, details, onClose }) {
               </label>
             </div>
 
-            <div className="detail-actions">
+            {block.source && <div className="detail-actions">
               <button
                 type="button"
                 className={`action-button ${status === 'postponed' ? 'is-on' : ''}`}
@@ -207,7 +208,7 @@ export default function BlockDetailSheet({ block, details, onClose }) {
               >
                 {status === 'done' ? '완료 취소' : '완료'}
               </button>
-            </div>
+            </div>}
           </>
         )}
       </section>

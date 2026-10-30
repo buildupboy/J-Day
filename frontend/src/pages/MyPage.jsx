@@ -177,7 +177,7 @@ export default function MyPage({ nav }) {
     }
   }
 
-  const openRow = (id) => { setSaveResult(null); if (id === 'fixed') nav.tab('tasks', 'setup'); else setPanel(id); };
+  const openRow = (id) => { setSaveResult(null); if (id === 'fixed') nav.open('fixed'); else setPanel(id); };
 
   const menu = (title, items) => (
     <section className="d-section" aria-label={title}>

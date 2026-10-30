@@ -5,6 +5,8 @@ import { getWeekDays, addDays, WEEKDAY_LABELS } from '../utils/calendar.js';
 import { toMinutes, formatDuration } from '../utils/time.js';
 import { priorityOf, TASK_TYPE_LABEL, FIXED_KIND_LABEL, daysUntil, dDay } from '../utils/labels.js';
 import { toIsoDate } from '../utils/parseTaskText.js';
+import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
+import useBlockDetails from '../hooks/useBlockDetails.js';
 
 const SHORT_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 화면은 월요일부터, dayOfWeek는 0=일
@@ -54,6 +56,8 @@ function groupOf(deadline, today) {
 function UpcomingView({ nav }) {
   const [tasks, setTasks] = useState(null);
   const [error, setError] = useState('');
+  const [selectedTask, setSelectedTask] = useState(null);
+  const details = useBlockDetails();
 
   useEffect(() => {
     let active = true;
@@ -112,7 +116,7 @@ function UpcomingView({ nav }) {
             const must = priority.tone === 'must';
             const left = daysUntil(task.deadline, today);
             return (
-              <div key={task.id} className={`up-row ${must ? 'is-key' : ''}`}>
+              <button key={task.id} type="button" className={`up-row ${must ? 'is-key' : ''}`} onClick={() => setSelectedTask(task)} aria-label={`${task.title} 상세 보기`}>
                 <div className="up-date">
                   <strong>{date.getDate()}</strong>
                   <span>{SHORT_WEEKDAY[date.getDay()]}</span>
@@ -125,12 +129,52 @@ function UpcomingView({ nav }) {
                   </p>
                 </div>
                 <span className={`d-badge ${must ? 'is-solid' : ''}`}>{dDay(left)}</span>
-              </div>
+              </button>
             );
           })}
         </section>
       ))}
+      {selectedTask && <UpcomingDetail key={selectedTask.id} task={selectedTask} details={details} onClose={() => setSelectedTask(null)} />}
     </>
+  );
+}
+
+function UpcomingDetail({ task, details, onClose }) {
+  const [state, setState] = useState({ loading: true, block: null, error: '' });
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      const today = toIsoDate(new Date());
+      try {
+        for (let from = new Date(`${today}T00:00:00`); toIsoDate(from) <= task.deadline.slice(0, 10); from = addDays(from, 7)) {
+          const week = await api.getWeekSchedule(toIsoDate(from));
+          if (!active) return;
+          const matches = week.days.flatMap((day) => day.items
+            .filter((item) => item.source === 'scheduled' && item.taskId === task.id)
+            .map((item) => ({ ...item, date: day.date, kind: 'task', task }))
+          ).sort((a, b) => `${a.date}T${a.start}`.localeCompare(`${b.date}T${b.start}`));
+          const block = matches.find((item) => item.status !== 'done' && item.status !== 'missed') ?? matches[0];
+          if (block) {
+            setState({ loading: false, block, error: '' });
+            return;
+          }
+        }
+        if (active) setState({ loading: false, block: { id: task.id, taskId: task.id, title: task.title, kind: 'task', task }, error: '' });
+      } catch (error) {
+        if (active) setState({ loading: false, block: null, error: error.message });
+      }
+    }
+    load();
+    return () => { active = false; };
+  }, [task]);
+  if (state.block) return <BlockDetailSheet block={state.block} details={details} onClose={onClose} />;
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <section className="sheet sheet-auto" role="dialog" aria-modal="true" aria-label={`${task.title} 상세`} onClick={(event) => event.stopPropagation()}>
+        <div className="sheet-head"><h2>{task.title}</h2><button type="button" className="icon-button" onClick={onClose} aria-label="닫기">✕</button></div>
+        {state.loading ? <p role="status">작업 일정을 불러오는 중이에요…</p> : <p role="alert">일정을 불러오지 못했어요. ({state.error})</p>}
+      </section>
+    </div>
   );
 }
 
@@ -141,12 +185,15 @@ function SetupView({ nav }) {
 
   useEffect(() => {
     let active = true;
-    api
+    const load = () => api
       .getTimetable()
       .then((result) => active && setData(result))
       .catch((err) => active && setError(err.message));
+    load();
+    window.addEventListener('schedule-changed', load);
     return () => {
       active = false;
+      window.removeEventListener('schedule-changed', load);
     };
   }, []);
 
@@ -207,6 +254,7 @@ function SetupView({ nav }) {
           </button>
         </div>
       </section>
+
 
       <section className="d-section" aria-label="루틴">
         <h2 className="d-h2">루틴</h2>
