@@ -32,9 +32,9 @@ export default function CalendarPage({ onOpenMy }) {
   );
 
   return (
-    <>
+    <div className="calendar-page">
       <PageHeader title={`${selected.getMonth() + 1}월`} onOpenMy={onOpenMy} />
-      <div className="page-body">
+      <div className="page-body calendar-body">
         <div className="calendar-toolbar">{toggle}</div>
         {view === 'week' ? (
           <>
@@ -50,6 +50,6 @@ export default function CalendarPage({ onOpenMy }) {
           />
         )}
       </div>
-    </>
+    </div>
   );
 }

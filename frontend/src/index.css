@@ -376,9 +376,26 @@ body {
   background: #111;
 }
 
+.calendar-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.calendar-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.timetable-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .timetable {
   position: relative;
-  margin-top: 8px;
 }
 
 .tt-hour {
