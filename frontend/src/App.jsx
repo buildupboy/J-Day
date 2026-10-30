@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import BottomNav from './components/common/BottomNav.jsx';
 import RescheduleNotice from './components/common/RescheduleNotice.jsx';
 import AddSheet from './components/common/AddSheet.jsx';
@@ -14,18 +14,36 @@ import FinishTaskPage from './pages/FinishTaskPage.jsx';
 import MyPage from './pages/MyPage.jsx';
 import useReminders from './hooks/useReminders.js';
 import TimetableImportDialog from './components/timetable/TimetableImportDialog.jsx';
+import { readChatEntry, clearChatEntry } from './utils/chatEntry.js';
 
 // 탭 4개(홈·캘린더·일정·마이) + 가운데 마이크. 추가 선택창·등록 화면·제이 대화는 탭 위에 겹쳐 연다.
 export default function App() {
   const [tab, setTab] = useState('home');
   const [scheduleView, setScheduleView] = useState('upcoming'); // 일정 탭: 'upcoming' | 'setup'
-  const [overlay, setOverlay] = useState(null); // 'add' | 'newEvent' | 'repeat' | 'addTask' | 'fixed' | 'voice' | 'finish'
+  // 알림·PiP에서 /chat으로 돌아오면 대화 화면을 열되, 마이크는 '대화 시작'을 눌러야 켠다
+  const [overlay, setOverlay] = useState(() => (readChatEntry() ? 'voice' : null)); // 'add' | 'newEvent' | 'repeat' | 'addTask' | 'fixed' | 'voice' | 'finish'
   const [finishing, setFinishing] = useState(null); // 작업 종료 화면에 넘길 { block, blocks, taskById }
+  const [needsStart, setNeedsStart] = useState(() => Boolean(readChatEntry()));
   const [failedImport, setFailedImport] = useState(null);
 
   const reminderMessage = useReminders();
 
-  const close = () => { setOverlay(null); setFailedImport(null); };
+  // 앱이 이미 열려 있을 때 알림을 누르면 서비스워커가 메시지로 알려 준다
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+    const onMessage = (e) => {
+      if (e.data?.type !== 'open-chat') return;
+      // 마이페이지 설정 창 같은 최상단(showModal) 창이 대화 화면을 가리지 않게 홈으로 돌린다
+      setTab('home');
+      setFailedImport(null);
+      setNeedsStart(true);
+      setOverlay('voice');
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, []);
+
+  const close = () => { setOverlay(null); setFailedImport(null); setNeedsStart(false); clearChatEntry(); };
   const nav = {
     tab: (id, view) => {
       if (view) setScheduleView(view);
@@ -54,7 +72,7 @@ export default function App() {
   return (
     <div className="app">
       <main className="app-main">{page}</main>
-      <BottomNav active={tab} onSelect={(id) => nav.tab(id)} onMic={() => setOverlay('voice')} />
+      <BottomNav active={tab} onSelect={(id) => nav.tab(id)} onMic={() => { setNeedsStart(false); setOverlay('voice'); }} />
       {overlay === 'add' && <AddSheet nav={nav} onClose={close} showCapture={tab === 'tasks'} />}
       {overlay === 'timetableImport' && <TimetableImportDialog onClose={close} />}
       {overlay === 'newEvent' && (
@@ -84,7 +102,7 @@ export default function App() {
       )}
       {reminderMessage && <div className="toast" role="status">{reminderMessage}</div>}
       <RescheduleNotice />
-      {overlay === 'voice' && <VoiceScreen nav={nav} onClose={close} />}
+      {overlay === 'voice' && <VoiceScreen key={needsStart ? 'gate' : 'live'} nav={nav} onClose={close} needsStart={needsStart} />}
     </div>
   );
 }

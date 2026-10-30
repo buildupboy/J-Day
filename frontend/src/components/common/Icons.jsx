@@ -233,3 +233,10 @@ export const BarsIcon = (p) => (
     <path d="M4 6h16M4 12h10M4 18h6" />
   </Svg>
 );
+
+export const PipIcon = (p) => (
+  <Svg {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <rect x="12" y="11" width="7" height="5" rx="1" />
+  </Svg>
+);

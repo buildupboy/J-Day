@@ -15,6 +15,7 @@ import AnalyticsPage from './AnalyticsPage.jsx';
 import { api } from '../api/client.js';
 import PatternSettingsPage, { patternSummary } from './PatternSettingsPage.jsx';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
+import PushToggle from '../components/common/PushToggle.jsx';
 
 const DEMO_USER = { email: 'demo@jday.com', password: '1234' };
 const SESSION_KEY = 'jday-demo-login';
@@ -301,6 +302,7 @@ export default function MyPage({ nav }) {
       {selected && (
         <Modal title={selected.label} onClose={() => setPanel(null)}>
           <p className="my-dialog-description">{DETAIL[selected.id]?.(settings)}</p>
+          {selected.id === 'voice' && <PushToggle />}
 
         </Modal>
       )}

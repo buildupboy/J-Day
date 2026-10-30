@@ -13,6 +13,18 @@ const writeFired = (keys) => {
   try { localStorage.setItem(FIRED_KEY, JSON.stringify(keys.slice(-200))); } catch { /* 저장 불가 환경이면 알림을 한 번 더 볼 수 있다 */ }
 };
 
+// 서비스워커로 띄워야 알림을 눌렀을 때 notificationclick이 대화 화면(/chat)으로 안내한다.
+async function showReminder(body) {
+  try {
+    const reg = await navigator.serviceWorker?.ready;
+    if (reg) {
+      await reg.showNotification('제이', { body, icon: '/icons/icon-192.png', tag: 'jday-reminder', data: { url: '/chat?source=notification' } });
+      return;
+    }
+  } catch { /* 서비스워커를 못 쓰면 아래 기본 알림으로 대체 */ }
+  new Notification('제이', { body });
+}
+
 // 앱이 열려 있는 동안 알림 시각이 되면 브라우저 알림(허용 시)과 화면 안내를 띄운다
 export default function useReminders() {
   const [message, setMessage] = useState(null);
@@ -34,7 +46,7 @@ export default function useReminders() {
           fired.push(key);
           const body = `‘${task.title}’ 마감이 다가오고 있어요.`;
           setMessage(body);
-          if ('Notification' in window && Notification.permission === 'granted') new Notification('제이', { body });
+          if ('Notification' in window && Notification.permission === 'granted') showReminder(body);
         }
       }
       writeFired(fired);
