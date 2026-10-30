@@ -1231,3 +1231,141 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 오늘의 여유 시간 시트 */
+.free-sheet {
+  max-height: 92%;
+}
+
+.free-total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 22px 16px;
+  border-radius: 18px;
+  background: var(--bg);
+  text-align: center;
+}
+
+.free-total strong {
+  font-size: 30px;
+}
+
+.free-total p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.free-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.free-head h3,
+.jay-note h3,
+.free-use-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.free-head span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.free-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.free-list button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 14px 10px 10px;
+  border: none;
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.free-clock {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--panel);
+}
+
+.free-list strong {
+  flex: 1;
+  text-align: left;
+  font-size: 15px;
+}
+
+.free-list em {
+  color: var(--muted);
+  font-size: 14px;
+  font-style: normal;
+}
+
+.jay-note {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg);
+}
+
+.jay-note h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.jay-note p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.free-use-title {
+  margin-bottom: 10px;
+}
+
+.free-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.free-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 6px;
+  border: none;
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}

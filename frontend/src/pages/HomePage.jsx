@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import FreeTimeSheet from '../components/home/FreeTimeSheet.jsx';
 import TodoActionSheet from '../components/home/TodoActionSheet.jsx';
 import useTodoActions from '../hooks/useTodoActions.js';
 import { BellIcon, UserIcon, CalendarIcon, ClockIcon, ChevronIcon, CheckIcon, NoteIcon } from '../components/common/Icons.jsx';
 import { getBlocksForDate, getTaskById, getTasks } from '../data/sampleSchedule.js';
-import { formatKoreanDate, toMinutes, formatDuration, freeMinutes } from '../utils/time.js';
+import { formatKoreanDate, toMinutes, formatDuration, freeSlots } from '../utils/time.js';
 
 const USER_NAME = '민지'; // TODO: 백엔드 user 연결
 const FREE_FROM = 9 * 60;
@@ -63,7 +64,9 @@ export default function HomePage({ onOpenMy, onNavigate }) {
     .map((t) => ({ ...t, left: daysUntil(t.deadline) }))
     .filter((t) => t.left >= 0)
     .sort((a, b) => a.left - b.left)[0];
-  const free = freeMinutes(getBlocksForDate(now), Math.max(nowMin, FREE_FROM), FREE_TO);
+  const slots = freeSlots(getBlocksForDate(now), Math.max(nowMin, FREE_FROM), FREE_TO);
+  const free = slots.reduce((sum, sl) => sum + sl.minutes, 0);
+  const [freeOpen, setFreeOpen] = useState(false);
 
   const startOrFinish = () => {
     if (!started) setStartedId(next.id);
@@ -105,7 +108,7 @@ export default function HomePage({ onOpenMy, onNavigate }) {
           </span>
           <ChevronIcon size={14} />
         </button>
-        <button type="button" className="summary-card" onClick={() => onNavigate('calendar')}>
+        <button type="button" className="summary-card" onClick={() => setFreeOpen(true)}>
           <span className="summary-icon">
             <ClockIcon />
           </span>
@@ -173,6 +176,18 @@ export default function HomePage({ onOpenMy, onNavigate }) {
         </ul>
       </section>
 
+      {freeOpen && (
+        <FreeTimeSheet
+          slots={slots}
+          total={free}
+          suggestTask={nearest?.title}
+          onNavigate={(tab) => {
+            setFreeOpen(false);
+            onNavigate(tab);
+          }}
+          onClose={() => setFreeOpen(false)}
+        />
+      )}
       {openTodo && (
         <TodoActionSheet
           todo={openTodo}

@@ -116,3 +116,15 @@ export const RepeatIcon = (p) => (
   </Svg>
 );
 
+export const SparkIcon = (p) => (
+  <Svg {...p}>
+    <path d="M10 4v5M7.5 6.5h5M16 11l1.2 3.3 3.3 1.2-3.3 1.2L16 20l-1.2-3.3-3.3-1.2 3.3-1.2zM6 14l.8 2.2L9 17l-2.2.8L6 20l-.8-2.2L3 17l2.2-.8z" />
+  </Svg>
+);
+
+export const PlusCircleIcon = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 8v8M8 12h8" />
+  </Svg>
+);
