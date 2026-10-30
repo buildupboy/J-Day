@@ -25,6 +25,7 @@
   "tasks": [
     {
       "id": "t-db-report",
+      "importance": 2,
       "title": "데이터베이스 ERD 설계 보고서",
       "deadline": "2026-11-04T23:59:00+09:00",
       "type": "report",
@@ -40,6 +41,7 @@
     },
     {
       "id": "t-os-hw",
+      "importance": 2,
       "title": "운영체제 스케줄링 시뮬레이터 과제",
       "deadline": "2026-11-06T23:59:00+09:00",
       "type": "coding",
