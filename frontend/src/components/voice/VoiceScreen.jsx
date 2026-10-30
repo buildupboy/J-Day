@@ -52,7 +52,18 @@ export default function VoiceScreen({ onClose }) {
   });
 
   const lastActivityRef = useRef(Date.now());
-  const levels = useAudioLevel(listening && !typing, BAR_COUNT, (level) => {
+  // 마이크를 다시 눌러 끝낸 직후. 인식기가 마무리되기를 기다리는 동안에도 바로 답변 화면을 보여 준다
+  const [stopping, setStopping] = useState(false);
+  useEffect(() => {
+    if (!listening) setStopping(false);
+  }, [listening]);
+
+  const endListening = () => {
+    setStopping(true);
+    stop();
+  };
+
+  const levels = useAudioLevel(listening && !typing && !stopping, BAR_COUNT, (level) => {
     if (level > 0) lastActivityRef.current = Date.now();
   });
 
@@ -107,7 +118,7 @@ export default function VoiceScreen({ onClose }) {
   };
 
   // 말하는 중 화면. 키보드 버튼을 누르면 듣기 종료를 기다리지 않고 바로 채팅 화면으로 넘어간다
-  if (listening && !typing) {
+  if (listening && !typing && !stopping) {
     return (
       <div className="voice">
         <button type="button" className="icon-button voice-close" onClick={onClose} aria-label="닫기">
@@ -147,7 +158,7 @@ export default function VoiceScreen({ onClose }) {
             >
               <KeyboardIcon size={26} />
             </button>
-            <button type="button" className="big-mic is-listening" onClick={stop} aria-label="듣기 중지">
+            <button type="button" className="big-mic is-listening" onClick={endListening} aria-label="듣기 중지">
               <MicIcon size={30} />
             </button>
             <span />
@@ -159,7 +170,7 @@ export default function VoiceScreen({ onClose }) {
     );
   }
 
-  const empty = messages.length === 0;
+  const empty = messages.length === 0 && !thinking && !stopping;
 
   return (
     <div className="voice">
@@ -207,7 +218,7 @@ export default function VoiceScreen({ onClose }) {
                 </li>
               )
             )}
-            {thinking && (
+            {(thinking || stopping) && (
               <li className="assistant-row">
                 <span className="assistant-avatar">
                   <SparkIcon size={18} />
@@ -224,7 +235,7 @@ export default function VoiceScreen({ onClose }) {
       </div>
 
       <div className="voice-dock">
-        {error && <p className="dock-error">{ERROR_TEXT[error] ?? `음성 인식 오류: ${error}`}</p>}
+        {error && !typing && <p className="dock-error">{ERROR_TEXT[error] ?? `음성 인식 오류: ${error}`}</p>}
         {!supported && <p className="dock-error">이 브라우저는 음성 인식을 지원하지 않아요. 직접 입력해 주세요.</p>}
         <form className="dock-form" onSubmit={submitText}>
           <input

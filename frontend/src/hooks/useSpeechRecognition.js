@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const getSpeechRecognition = () =>
   typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : undefined;
 
+// stop() 뒤 이 시간 안에 onend가 안 오면 직접 끝낸다
+const FORCE_END_MS = 1200;
+
 /**
  * Web Speech API 음성 인식 훅 (크롬 기준, ko-KR).
  * TODO: "헤이 제이" 호출어 감지(continuous 모드) 추가
@@ -14,6 +17,8 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
   const onFinalRef = useRef(onFinalResult);
   const lastInterimRef = useRef(''); // 종료 직전까지 들린 말
   const deliveredRef = useRef(false); // 이번 듣기에서 최종 결과를 이미 넘겼는지
+  const endedRef = useRef(true); // 이번 듣기를 이미 마무리했는지
+  const forceTimerRef = useRef(null);
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState(null);
@@ -23,9 +28,27 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     onFinalRef.current = onFinalResult;
   }, [onFinalResult]);
 
+  // 듣기를 마무리한다. onend와 강제 종료 타이머가 둘 다 불러도 한 번만 실행된다.
+  const finish = useCallback(() => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    clearTimeout(forceTimerRef.current);
+
+    if (!deliveredRef.current && lastInterimRef.current) {
+      // 최종 결과 없이 끝나면 들린 부분까지 보낸다
+      deliveredRef.current = true;
+      onFinalRef.current?.(lastInterimRef.current);
+    } else if (!deliveredRef.current) {
+      setError((prev) => prev ?? 'no-speech');
+    }
+    lastInterimRef.current = '';
+    setListening(false);
+    setInterimTranscript('');
+  }, []);
+
   useEffect(() => {
     const SpeechRecognition = getSpeechRecognition();
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) return undefined;
     const recognition = new SpeechRecognition();
     recognition.lang = lang;
     recognition.interimResults = true;
@@ -50,17 +73,11 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
       setInterimTranscript(interim);
     };
     recognition.onerror = (event) => setError(event.error);
-    recognition.onend = () => {
-      // 말을 멈추거나 직접 종료했을 때 최종 결과 없이 끝나면 들린 부분까지 보낸다
-      if (!deliveredRef.current && lastInterimRef.current) onFinalRef.current?.(lastInterimRef.current);
-      lastInterimRef.current = '';
-      setListening(false);
-      setInterimTranscript('');
-    };
+    recognition.onend = finish;
 
     recognitionRef.current = recognition;
     return () => recognition.abort();
-  }, [lang]);
+  }, [lang, finish]);
 
   const start = useCallback(() => {
     if (!recognitionRef.current) return;
@@ -69,6 +86,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     deliveredRef.current = false;
     try {
       recognitionRef.current.start();
+      endedRef.current = false;
       setListening(true);
     } catch {
       // 이미 듣는 중이면 InvalidStateError가 나므로 무시한다
@@ -76,8 +94,15 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
   }, []);
 
   const stop = useCallback(() => {
+    if (endedRef.current) return;
     recognitionRef.current?.stop();
-  }, []);
+    // 브라우저가 onend를 늦게 주거나 안 줘도 화면이 듣기 상태에 갇히지 않게 한다
+    clearTimeout(forceTimerRef.current);
+    forceTimerRef.current = setTimeout(() => {
+      recognitionRef.current?.abort();
+      finish();
+    }, FORCE_END_MS);
+  }, [finish]);
 
   return { supported: Boolean(getSpeechRecognition()), listening, interimTranscript, error, start, stop };
 }
