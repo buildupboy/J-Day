@@ -15,8 +15,8 @@ test('중요도보다 정확한 마감 시각 우선', () => {
   assert.deepEqual(order([task('high', { importance: 3 }), task('urgent', { importance: 1, deadline: '2026-10-30T10:00:00+09:00' })]), ['urgent', 'high']);
 });
 
-test('중요도가 같으면 작업량, 모든 조건이 같으면 입력 순서', () => {
-  assert.deepEqual(order([task('first'), task('second', { importance: 2 }), task('large', { estimatedMinutes: 60 })]), ['large', 'first', 'second']);
+test('중요도가 같으면 짧은 작업, 모든 조건이 같으면 입력 순서', () => {
+  assert.deepEqual(order([task('first'), task('second', { importance: 2 }), task('large', { estimatedMinutes: 60 })]), ['first', 'second', 'large']);
 });
 
 test('빈 시간이 부족하면 낮은 중요도의 작업을 unplaced로 반환', () => {
