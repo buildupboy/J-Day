@@ -416,6 +416,7 @@ export default function HomePage({ nav }) {
                   </button>
                   {priority && <span className={`d-chip is-${priority.tone}`}>{priority.label}</span>}
                   {b.kind === 'routine' && <span className="d-chip is-routine">Routine</span>}
+                  {b.kind === 'daily' && <span className="d-chip is-daily">Daily</span>}
                 </li>
               );
             })}

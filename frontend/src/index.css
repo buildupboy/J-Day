@@ -6343,6 +6343,12 @@ button:disabled {
   color: var(--routine-ink);
 }
 
+/* 일정 칩: 캘린더의 일정(데일리) 색과 같다 */
+.d-chip.is-daily {
+  background: var(--daily);
+  color: var(--daily-ink);
+}
+
 .analysis-task-status { flex: 0 0 22px; text-align: center; color: var(--ink); font-size: 23px; font-weight: 600; line-height: 1; cursor: default; }
 
 .analysis-due-list li { padding: 0; }
