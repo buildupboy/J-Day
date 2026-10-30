@@ -44,6 +44,8 @@
 | `type` | `'report' \| 'coding' \| 'exam' \| 'presentation' \| 'reading' \| 'etc'` | 과제 유형 (개인 보정 계수의 기준) |
 | `subtasks` | `Subtask[]` | 하위작업 |
 | `estimatedMinutes` | number | 보정 후 총 추정시간 |
+| `baseEstimatedMinutes` | number? | 원본 추정시간 |
+| `actualMinutes` | number? | 누적 수행시간 |
 | `progress` | number | 0 ~ 1 |
 | `status` | `'todo' \| 'in_progress' \| 'done'` | |
 | `createdAt` | ISO datetime | |
@@ -84,8 +86,9 @@
 | ✅ | GET | `/api/tasks` | 작업 목록 |
 | TODO | POST | `/api/chat/interpret` | 음성 텍스트 해석 |
 | TODO | GET | `/api/schedule/today` | 오늘 타임라인 조회 |
-| TODO | POST | `/api/tasks` | 작업 등록 |
-| TODO | PATCH | `/api/tasks/:id/progress` | 진행 보고 |
+| ✅ | POST | `/api/tasks` | 작업 등록·자동 배치 |
+| ✅ | POST | `/api/tasks/:id/reviews` | 복습 등록 |
+| ✅ | PATCH | `/api/tasks/:id/progress` | 진행 보고·자동 재배치 |
 | TODO | POST | `/api/schedule/reschedule` | 재스케줄링 |
 
 ### POST /api/chat/interpret — 음성 텍스트 해석
@@ -225,3 +228,61 @@ explanations.js의 explainSchedule(tasks, result, { settings, now })는 { blocks
 - reasons는 적용하는 배치 규칙 설명이다. 특정 시간 선택의 유일한 원인을 역추정하지 않는다.
 - unplaced는 deadline_passed 또는 constraints_prevent_placement와 설명을 제공한다. 후자는 여러 제약 중 하나가 원인이라고 임의로 단정하지 않는다.
 - 한국어 설명은 규칙 기반이며 LLM 호출이 없다. API 응답/화면 연결 시 호출자가 이 자료를 활용한다.
+
+
+### POST /api/tasks — 구조화된 과제 등록
+
+LLM 호출은 포함하지 않는다. LLM/프런트엔드 담당자는 이미 추출·추정한 아래 JSON을 전달한다. 저장된 Task의 estimatedMinutes는 보정 후 값이며, 등록 요청은 보정 전 baseEstimatedMinutes를 사용하여 이중 보정을 방지한다.
+
+~~~json
+{
+  "id": "optional-client-id",
+  "title": "운영체제 과제",
+  "type": "coding",
+  "deadline": "2026-11-04T23:59:00+09:00",
+  "baseEstimatedMinutes": 180,
+  "importance": 2,
+  "subtasks": [
+    { "id": "design", "title": "설계", "estimatedMinutes": 60 },
+    { "id": "code", "title": "구현", "estimatedMinutes": 120 }
+  ]
+}
+~~~
+
+- title/type/deadline/baseEstimatedMinutes는 필수이다. id와 하위작업 id를 생략하면 서버가 생성한다. importance 기본값은 2, subtasks 기본값은 빈 배열이다. notBefore는 선택적 시작 가능 일시이다.
+- 새 작업은 progress=0, status=todo, 모든 하위작업 done=false로 등록한다. createdAt은 서버의 KST 시각이다. 실제 누적시간은 0으로 시작한다.
+- 추정시간은 0~1,000,000 정수, 중요도는 1~3이다. 빈 제목·잘못된 일시·중복 하위작업 ID·잘못된 하위작업 시간은 400이다. 기존 작업 ID 중복은 409이며 덮어쓰지 않는다.
+- 성공은 201과 { task, reviewTasks, rescheduled: true, scheduledBlocks, changes, unplaced }이다. 과제 추가와 재배치 결과를 하나의 updateDb에서 저장하며 실패 시 둘 다 저장하지 않는다. 과거 마감도 등록되지만 남은 시간은 unplaced에 나온다.
+- 시험(type=exam)에 review:true 또는 review:{daysBefore:[7,3,1],minutes:30}을 추가하면 복습 작업을 함께 생성한다. 생략/false이면 생성하지 않는다. 시험 외 유형에 review를 요청하면 400이다.
+- 복습 작업은 입력한 분량을 그대로 쓰며 개인 보정을 다시 적용하지 않는다. 복습은 원본 시험 작업량 외에 추가되는 시간이다.
+
+### POST /api/tasks/:id/reviews — 기존 시험의 복습 등록
+
+- JSON 본문은 {}(기본값) 또는 {daysBefore:[3,1],minutes:30}이다. 간격은 1~365일의 정수, 최대 30개이며 중복 간격은 하나로 처리한다. 복습시간은 1~1440분이다.
+- 200과 {task,reviewTasks,rescheduled:true,scheduledBlocks,changes,unplaced}를 반환한다. 없는 작업은 404, 시험이 아니면 400이다.
+- 동일한 시험·간격·시간으로 재요청하면 기존 복습의 진행률과 완료 상태를 유지하고 중복 생성하지 않는다. 같은 복습 ID의 날짜/시간 설정이 달라지면 409로 거부한다. 복습 일정 재설정/시험 날짜 수정 API는 별도 범위이다.
+
+### PATCH /api/tasks/:id/progress — 진행·수행 보고
+
+기존 progress/actualMinutes/subtaskId 요청을 유지하며 선택적으로 subtaskDone, blockId, blockStatus를 확장한다.
+
+~~~json
+{ "progress": 0.6, "actualMinutes": 80, "subtaskId": "code" }
+~~~
+
+~~~json
+{ "subtaskId": "code", "subtaskDone": true, "actualMinutes": 130 }
+~~~
+
+- progress(0~1), actualMinutes(0~1,000,000 정수), subtaskDone, blockStatus 중 하나 이상이 필요하다. 없는 작업/하위작업/블록은 404이다.
+- actualMinutes는 해당 작업 전체의 누적 분량이며 보고할 때마다 더하는 값이 아니다. 같은 값의 재전송은 중복 가산되지 않는다. 하위작업별 시간을 따로 저장하지 않는다.
+- subtaskId만 보내면 맥락 지정이며 완료 표시하지 않는다. 완료 표시에는 subtaskDone:true를 함께 보낸다. 완료된 하위작업을 되돌리거나 progress를 낮추는 요청은 409이다.
+- 하위작업 완료 비중보다 progress가 작으면 완료 비중까지 올린다. 모든 하위작업 완료 또는 progress=1이면 Task는 done이고 모든 하위작업도 done이다. 실제 시간이 있거나 진행률이 양수이면 in_progress이다.
+- 특정 수행 기록을 표시하려면 blockId와 blockStatus(done|missed)를 함께 보낸다. 아직 시작하지 않은 블록은 400이다. 블록 상태 보고만으로 Task.progress를 추측하지 않는다.
+- 작업 또는 하위작업이 완료되면 이미 시작한 해당 planned 블록을 done으로 바꾸고 미래 예정은 재배치 시 제거한다. 이미 done/missed인 이력은 유지한다. 진행 중 블록을 조기 완료해도 기록의 원래 종료 시각은 보존한다.
+- 성공은 200과 {task,historyRecorded,rescheduled:true,scheduledBlocks,changes,unplaced}이다. 변경 내역에는 수행 상태 갱신도 포함한다.
+- 일반 작업 완료 시 history-taskId라는 결정적 ID로 기록한다. 반복 보고로 중복하지 않으며 완료 후 actualMinutes를 정정하면 같은 기록의 실제시간을 갱신한다. completedAt은 최초 완료 시각을 유지한다.
+- 기록의 estimatedMinutes는 baseEstimatedMinutes가 있으면 원본, 없으면 기존 estimatedMinutes를 사용한다. 원본을 알 수 없는 기존 과제의 보정 기준에는 한계가 있다. 실제시간 미보고 시 0을 기록하고 estimator는 0인 기록을 학습에 사용하지 않는다.
+- 자동 생성된 복습은 개인 보정용 history에서 제외한다. 작업·수행 기록·재배치를 한 번에 저장한다.
+
+설명은 등록/진행/복습 요청의 ?explain=true로 추가한다. 저장소는 단일 프로세스에서 갱신을 직렬화하고 완성된 임시 파일을 rename으로 교체한다. updateDb 내부에서 같은 저장소의 readDb/updateDb를 중첩 호출하지 않는다.
