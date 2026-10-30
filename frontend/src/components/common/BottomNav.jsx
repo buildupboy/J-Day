@@ -1,11 +1,11 @@
-import { HomeIcon, CalendarIcon, MicIcon, ListIcon, ChartIcon } from './Icons.jsx';
+import { HomeIcon, CalendarIcon, MicIcon, ListIcon, UserIcon } from './Icons.jsx';
 
 export const TABS = [
   { id: 'home', label: '홈', icon: <HomeIcon /> },
   { id: 'calendar', label: '캘린더', icon: <CalendarIcon /> },
   { id: 'mic', label: '제이', icon: <MicIcon /> },
   { id: 'tasks', label: '작업', icon: <ListIcon /> },
-  { id: 'analytics', label: '분석', icon: <ChartIcon /> },
+  { id: 'my', label: '마이', icon: <UserIcon /> },
 ];
 
 // 가운데 마이크 탭은 화면 이동이 아니라 제이 대화창을 연다

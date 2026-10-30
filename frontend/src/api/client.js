@@ -13,6 +13,10 @@ async function request(path, { method = 'GET', body } = {}) {
 }
 
 export const api = {
+  getAnalytics: (mode = 'week', from) => request(`/analytics/${mode}${from ? `?from=${encodeURIComponent(from)}` : ''}`),
+  getTimetable: () => request('/timetable'),
+  extractTimetable: (image) => request('/timetable/extract', { method: 'POST', body: { image } }),
+  saveTimetable: (lessons) => request('/timetable', { method: 'PUT', body: { lessons } }),
   health: () => request('/health'),
 
   // 음성 텍스트 해석
