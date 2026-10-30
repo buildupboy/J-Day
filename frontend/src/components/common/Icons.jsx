@@ -82,3 +82,43 @@ export const CheckIcon = (p) => (
     <path d="m5 12 5 5 9-10" />
   </Svg>
 );
+
+export const EditIcon = (p) => (
+  <Svg {...p}>
+    <path d="m5 19 1-4L16 5l3 3L9 18z" />
+    <path d="M4 21h16" />
+  </Svg>
+);
+
+export const TrashIcon = (p) => (
+  <Svg {...p}>
+    <path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" />
+    <path d="m10 11 4 5m0-5-4 5" />
+  </Svg>
+);
+
+export const NoteIcon = (p) => (
+  <Svg {...p}>
+    <rect x="5" y="4" width="14" height="16" rx="2" />
+    <path d="M9 9h6M9 13h6" />
+  </Svg>
+);
+
+export const ArrowRightIcon = (p) => (
+  <Svg {...p}>
+    <path d="M5 12h14m-5-6 6 6-6 6" />
+  </Svg>
+);
+
+export const RepeatIcon = (p) => (
+  <Svg {...p}>
+    <path d="M17 4l3 3-3 3M20 7H9a5 5 0 0 0-5 5M7 20l-3-3 3-3M4 17h11a5 5 0 0 0 5-5" />
+  </Svg>
+);
+
+export const ArchiveIcon = (p) => (
+  <Svg {...p}>
+    <rect x="4" y="4" width="16" height="5" rx="1" />
+    <path d="M6 9v10h12V9M10 13h4" />
+  </Svg>
+);

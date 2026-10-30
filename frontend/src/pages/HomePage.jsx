@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import TodoActionSheet from '../components/home/TodoActionSheet.jsx';
+import useTodoActions from '../hooks/useTodoActions.js';
 import { BellIcon, UserIcon, CalendarIcon, ClockIcon, ChevronIcon, CheckIcon } from '../components/common/Icons.jsx';
 import { getBlocksForDate, getTaskById, getTasks } from '../data/sampleSchedule.js';
 import { formatKoreanDate, toMinutes, formatDuration, freeMinutes } from '../utils/time.js';
@@ -24,14 +26,26 @@ export default function HomePage({ onOpenMy, onNavigate }) {
   const nowMin = now.getHours() * 60 + now.getMinutes();
 
   // 오늘 할 일: 휴식을 뺀 오늘 블록. 이미 끝난 블록은 완료로 시작한다
+  const actions = useTodoActions();
+  const [openTodo, setOpenTodo] = useState(null);
+  const [toast, setToast] = useState('');
+
   const todos = getBlocksForDate(now)
-    .filter((b) => b.kind !== 'break')
+    .filter((b) => b.kind !== 'break' && !actions.isHidden(b.id))
+    .map((b) => ({ ...b, title: actions.metaOf(b.id).title ?? b.title }))
     .sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
 
   const [doneIds, setDoneIds] = useState(
     () => new Set(todos.filter((b) => toMinutes(b.end) <= nowMin).map((b) => b.id))
   );
   const [startedId, setStartedId] = useState(null);
+
+  const moveTodo = (id, message) => {
+    actions.hide(id, message);
+    setOpenTodo(null);
+    setToast(message);
+    setTimeout(() => setToast(''), 2000);
+  };
 
   const toggleDone = (id) =>
     setDoneIds((prev) => {
@@ -133,11 +147,13 @@ export default function HomePage({ onOpenMy, onNavigate }) {
         <ul className="todo-list">
           {todos.map((b) => (
             <li key={b.id}>
-              <span className="todo-time">{b.start}</span>
-              <div className="todo-body">
-                <strong className={doneIds.has(b.id) ? 'is-done' : ''}>{b.title}</strong>
-                <small>{b.location ?? b.note ?? KIND_FALLBACK[b.kind]}</small>
-              </div>
+              <button type="button" className="todo-open" onClick={() => setOpenTodo(b)}>
+                <span className="todo-time">{b.start}</span>
+                <span className="todo-body">
+                  <strong className={doneIds.has(b.id) ? 'is-done' : ''}>{b.title}</strong>
+                  <small>{b.location ?? b.note ?? KIND_FALLBACK[b.kind]}</small>
+                </span>
+              </button>
               <button
                 type="button"
                 className={`todo-check ${doneIds.has(b.id) ? 'is-on' : ''}`}
@@ -150,6 +166,17 @@ export default function HomePage({ onOpenMy, onNavigate }) {
           ))}
         </ul>
       </section>
+
+      {openTodo && (
+        <TodoActionSheet
+          todo={openTodo}
+          meta={actions.metaOf(openTodo.id)}
+          onPatch={(fields) => actions.patch(openTodo.id, fields)}
+          onMove={(message) => moveTodo(openTodo.id, message)}
+          onClose={() => setOpenTodo(null)}
+        />
+      )}
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
