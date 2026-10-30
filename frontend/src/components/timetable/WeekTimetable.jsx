@@ -1,14 +1,13 @@
 ﻿export const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const COLORS = ['#e7edf8', '#f7e8e3', '#e8eee0', '#f4edd9', '#ece6f5', '#def0ef'];
 export default function WeekTimetable({ lessons, visibleDays = [], onSelect, onAdd, disabled = false }) {
-  const presentDays = [...visibleDays, ...lessons.flatMap((lesson) => lesson.dayOfWeek)];
-  const days = presentDays.includes(0) ? [1, 2, 3, 4, 5, 6, 0] : presentDays.includes(6) ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+  const days = [1, 2, 3, 4, 5, 6, 0];
   const minutes = (value) => { const [h, m] = value.split(':').map(Number); return h * 60 + m; };
   const valid = lessons.filter((item) => item.start && item.end && item.start < item.end);
   const first = Math.min(9, ...valid.map((item) => Math.floor(minutes(item.start) / 60)));
   const last = Math.max(18, ...valid.map((item) => Math.ceil(minutes(item.end) / 60)));
-  const scale = 45;
-  return <div className="timetable-scroll"><div className="timetable-grid" style={{ minWidth: 30 + days.length * 48 }}>
+  const scale = 40;
+  return <div className="timetable-scroll"><div className="timetable-grid" style={{ width: '100%' }}>
     <div className="timetable-grid-heading" style={{ gridTemplateColumns: `30px repeat(${days.length}, 1fr)` }}><span />{days.map((day) => <strong key={day}>{WEEKDAYS[day]}</strong>)}</div>
     <div className="timetable-grid-body" style={{ height: (last - first) * scale }}>
       {Array.from({ length: last - first }, (_, index) => <div className="timetable-hour" style={{ top: index * scale, height: scale }} key={index}><span>{first + index}</span></div>)}
