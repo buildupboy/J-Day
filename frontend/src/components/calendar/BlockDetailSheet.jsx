@@ -8,7 +8,7 @@ const KIND_LABEL = {
   event: '일정',
   break: '휴식',
 };
-const PRIORITY_LABEL = { must: '필수', important: '중요', optional: '선택' };
+const PRIORITY_LABEL = { must: 'Must', important: 'Should', optional: 'Could' };
 
 function deadlineText(iso) {
   const d = new Date(`${iso}T00:00:00`);

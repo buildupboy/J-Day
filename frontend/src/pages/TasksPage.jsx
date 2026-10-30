@@ -1,178 +1,193 @@
 import { useMemo, useState } from 'react';
 import { api } from '../api/client.js';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition.js';
-import { MicIcon, PaperclipIcon } from '../components/common/Icons.jsx';
-import { parseTaskText, formatDeadline } from '../utils/parseTaskText.js';
-import { estimateTask } from '../utils/estimateTask.js';
+import { MicIcon } from '../components/common/Icons.jsx';
+import WheelPicker from '../components/tasks/WheelPicker.jsx';
+import EstimateAssist from '../components/tasks/EstimateAssist.jsx';
+import { parseTaskText, toIsoDate } from '../utils/parseTaskText.js';
 
 const PRIORITIES = [
-  ['must', '필수'],
-  ['important', '중요'],
-  ['optional', '선택'],
+  { id: 'must', name: 'Must', rank: '1순위', hint: 'Must · 가장 먼저 배치돼요' },
+  { id: 'important', name: 'Should', rank: '2순위', hint: 'Should · Must 작업과 겹치면 뒤로 조정될 수 있어요' },
+  { id: 'optional', name: 'Could', rank: '3순위', hint: 'Could · 여유 시간에 배치돼요' },
 ];
 
-// 일정 탭: 새 작업 등록. 말하거나 입력하면 작업 이름·마감일을 채우고 예상 소요 시간을 계산한다.
+const TIME_ITEMS = ['12:00', '18:00', '23:59'].map((t) => ({ value: t, label: t }));
+const DATE_RANGE_DAYS = 180;
+
+function dateLabel(iso) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+}
+
+// 마감일 휠에 보여 줄 날짜 목록: 오늘부터 180일. 범위 밖 값이 들어오면 그 값도 포함한다.
+function buildDateItems(selected) {
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  const isos = Array.from({ length: DATE_RANGE_DAYS }, (_, i) => {
+    const d = new Date(base);
+    d.setDate(d.getDate() + i);
+    return toIsoDate(d);
+  });
+  if (selected && !isos.includes(selected)) isos.push(selected);
+  isos.sort();
+  return isos.map((iso) => ({ value: iso, label: dateLabel(iso) }));
+}
+
+function defaultDeadline() {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  return toIsoDate(d);
+}
+
+// 일정 탭: 작업 추가. 제목·마감일·예상 시간·중요도를 입력하거나 말로 채운다.
 export default function TasksPage({ onClose }) {
-  const [text, setText] = useState('');
   const [title, setTitle] = useState('');
-  const [deadline, setDeadline] = useState('');
+  const [date, setDate] = useState(defaultDeadline);
+  const [time, setTime] = useState('23:59');
+  const [hours, setHours] = useState('');
+  const [minutes, setMinutes] = useState('');
+  const [subtasks, setSubtasks] = useState([]);
   const [priority, setPriority] = useState('must');
   const [filled, setFilled] = useState(false); // 말한 내용으로 자동 채웠는지
-  const [file, setFile] = useState(null);
   const [toast, setToast] = useState('');
 
-  const applyText = (source) => {
-    const parsed = parseTaskText(source);
-    if (!parsed.title && !parsed.deadline) return;
-    if (parsed.title) setTitle(parsed.title);
-    if (parsed.deadline) setDeadline(parsed.deadline);
-    setFilled(true);
-  };
+  const dateItems = useMemo(() => buildDateItems(date), [date]);
 
   const { supported, listening, interimTranscript, error, start, stop } = useSpeechRecognition({
-    onFinalResult: (t) => {
-      setText(t);
-      applyText(t);
+    onFinalResult: (text) => {
+      const parsed = parseTaskText(text);
+      if (!parsed.title && !parsed.deadline) return;
+      if (parsed.title) setTitle(parsed.title);
+      if (parsed.deadline) setDate(parsed.deadline);
+      setFilled(true);
     },
   });
 
-  const estimate = useMemo(() => (title.trim() ? estimateTask(title) : null), [title]);
-  const canSubmit = Boolean(title.trim() && deadline);
+  const totalMinutes = (Number(hours) || 0) * 60 + (Number(minutes) || 0);
+  const canSubmit = Boolean(title.trim() && totalMinutes > 0);
+  const priorityInfo = PRIORITIES.find((p) => p.id === priority);
+
+  const applyEstimate = (est) => {
+    setHours(String(est.totalHours));
+    setMinutes('0');
+    setSubtasks(est.subtasks);
+  };
 
   const submit = async () => {
     const task = {
       title: title.trim(),
-      deadline,
+      deadline: date,
+      deadlineTime: time,
       priority,
-      estimatedMinutes: estimate.totalHours * 60,
-      subtasks: estimate.subtasks,
+      estimatedMinutes: totalMinutes,
+      subtasks,
     };
     // TODO: 백엔드 POST /api/tasks → POST /api/schedule/reschedule 로 빈 시간에 자동 배치
     await api.createTask(task).catch(() => null);
     setToast(`'${task.title}' 작업을 등록했어요`);
     setTimeout(() => setToast(''), 2200);
-    setText('');
     setTitle('');
-    setDeadline('');
+    setDate(defaultDeadline());
+    setTime('23:59');
+    setHours('');
+    setMinutes('');
+    setSubtasks([]);
     setFilled(false);
-    setFile(null);
   };
 
   return (
     <div className="new-task">
-      <header className="new-task-head">
-        <h1>새 작업</h1>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="닫기">
+      <header className="new-task-bar">
+        <button type="button" className="bar-button bar-close" onClick={onClose} aria-label="닫기">
           ✕
+        </button>
+        <h1>작업 추가</h1>
+        <button
+          type="button"
+          className={`bar-button bar-speak ${listening ? 'is-listening' : ''}`}
+          onClick={listening ? stop : start}
+          disabled={!supported}
+        >
+          <MicIcon size={18} />
+          {listening ? '듣는 중' : '말로 하기'}
         </button>
       </header>
 
-      <div className="speak-box">
-        <textarea
-          rows={2}
-          value={listening ? interimTranscript : text}
-          readOnly={listening}
-          placeholder={'"12월 3일까지 캡스톤 보고서 끝내야 해"'}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={(e) => e.target.value.trim() && applyText(e.target.value)}
-          aria-label="말하거나 입력하기"
-        />
-        <button
-          type="button"
-          className={`speak-mic ${listening ? 'is-listening' : ''}`}
-          onClick={listening ? stop : start}
-          disabled={!supported}
-          aria-label={listening ? '듣기 중지' : '말로 입력'}
-        >
-          <MicIcon size={22} />
-        </button>
-      </div>
+      {listening && (
+        <p className="listen-banner">
+          <i /> {interimTranscript || '예: "12월 3일까지 캡스톤 보고서 끝내야 해"'}
+        </p>
+      )}
       {error && !listening && <p className="field-error">음성 인식에 실패했어요. 직접 입력해 주세요.</p>}
-
       {filled && (
         <p className="ai-note">
           <b>AI</b> 말한 내용으로 채웠어요. 눌러서 고칠 수 있어요.
         </p>
       )}
 
-      <div className="field-row">
-        <label htmlFor="task-title">작업</label>
-        <input
-          id="task-title"
-          value={title}
-          placeholder="작업 이름"
-          onChange={(e) => setTitle(e.target.value)}
-        />
-      </div>
-
-      <div className="field-row">
-        <label htmlFor="task-deadline">마감</label>
-        <span className={`date-field ${deadline ? '' : 'is-empty'}`}>
-          {deadline ? formatDeadline(deadline) : '날짜 선택'}
-          <input
-            id="task-deadline"
-            type="date"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-            aria-label="마감일"
-          />
-        </span>
-      </div>
-
-      <div className="field-row">
-        <label>중요도</label>
-        <div className="priority-chips">
-          {PRIORITIES.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={priority === id ? 'is-on' : ''}
-              onClick={() => setPriority(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {estimate ? (
-        <section className="estimate-card">
-          <div className="estimate-top">
-            <span>예상 소요 시간</span>
-            <strong>
-              {estimate.minHours}~{estimate.maxHours}시간
-            </strong>
-          </div>
-          <ul>
-            {estimate.items.map((it) => (
-              <li key={it.title}>
-                <span>{it.title}</span>
-                <b>{it.hours}h</b>
-              </li>
-            ))}
-          </ul>
-          {estimate.coef !== 1 && (
-            <p className="estimate-note">
-              내 {estimate.label} 속도 ×{estimate.coef} 반영
-            </p>
-          )}
-        </section>
-      ) : (
-        <section className="estimate-card is-empty">
-          작업 이름을 입력하면 예상 소요 시간과 작업 분할을 계산해요.
-        </section>
-      )}
-
-      <label className="attach-box">
-        <PaperclipIcon size={18} />
-        {file ? file.name : '과제 안내문·PDF 올리면 더 정확해져요'}
-        <input
-          type="file"
-          accept=".pdf,.txt,application/pdf,text/plain"
-          hidden
-          onChange={(e) => setFile(e.target.files[0] ?? null)}
-        />
+      <label className="section-label" htmlFor="task-title">
+        제목
       </label>
+      <input
+        id="task-title"
+        className="text-field"
+        value={title}
+        placeholder="예: 선형대수학 과제 5"
+        onChange={(e) => setTitle(e.target.value)}
+      />
+
+      <span className="section-label">마감일</span>
+      <div className="wheel-row">
+        <WheelPicker items={dateItems} value={date} onChange={setDate} label="마감 날짜" />
+        <WheelPicker items={TIME_ITEMS} value={time} onChange={setTime} label="마감 시각" />
+      </div>
+
+      <span className="section-label">예상 소요 시간</span>
+      <div className="duration-row">
+        <label className="duration-field">
+          <input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            placeholder="0"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+            aria-label="예상 시간(시간)"
+          />
+          <span className="unit">시간</span>
+        </label>
+        <label className="duration-field">
+          <input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            max="59"
+            placeholder="0"
+            value={minutes}
+            onChange={(e) => setMinutes(e.target.value)}
+            aria-label="예상 시간(분)"
+          />
+          <span className="unit">분</span>
+        </label>
+      </div>
+
+      <EstimateAssist title={title} onApply={applyEstimate} />
+
+      <span className="section-label">중요도</span>
+      <div className="priority-cards">
+        {PRIORITIES.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={priority === p.id ? 'is-on' : ''}
+            onClick={() => setPriority(p.id)}
+          >
+            <strong>{p.name}</strong>
+            <small>{p.rank}</small>
+          </button>
+        ))}
+      </div>
+      <p className="priority-hint">{priorityInfo.hint}</p>
 
       <div className="task-footer">
         <button type="button" className="primary-button" disabled={!canSubmit} onClick={submit}>
