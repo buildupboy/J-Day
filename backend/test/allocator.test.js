@@ -29,10 +29,10 @@ test('최대 길이, 휴식, 잔여 시간 및 입력 불변성', () => {
   assert.deepEqual(allocate(tasks, [], options()), result);
 });
 
-test('마감 우선, 동률이면 작업량 우선, 작업 간 휴식', () => {
+test('마감 우선, 동률이면 짧은 작업 우선, 작업 간 휴식', () => {
   const result = allocate([task('small', 30), task('big', 60), task('urgent', 30, { deadline: '2026-10-30T10:00:00+09:00' })], [], options());
-  assert.deepEqual(result.blocks.map(b => b.taskId), ['urgent', 'big', 'small']);
-  assert.deepEqual(times(result.blocks), [['09:00', '09:30'], ['09:40', '10:40'], ['10:50', '11:20']]);
+  assert.deepEqual(result.blocks.map(b => b.taskId), ['urgent', 'small', 'big']);
+  assert.deepEqual(times(result.blocks), [['09:00', '09:30'], ['09:40', '10:10'], ['10:20', '11:20']]);
 });
 
 test('진행률 및 기존 planned 차감, done 작업 제외, 재실행 중복 방지', () => {
@@ -71,4 +71,18 @@ test('잘못된 날짜, 시간, 설정 및 진행률 거부', () => {
     assert.throws(() => allocate([], [], options({ settings: { ...settings, ...update } })), RangeError);
   }
   assert.throws(() => allocate([task('a', 60, { progress: 2 })], [], options()), RangeError);
+});
+
+
+test('시간이 부족하면 같은 마감·중요도의 짧은 작업을 먼저 완료', () => {
+  const result = allocate([task('long', 60), task('short', 20)], [], options({ settings: { ...settings, dayEnd: '09:30' } }));
+  assert.deepEqual(result.blocks.map(b => b.taskId), ['short']);
+  assert.deepEqual(times(result.blocks), [['09:00', '09:20']]);
+  assert.deepEqual(result.unplaced, [{ taskId: 'long', remainingMinutes: 60 }]);
+});
+
+test('원본 추정시간 대신 진행률 반영 후 남은 시간이 짧은 작업 우선', () => {
+  const result = allocate([task('base-small', 60), task('almost-done', 120, { progress: 0.75 })], [], options());
+  assert.equal(result.blocks[0].taskId, 'almost-done');
+  assert.deepEqual(times(result.blocks), [['09:00', '09:30'], ['09:40', '10:40']]);
 });

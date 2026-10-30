@@ -29,7 +29,7 @@ export function findFreeSlots(date, fixedBlocks, scheduledBlocks, settings) {
   return slots;
 }
 
-/** 마감 → 중요도 → 남은 작업량. 하위작업은 배열 순서대로 배치한다. 입력은 변경하지 않는다. */
+/** 마감 → 중요도 → 남은 작업시간 짧은 순. 하위작업은 배열 순서대로 배치한다. 입력은 변경하지 않는다. */
 export function allocate(tasks, fixedBlocks, { from, to, settings, existingBlocks = [], now }) {
   const first = day(from), last = day(to);
   if (first > last) throw new RangeError('from은 to보다 늦을 수 없습니다.');
@@ -50,7 +50,7 @@ export function allocate(tasks, fixedBlocks, { from, to, settings, existingBlock
     return { task, importance, deadline: datetime(task.deadline),
       notBefore: task.notBefore === undefined ? -Infinity : datetime(task.notBefore), units,
       remaining: units.reduce((n, unit) => n + unit.remaining, 0) };
-  }).sort((a, b) => a.deadline - b.deadline || b.importance - a.importance || b.remaining - a.remaining);
+  }).sort((a, b) => a.deadline - b.deadline || b.importance - a.importance || a.remaining - b.remaining);
   const blocks = [], usedIds = new Set(existingBlocks.map(block => block.id));
   const occupied = existingBlocks.map(block => ({ ...block,
     start: clock(Math.max(0, minute(block.start) - rest)), end: clock(Math.min(1440, minute(block.end) + rest)),
