@@ -38,6 +38,8 @@
 | `id` | string | |
 | `title` | string | |
 | `deadline` | ISO datetime | 마감 |
+| `notBefore` | ISO datetime? | 시작 가능 시각 |
+| `reviewOf` | string? | 복습의 원본 시험 ID |
 | `importance` | number? | 1=낮음, 2=보통(기본), 3=높음 |
 | `type` | `'report' \| 'coding' \| 'exam' \| 'presentation' \| 'reading' \| 'etc'` | 과제 유형 (개인 보정 계수의 기준) |
 | `subtasks` | `Subtask[]` | 하위작업 |
@@ -203,3 +205,13 @@ applyCorrection(baseMinutes, type, factors)는 양의 보정 계수를 곱하고
 - 과거 planned는 반환 이력으로 보존하되 새 배치의 예약량에서 차감하지 않는다. 완료 수행량은 Task.progress가 기준이다.
 - changes 항목은 `{ type: 'added', reason, after }`, `{ type: 'removed', reason, before }`, `{ type: 'updated', reason, before, after }`이다. before/after는 ScheduledBlock이며 ID 기준으로 비교한다. 이동/분할된 블록은 제거+추가로 나타날 수 있다.
 - 동일한 DB와 now로 반복 실행하면 같은 배치가 나오며 변경이 없으면 changes는 빈 배열이다.
+
+
+### 시험 전 복습 생성
+
+reviews.js의 createExamReviewTasks(examTask, { daysBefore: [7, 3, 1], minutes: 30 })는 별도 복습 Task 배열을 반환한다. 옵션 생략 시 시험 7일/3일/1일 전 각 30분이다. 유틸리티 자체는 자동 호출하지 않으며, 후속 과제 API에서 명시적으로 선택하여 호출한다.
+
+- 시험의 KST 날짜를 기준으로 계산하고 notBefore와 deadline으로 해당 하루에만 배치한다. reviewOf는 시험 ID이다.
+- 복습 시간은 원본 시험 공부 시간과 별도로 추가된다. 사용자가 설정한 복습 시간을 개인 보정으로 다시 늘리지 않는다.
+- ID는 원본 시험 ID와 간격으로 결정된다. 저장 시 ID 기준으로 중복 추가를 막아야 한다. 시험 날짜 변경 시 호출자가 기존 복습을 갱신해야 한다.
+- 지난 복습 날짜나 빈 시간이 없는 날짜는 unplaced로 반환하며 다른 날짜로 임의 이동하지 않는다.
