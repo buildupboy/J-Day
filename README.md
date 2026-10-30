@@ -9,7 +9,7 @@
 - Frontend: React + Vite, Web Speech API (크롬 권장)
 - Backend: Node.js + Express
 - 저장소: JSON 파일 (`backend/data/db.json`, store 레이어로 분리)
-- LLM: 미정 (`backend/src/services/llm.js` 인터페이스)
+- LLM: OpenAI Chat Completions 구조화 출력 (`backend/src/services/llm.js`, 키·모델 설정 필요)
 
 ## 실행 방법
 
@@ -26,6 +26,9 @@ npm run dev                             # 프론트(5173) + 백엔드(3001) 동�
 - 처음 실행하면 `backend/data/seed.json`이 `db.json`으로 복사됩니다. 데이터를 초기화하려면 `db.json`을 지우세요.
 
 ## 폴더 구조
+
+음성 해석·저장·스케줄러 전달: [docs/voice-backend.md](docs/voice-backend.md).
+스케줄러의 빈 구현을 대체하기 전에는 `VOICE_SCHEDULER_ENABLED=false`를 유지한다.
 
 ```
 J-Day/

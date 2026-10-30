@@ -68,7 +68,7 @@
 ### db.json 최상위 구조
 
 ```json
-{ "user": { "settings": {} }, "fixedBlocks": [], "tasks": [], "scheduledBlocks": [], "history": [] }
+{ "user": { "settings": {} }, "fixedBlocks": [], "tasks": [], "scheduledBlocks": [], "history": [], "voiceCommands": [], "schedulerRequests": [] }
 ```
 
 `user.settings`: `dayStart`, `dayEnd`, `minSlotMinutes`, `maxBlockMinutes`, `breakMinutes`
@@ -79,7 +79,8 @@
 |---|---|---|---|
 | ✅ | GET | `/api/health` | 헬스체크 |
 | ✅ | GET | `/api/tasks` | 작업 목록 |
-| TODO | POST | `/api/chat/interpret` | 음성 텍스트 해석 |
+| ✅ | POST | `/api/chat/interpret` | 음성 해석·작업 저장·배치 요청 (requestId 필수) |
+| ✅ | POST | `/api/chat/scheduler/dispatch` | 연결 후 대기 배치 요청 전달 |
 | TODO | GET | `/api/schedule/today` | 오늘 타임라인 조회 |
 | TODO | POST | `/api/tasks` | 작업 등록 |
 | TODO | PATCH | `/api/tasks/:id/progress` | 진행 보고 |
@@ -87,13 +88,16 @@
 
 ### POST /api/chat/interpret — 음성 텍스트 해석
 
+최신 명세는 [voice-backend.md](voice-backend.md)를 따른다. 기본 상태는 스케줄러 미연결로 배치 대기를 반환한다.
+
 ```jsonc
 // req
-{ "text": "헤이 제이, 금요일까지 운영체제 과제 있어" }
+{ "requestId": "voice-001", "text": "헤이 제이, 11월 4일까지 운영체제 과제 있어" }
 // res
 {
   "intent": "add_task",          // add_task | report_progress | query_schedule | reschedule | smalltalk
-  "reply": "운영체제 과제를 등록했어요. 약 5시간 걸릴 것 같아서 오늘 저녁부터 나눠 넣었어요.",
+  "status": "pending_schedule",
+  "reply": "저장했어요. 스케줄러 배치 요청은 대기 중이에요.",
   "result": { }                   // 의도별 처리 결과 (생성된 Task, 바뀐 블록 등)
 }
 ```

@@ -4,7 +4,7 @@ import cors from 'cors';
 
 import tasksRouter from './routes/tasks.js';
 import scheduleRouter from './routes/schedule.js';
-import chatRouter from './routes/chat.js';
+import { createChatRouter } from './routes/chat.js';
 import { initStore } from './store/index.js';
 
 const app = express();
@@ -19,7 +19,10 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/tasks', tasksRouter);
 app.use('/api/schedule', scheduleRouter);
-app.use('/api/chat', chatRouter);
+// 기본값은 미연결. 친구의 스케줄러 구현을 병합한 후에만 활성화한다.
+const scheduler = process.env.VOICE_SCHEDULER_ENABLED === 'true'
+  ? (await import('./scheduler/rescheduler.js')).reschedule : null;
+app.use('/api/chat', createChatRouter({ scheduler }));
 
 // 공통 에러 핸들러
 app.use((err, req, res, next) => {

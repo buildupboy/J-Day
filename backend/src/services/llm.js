@@ -1,38 +1,52 @@
-// LLM 공통 인터페이스.
-// 제공자(OpenAI / Anthropic / Gemini ...)는 아직 미정이므로 이 파일 안에서만 교체한다.
-// 원칙: LLM은 "이해·추정"만 한다. 시간 배치는 scheduler/ 의 규칙 기반 로직이 담당.
-// API 키는 반드시 백엔드 .env(LLM_API_KEY)에서만 읽는다.
+import { INTERPRET_SYSTEM_PROMPT } from '../prompts/interpret.js';
+import { BREAKDOWN_SYSTEM_PROMPT } from '../prompts/breakdown.js';
+import { INTERPRET_SCHEMA, BREAKDOWN_SCHEMA } from '../prompts/schemas.js';
 
-/**
- * 제공자에 상관없이 쓰는 저수준 호출 함수.
- * @param {{ system?: string, messages: {role: 'user'|'assistant', content: string}[], json?: boolean }} params
- * @returns {Promise<string>} 모델 응답 텍스트
- */
-export async function complete({ system, messages, json = false }) {
-  const apiKey = process.env.LLM_API_KEY;
-  if (!apiKey) throw new Error('LLM_API_KEY is not set');
-  // TODO: 제공자 확정 후 SDK/fetch 호출 구현
-  throw new Error('LLM provider not configured');
-}
+const failure = (message, status = 502) => Object.assign(new Error(message), { status });
 
-/**
- * 사용자 발화를 구조화된 의도로 해석한다.
- * @param {string} text 음성 인식 결과
- * @param {object} context 오늘 날짜, 기존 작업 목록 등
- * @returns {Promise<{ intent: 'add_task'|'report_progress'|'query_schedule'|'reschedule'|'smalltalk', slots: object, reply: string }>}
- */
-export async function interpretUtterance(text, context = {}) {
-  // TODO: prompts/interpret.js 프롬프트 + complete({ json: true })
-  throw new Error('Not implemented');
+export function createLlmClient({ fetchImpl = globalThis.fetch, env = process.env } = {}) {
+  async function complete({ system, messages, schema, name = 'response', json = false }) {
+    const apiKey = env.OPENAI_API_KEY || env.LLM_API_KEY;
+    const model = env.OPENAI_MODEL || env.LLM_MODEL;
+    if (!apiKey || !model) throw failure('백엔드 .env에 OPENAI_API_KEY와 OPENAI_MODEL을 설정해 주세요.', 503);
+    const timeout = Number(env.LLM_TIMEOUT_MS || 30000);
+    if (!Number.isInteger(timeout) || timeout < 100 || timeout > 120000) throw failure('LLM_TIMEOUT_MS는 100~120000이어야 합니다.', 503);
+    let response;
+    try {
+      response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+        method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(timeout),
+        body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, ...messages],
+          ...(schema ? { response_format: { type: 'json_schema', json_schema: { name, strict: true, schema } } }
+            : json ? { response_format: { type: 'json_object' } } : {}),
+        }),
+      });
+    } catch (err) {
+      if (['TimeoutError', 'AbortError'].includes(err.name)) throw failure('AI 응답 시간이 초과됐어요. 같은 requestId로 다시 시도해 주세요.', 504);
+      throw failure('AI 서비스에 연결하지 못했어요.');
+    }
+    // 제공자 원문 오류에는 민감한 정보가 있을 수 있으므로 전달하지 않는다.
+    if (!response.ok) throw failure(response.status === 429 ? 'AI 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.' : 'AI 요청이 실패했어요. 모델과 키 설정을 확인해 주세요.', response.status === 429 ? 503 : 502);
+    let data;
+    try { data = await response.json(); } catch { throw failure('AI 응답을 읽을 수 없어요.'); }
+    const choice = data.choices?.[0];
+    if (!choice || choice.finish_reason !== 'stop' || choice.message?.refusal || typeof choice.message?.content !== 'string') throw failure('AI가 완전한 작업 정보를 반환하지 못했어요.');
+    return choice.message.content;
+  }
+  async function structured(system, schema, name, messages) {
+    const content = await complete({ system, schema, name, messages });
+    try { return JSON.parse(content); } catch { throw failure('AI가 올바른 JSON을 반환하지 못했어요.'); }
+  }
+  async function interpretUtterance(text, context = {}, conversation = []) {
+    return structured(INTERPRET_SYSTEM_PROMPT, INTERPRET_SCHEMA, 'voice_intent', [
+      ...conversation, { role: 'user', content: JSON.stringify({ context, utterance: text }) },
+    ]);
+  }
+  async function breakdownTask(task) {
+    return structured(BREAKDOWN_SYSTEM_PROMPT, BREAKDOWN_SCHEMA, 'task_breakdown', [
+      { role: 'user', content: JSON.stringify(task) },
+    ]);
+  }
+  return { complete, interpretUtterance, breakdownTask };
 }
-
-/**
- * 작업을 하위작업으로 나누고 기본 소요시간(분)을 추정한다.
- * 개인 보정은 scheduler/estimator.js에서 따로 적용한다.
- * @param {{ title: string, type: string, deadline?: string }} task
- * @returns {Promise<{ subtasks: { title: string, estimatedMinutes: number }[], estimatedMinutes: number }>}
- */
-export async function breakdownTask(task) {
-  // TODO: prompts/breakdown.js 프롬프트 + complete({ json: true })
-  throw new Error('Not implemented');
-}
+export const { complete, interpretUtterance, breakdownTask } = createLlmClient();

@@ -55,6 +55,8 @@
     }
   ],
   "scheduledBlocks": [],
+  "voiceCommands": [],
+  "schedulerRequests": [],
   "history": [
     { "id": "h1", "taskTitle": "자료구조 연결리스트 과제", "type": "coding", "estimatedMinutes": 180, "actualMinutes": 230, "completedAt": "2026-09-20T22:00:00+09:00" },
     { "id": "h2", "taskTitle": "자료구조 스택/큐 과제", "type": "coding", "estimatedMinutes": 150, "actualMinutes": 175, "completedAt": "2026-10-05T23:10:00+09:00" },
