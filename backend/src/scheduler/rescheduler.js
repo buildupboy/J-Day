@@ -1,6 +1,6 @@
-import { allocate } from './allocator.js';
+import { preparePlanningContext } from './planning-context.js';
 
-import { DAY, KST, instant, timestamp, datetime } from './time.js';
+import { instant, timestamp } from './time.js';
 const reasons = new Set(['new_task', 'missed', 'progress', 'manual']);
 
 /** 종료 시각이 지났지만 완료되지 않은 planned 블록. 진행률만으로 개별 완료를 추정하지 않는다. */
@@ -17,32 +17,29 @@ export function detectMissedBlocks(scheduledBlocks, tasks, now) {
 }
 
 /**
- * 지난/진행 중/완료 기록을 보존하고 미래 planned 블록을 재계산한다.
+ * 기록을 보존하고 AI에 전달할 우선순위·잔여량·빈 시간·제약을 준비한다.
  * DB 저장과 이벤트 호출은 호출자 책임. 입력을 변경하지 않는다.
  * @param {object} db
  * @param {{now: Date, reason: 'new_task'|'missed'|'progress'|'manual'}} options
  * @returns {{scheduledBlocks: Array, changes: Array, unplaced: Array}}
  */
-export function reschedule(db, { now, reason }) {
+export function reschedule(db, { now, reason, horizonDays = 14 }) {
   const time = timestamp(now);
   if (!reasons.has(reason)) throw new RangeError('지원하지 않는 재배치 사유입니다.');
   const original = db.scheduledBlocks ?? [];
   const missed = new Set(detectMissedBlocks(original, db.tasks, now).map(block => block.id));
-  const preserved = original.filter(block => block.status !== 'planned' || instant(block, 'start') < time)
-    .map(block => ({ ...block, status: missed.has(block.id) ? 'missed' : block.status }));
-  const today = new Date(time + KST).toISOString().slice(0, 10);
-  const first = Date.parse(today + 'T00:00:00Z');
-  let last = first;
-  for (const task of db.tasks.filter(task => task.status !== 'done')) {
-    last = Math.max(last, Math.floor((datetime(task.deadline) + KST) / DAY) * DAY);
-  }
-  // 진행 중 블록은 now 이후 예약분만 남은 작업량에서 차감한다.
-  const { blocks: generated, unplaced } = allocate(db.tasks, db.fixedBlocks, {
-    from: today, to: new Date(last).toISOString().slice(0, 10), settings: db.user.settings,
-    existingBlocks: preserved, now,
-  });
-  const scheduledBlocks = [...preserved, ...generated].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
-  return { scheduledBlocks, changes: diffScheduledBlocks(original, scheduledBlocks, reason), unplaced };
+  // 미완료 작업의 기존 미래 계획은 AI 결과가 검증될 때까지 보존한다.
+  const scheduledBlocks = original.map(block => ({ ...block, status: missed.has(block.id) ? 'missed' : block.status }))
+    .filter(block => {
+      if (block.status !== 'planned' || instant(block, 'start') < time) return true;
+      const task = db.tasks.find(task => task.id === block.taskId);
+      return !task || (task.status !== 'done' && task.progress < 1
+        && !task.subtasks?.some(subtask => subtask.id === block.subtaskId && subtask.done)
+        && !(task.subtasks?.length && task.subtasks.every(subtask => subtask.done)));
+    });
+  const planningContext = preparePlanningContext({ ...db, scheduledBlocks }, { now, reason, horizonDays });
+  return { rescheduled: false, schedulingStatus: 'awaiting_ai', planningContext,
+    scheduledBlocks, changes: diffScheduledBlocks(original, scheduledBlocks, reason), unplaced: [] };
 }
 
 export function diffScheduledBlocks(original, scheduledBlocks, reason) {

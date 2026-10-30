@@ -8,6 +8,7 @@ import { createScheduleRouter } from './routes/schedule.js';
 import { createChatRouter } from './routes/chat.js';
 import timetableRouter from './routes/timetable.js';
 import analyticsRouter from './routes/analytics.js';
+import { createUserSettingsRouter } from './routes/user-settings.js';
 import { initStore } from './store/index.js';
 import { createMissedMonitor } from './scheduler/missed-monitor.js';
 import { reportProgress } from './services/task-service.js';
@@ -29,6 +30,7 @@ app.use('/api/schedule', createScheduleRouter({ planner: planSchedule }));
 app.use('/api/chat', createChatRouter({ scheduler: planSchedule,
   progressReporter: (db, id, input, options) => reportProgress(db, id, input, { ...options, planner: planSchedule }) }));
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/user', createUserSettingsRouter({ scheduler: planSchedule }));
 
 // 공통 에러 핸들러
 app.use((err, req, res, next) => {

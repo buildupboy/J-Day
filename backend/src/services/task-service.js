@@ -18,6 +18,7 @@ async function schedule(db, now, reason, previousBlocks, explain, planner) {
   const result = await planner(db, { now, reason });
   if (previousBlocks) result.changes = diffScheduledBlocks(previousBlocks, result.scheduledBlocks, reason);
   db.scheduledBlocks = result.scheduledBlocks;
+  if (result.planningContext && !result.rescheduled) db.aiScheduling = { status: 'pending', context: result.planningContext };
   if (explain) result.explanations = explainSchedule(db.tasks, result, { settings: db.user.settings, now });
   return result;
 }
@@ -74,13 +75,13 @@ export async function registerTask(db, input, { now, explain = false, planner = 
   db.tasks.push(task);
   const reviewTasks = input.review === undefined || input.review === false ? [] : addReviews(db, task, input.review);
   const result = await schedule(db, now, 'new_task', undefined, explain, planner);
-  return { task, reviewTasks, rescheduled: true, ...result };
+  return { task, reviewTasks, ...result };
 }
 
 export async function registerReviews(db, id, options, { now, explain = false, planner = reschedule }) {
   const task = taskById(db, id);
   const reviewTasks = addReviews(db, task, options);
-  return { task, reviewTasks, rescheduled: true, ...await schedule(db, now, 'new_task', undefined, explain, planner) };
+  return { task, reviewTasks, ...await schedule(db, now, 'new_task', undefined, explain, planner) };
 }
 
 /** actualMinutesは累計。繰り返した同じ報告で時間を二重加算しない。 */
@@ -138,5 +139,5 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
     } else if (has('actualMinutes')) history.actualMinutes = task.actualMinutes;
     historyRecorded = true;
   }
-  return { task, historyRecorded, rescheduled: true, ...await schedule(db, now, 'progress', previousBlocks, explain, planner) };
+  return { task, historyRecorded, ...await schedule(db, now, 'progress', previousBlocks, explain, planner) };
 }

@@ -12,7 +12,7 @@ import { createScheduleRouter } from '../src/routes/schedule.js';
 import { reschedule } from '../src/scheduler/rescheduler.js';
 import { reportProgress } from '../src/services/task-service.js';
 
-test('모델 JSON 응답 → 실제 파일 저장 → 친구 스케줄러 → 주간 조회·재시도·완료까지 통합', async t => {
+test('음성 작업 저장 → AI 입력 준비 → 검증·적용 → 조회·완료 통합', async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'haru-integrated-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const dbPath = path.join(dir, 'db.json'), seedPath = path.join(dir, 'seed.json');
@@ -51,19 +51,29 @@ test('모델 JSON 응답 → 실제 파일 저장 → 친구 스케줄러 → �
   }
   const body = { requestId: 'registration', text: '내일까지 보고서, 100분 예상' };
   const created = await send(body); taskId = created.result.task.id;
-  assert.equal(created.status, 'scheduled');
+  assert.equal(created.status, 'pending_schedule');
+  assert.equal(created.result.rescheduled, false);
+  assert.deepEqual(created.result.scheduledBlocks, []);
+  const aiResponse = await fetch(`${base}/schedule/apply`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+    contextId:created.result.planningContext.contextId, blocks:[
+      {taskId,subtaskId:created.result.task.subtasks[0].id,date:'2026-10-30',start:'10:30',end:'11:30'},
+      {taskId,subtaskId:created.result.task.subtasks[1].id,date:'2026-10-30',start:'11:40',end:'13:10'},
+    ] }) });
+  assert.equal(aiResponse.status,200);
+  const applied=await aiResponse.json();
+  assert.equal(applied.rescheduled,true);
   assert.equal(created.result.task.estimatedMinutes, 150); // 원본100 × 실제 보정1.5, 한 번만 적용
   assert.equal(created.result.task.baseEstimatedMinutes, 100);
-  const blocks = created.result.scheduledBlocks.filter(block => block.taskId === taskId);
+  const blocks = applied.scheduledBlocks.filter(block => block.taskId === taskId);
   assert.ok(blocks.length > 0);
   const minutes = value => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
   assert.equal(blocks.reduce((sum, block) => sum + minutes(block.end) - minutes(block.start), 0), 150);
   assert.ok(blocks.every(block => block.date !== '2026-10-30' || block.end <= '09:00' || block.start >= '10:30'));
   const week = await (await fetch(`${base}/schedule/week?from=2026-10-26`)).json();
   assert.ok(week.days.flatMap(day => day.items).some(item => item.taskId === taskId));
-  assert.deepEqual(JSON.parse(await readFile(dbPath, 'utf8')).scheduledBlocks, created.result.scheduledBlocks);
+  assert.deepEqual(JSON.parse(await readFile(dbPath, 'utf8')).scheduledBlocks, applied.scheduledBlocks);
   await send(body); assert.equal(calls, 2);
-  nowValue = new Date('2026-10-30T08:30:00+09:00'); complete = true;
+  nowValue = new Date('2026-10-30T11:00:00+09:00'); complete = true;
   const done = await send({ requestId: 'completion', text: '보고서 끝났고 총 140분 썼어' });
   assert.equal(done.result.task.status, 'done');
   const saved = await store.readDb();

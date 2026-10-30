@@ -2695,3 +2695,53 @@ body {
 .delete-calendar-button { color: #d14343; }
 .delete-calendar-button:hover { background: #fff0f0; }
 .delete-calendar-button:disabled { opacity: .45; cursor: wait; }
+
+
+/* 생활 패턴 상세 설정: 기존 마이 메인과 다른 페이지에는 적용하지 않는다. */
+.pattern-page { padding: 24px 20px 30px; color: #111; background: #fff; }
+.pattern-header { display: flex; align-items: center; gap: 12px; }
+.pattern-header h1 { margin: 0; font-size: 24px; letter-spacing: -.7px; }
+.pattern-header button { width: 30px; height: 36px; border: 0; background: transparent; color: #111; font-size: 32px; cursor: pointer; }
+.pattern-description { margin: 18px 0 26px; color: #888; font-size: 14px; line-height: 1.8; word-break: keep-all; }
+.pattern-fields { display: grid; gap: 26px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.pattern-fields section > h2 { margin: 0 0 13px; font-size: 16px; letter-spacing: -.4px; }
+.pattern-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.pattern-choices button { flex: 1 1 60px; padding: 13px 8px; border: 1px solid transparent; border-radius: 12px; background: #f5f5f5; color: #555; font: inherit; cursor: pointer; }
+.pattern-choices strong { font-size: 14px; font-weight: 600; }
+.pattern-choices button[aria-pressed=true] { border-color: #111; background: #111; color: #fff; }
+.pattern-choices small { display: block; margin-top: 6px; font-size: 12px; font-weight: 400; line-height: 1.6; opacity: .8; }
+.pattern-choices.is-vertical { flex-direction: column; }
+.pattern-choices.is-vertical button { flex: auto; text-align: left; padding: 16px; }
+.pattern-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pattern-time-row label { display: flex; flex-direction: column; gap: 9px; min-width: 0; color: #555; font-size: 13px; }
+.pattern-time-row input[type=time] { width: 100%; min-width: 0; padding: 14px 10px; border: 1px solid #ddd; border-radius: 12px; background: #fff; color: #111; font: inherit; font-size: 16px; }
+.pattern-midnight { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #777; }
+.pattern-midnight input { accent-color: #111; }
+.pattern-summary { padding: 19px; border-radius: 16px; background: #f5f5f5; }
+.pattern-summary h2 { margin: 0 0 14px; font-size: 16px; }
+.pattern-summary h2 small { margin-left: 6px; font-size: 10px; color: #888; font-weight: 400; }
+.pattern-summary > strong { display: block; font-size: 18px; line-height: 1.8; letter-spacing: -.5px; }
+.pattern-summary p, .pattern-help { color: #888; font-size: 12px; line-height: 1.8; }
+.pattern-summary p { margin: 12px 0 0; }
+.pattern-summary ul { padding: 0; margin: 0; list-style: none; font-size: 13px; line-height: 2.2; }
+.pattern-summary li:nth-child(2) { color: #888; }
+.pattern-help { margin: 9px 0 0; }
+.pattern-confirm { padding-top: 18px; border-top: 1px solid #eee; }
+.pattern-confirm label { display: flex; align-items: flex-start; gap: 10px; color: #333; font-size: 13px; line-height: 1.8; cursor: pointer; }
+.pattern-confirm input { flex-shrink: 0; width: 18px; height: 18px; margin: 4px 0 0; accent-color: #111; }
+.pattern-confirm p { margin: 10px 0 0; color: #888; font-size: 11px; line-height: 1.8; }
+.pattern-save { width: 100%; background: #111; }
+.pattern-save:disabled { opacity: .4; cursor: default; }
+.pattern-error { color: #555; background: #f5f5f5; padding: 13px; font-size: 13px; line-height: 1.8; border-radius: 12px; }
+.pattern-receipt { margin-top: 18px; padding: 16px; border: 1px solid #ddd; border-radius: 14px; font-size: 13px; color: #333; line-height: 1.8; }
+.pattern-receipt p { margin: 8px 0 0; }
+.pattern-receipt ul { padding-left: 18px; margin-bottom: 0; }
+.pattern-page button:focus-visible, .pattern-page input:focus-visible { outline: 2px solid #555; outline-offset: 3px; }
+.my-menu-row .my-setting-value { margin-left: auto; max-width: 43%; color: #888; font-size: 11px; text-align: right; line-height: 1.5; word-break: keep-all; }
+.my-menu-row .my-setting-value + .my-chevron { margin-left: 0; flex-shrink: 0; }
+@media (max-width: 360px) { .pattern-page { padding: 20px 16px; } .my-menu-row .my-setting-value { font-size: 10px; max-width: 38%; } }
+
+.pattern-rest-card { position: relative; margin-top: 14px; padding: 16px; border: 1px solid #e5e5e5; border-radius: 14px; }
+.pattern-rest-remove { display: block; margin: 8px 0 0 auto; padding: 4px 0; border: 0; background: transparent; color: #777; font: inherit; font-size: 12px; cursor: pointer; }
+.pattern-rest-add { width: 100%; margin-top: 14px; padding: 13px; border: 1px solid #ddd; border-radius: 12px; background: #fff; color: #111; font: inherit; font-size: 13px; cursor: pointer; }
+.pattern-rest-add:disabled { opacity: .4; cursor: default; }

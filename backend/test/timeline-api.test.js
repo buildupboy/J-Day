@@ -38,6 +38,7 @@ async function setup(t, data=fixture()) {
 test('오늘·주간 조회는 KST, 고정 일정과 하위작업명 포함, 읽기 전용',async t=>{
  const {store,request,dbPath,setNow}=await setup(t);
  await request('POST','/tasks',input());
+ await store.updateDb(db=>({...db,scheduledBlocks:[{id:'existing-ai',taskId:'task',subtaskId:'s1',date:'2026-10-30',start:'15:01',end:'16:16',status:'planned',source:'ai'}]}));
  const before=await readFile(dbPath,'utf8');
  const today=await request('GET','/schedule/today?explain=true');
  assert.equal(today.status,200);assert.equal(today.body.date,'2026-10-30');
@@ -57,9 +58,10 @@ test('오늘·주간 조회는 KST, 고정 일정과 하위작업명 포함, 읽
 });
 
 test('명시적 블록 완료와 재배치 응답 설명',async t=>{
- const {request,setNow}=await setup(t);
+ const {store,request,setNow}=await setup(t);
  const created=await request('POST','/tasks',input());
- const block=created.body.scheduledBlocks[0];
+ const block={id:'existing-ai',taskId:'task',subtaskId:'s1',date:'2026-10-30',start:'15:01',end:'16:16',status:'planned',source:'ai'};
+ await store.updateDb(db=>({...db,scheduledBlocks:[block]}));
  setNow('2026-10-30T16:00:00+09:00');
  const reported=await request('PATCH','/tasks/task/progress',{blockId:block.id,blockStatus:'done',progress:0.5,actualMinutes:40});
  assert.equal(reported.status,200);

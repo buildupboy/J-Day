@@ -39,21 +39,23 @@ async function server(t, dependencies) {
   return async (body, raw=false) => fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:raw?body:JSON.stringify(body) });
 }
 
-test('HTTP 재배치 결과를 실제 임시 JSON에 저장하고 다른 데이터 보존', async t => {
+test('HTTP에서 AI 입력과 상태만 저장하고 실제 시간 배치는 대기', async t => {
   const store = await temporaryStore(t);
   const request = await server(t, { updateDb:store.updateDb });
   const response = await request({reason:'manual'});
   assert.equal(response.status,200);
   const result = await response.json();
-  assert.deepEqual(Object.keys(result).sort(), ['changes','scheduledBlocks','unplaced']);
+  assert.deepEqual(Object.keys(result).sort(), ['changes','planningContext','rescheduled','scheduledBlocks','schedulingStatus','unplaced']);
   assert.equal(result.scheduledBlocks.find(b=>b.id==='past').status,'missed');
   assert.deepEqual(result.unplaced,[]);
   const planned = result.scheduledBlocks.filter(b=>b.status==='planned');
-  assert.equal(planned[0].start,'15:01');
+  assert.equal(planned.length,0);
+  assert.equal(result.rescheduled,false);
+  assert.equal(result.planningContext.rankedTasks[0].remainingMinutes,120);
   assert.ok(planned.every(b=>b.end<='16:00'||b.start>='17:00'));
   const saved = JSON.parse(await readFile(store.dbPath,'utf8'));
   assert.deepEqual(saved.scheduledBlocks,result.scheduledBlocks);
-  const {scheduledBlocks,...others} = saved;
+  const {scheduledBlocks,aiScheduling,...others} = saved;
   const {scheduledBlocks:old,...expected} = fixture();
   assert.deepEqual(others,expected);
   const repeated = await (await request({reason:'manual'})).json();
@@ -101,7 +103,7 @@ test('동시 재배치 요청은 순서대로 저장하며 두 번째 결과는 
   assert.deepEqual((await store.readDb()).scheduledBlocks,results[0].scheduledBlocks);
 });
 
-test('지난 마감은 정상 응답의 unplaced로 반환하고 클라이언트 now는 무시',async t=>{
+test('지난 마감도 AI에 전달하고 준비 단계에서 미배치 확정을 하지 않음',async t=>{
   const store=await temporaryStore(t);
   const data=fixture();
   data.tasks[0].deadline='2026-10-29T18:00:00+09:00';
@@ -110,7 +112,8 @@ test('지난 마감은 정상 응답의 unplaced로 반환하고 클라이언트
   const response=await request({reason:'manual',now:'2026-10-28T09:00:00+09:00'});
   assert.equal(response.status,200);
   const result=await response.json();
-  assert.deepEqual(result.unplaced,[{taskId:'a',remainingMinutes:120}]);
+  assert.deepEqual(result.unplaced,[]);
+  assert.equal(result.planningContext.rankedTasks[0].remainingMinutes,120);
   assert.equal(result.scheduledBlocks.filter(b=>b.status==='planned').length,0);
   assert.deepEqual((await store.readDb()).scheduledBlocks,result.scheduledBlocks);
 });

@@ -41,7 +41,7 @@ test('미수행 주기 확인: 변화 없을 때 저장 안 함, 겹친 실행 �
  let updates=0;
  const monitor=createMissedMonitor({...store,now,updateDb:updater=>{updates++;return store.updateDb(updater);}});
  assert.equal(await monitor.check(),null);assert.equal(updates,0);
- await request('POST','/tasks',input());
+ await request('POST','/tasks',input()); await store.updateDb(db=>({...db,scheduledBlocks:[{id:'ai-old',taskId:'task',subtaskId:'s1',date:'2026-10-30',start:'16:00',end:'17:00',status:'planned',source:'ai'}]}));
  setNow('2026-10-31T09:00:00+09:00');
  const results=await Promise.all([monitor.check(),monitor.check()]);
  assert.equal(updates,1);assert.deepEqual(results[0],results[1]);
@@ -51,7 +51,7 @@ test('미수행 주기 확인: 변화 없을 때 저장 안 함, 겹친 실행 �
 
 test('주기 확인의 시작·중지, 오류 후 다음 실행 복구',async t=>{
  const {store,request,setNow,now}=await setup(t);
- await request('POST','/tasks',input());setNow('2026-10-31T09:00:00+09:00');
+ await request('POST','/tasks',input()); await store.updateDb(db=>({...db,scheduledBlocks:[{id:'ai-old',taskId:'task',subtaskId:'s1',date:'2026-10-30',start:'16:00',end:'17:00',status:'planned',source:'ai'}]}));setNow('2026-10-31T09:00:00+09:00');
  let callback,cleared=0,fail=true;
  const errors=[];
  const timer={unref(){}};

@@ -13,6 +13,8 @@ async function request(path, { method = 'GET', body } = {}) {
 }
 
 export const api = {
+  getUserSettings: () => request('/user/settings'),
+  saveUserSettings: (settings) => request('/user/settings', { method: 'PATCH', body: { settings, confirmReschedule: true } }),
   getAnalytics: (mode = 'week', from) => request(`/analytics/${mode}${from ? `?from=${encodeURIComponent(from)}` : ''}`),
   getTimetable: () => request('/timetable'),
   extractTimetable: async (image) => {
@@ -38,8 +40,6 @@ export const api = {
 
   deleteCalendarItem: (source, id, date) => request(`/schedule/items/${encodeURIComponent(source)}/${encodeURIComponent(id)}`, { method: 'DELETE', body: { date } }),
 
-  getScheduleSettings: () => request('/schedule/settings'),
-  saveScheduleSettings: settings => request('/schedule/settings', { method: 'PUT', body: settings }),
 
   // 일정
   getTodaySchedule: () => request('/schedule/today'),

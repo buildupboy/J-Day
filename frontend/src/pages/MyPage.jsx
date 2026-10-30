@@ -1,8 +1,10 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { UserIcon, CalendarIcon, ChartIcon } from '../components/common/Icons.jsx';
 import AnalyticsPage from './AnalyticsPage.jsx';
 import FixedSchedulePage from './FixedSchedulePage.jsx';
 import { api } from '../api/client.js';
+import PatternSettingsPage, { patternSummary } from './PatternSettingsPage.jsx';
+import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 
 const DEMO_USER = { name: '민지', email: 'demo@jday.com', password: '1234' };
 const SESSION_KEY = 'jday-demo-login';
@@ -14,7 +16,7 @@ const groups = [
     { id: 'available', label: '작업 가능 시간', icon: 'clock', value: '09:00–22:00', hint: '작업을 배치할 수 있는 시간을 입력해 주세요.' },
   ] },
   { title: 'AI 맞춤 설정', items: [
-    { id: 'preferred', label: '희망 작업 시간대', icon: 'sun', value: '오전', options: ['오전', '오후', '저녁', '상관없음'] },
+    { id: 'preferred', label: '희망 작업 시간대', icon: 'sun', options: ['아침', '낮', '저녁', '새벽'] },
     { id: 'style', label: '나의 작업 스타일', icon: 'brain', value: '짧게 나누어 집중하기', options: ['짧게 나누어 집중하기', '오래 몰입하기', '여유 있게 진행하기'] },
     { id: 'personal', label: 'AI 개인화 정보', icon: 'sparkles', value: '어려운 작업은 오전에 하고 싶어요.', hint: '제이가 알아두면 좋을 나의 습관이나 선호를 적어 주세요.' },
   ] },
@@ -54,6 +56,16 @@ export default function MyPage() {
   const [weeklyReport, setWeeklyReport] = useState(null);
   const [reportError, setReportError] = useState('');
   const [reload, setReload] = useState(0);
+  const [settingsSnapshot, setSettingsSnapshot] = useState(null);
+  const [settingsError, setSettingsError] = useState('');
+  const [saveResult, setSaveResult] = useState(null);
+  useEffect(() => {
+    let active = true;
+    setSettingsError('');
+    api.getUserSettings().then((data) => { if (active) setSettingsSnapshot(data); })
+      .catch(() => { if (active) setSettingsError('설정을 불러오지 못했어요.'); });
+    return () => { active = false; };
+  }, [panel, reload]);
   useEffect(() => {
     let active = true;
     setReportError('');
@@ -62,6 +74,7 @@ export default function MyPage() {
     return () => { active = false; };
   }, [panel, reload]);
   const selected = allSettings.find((item) => item.id === panel);
+  if (['break', 'sleep', 'available', 'style', 'preferred'].includes(panel)) return <PatternSettingsPage kind={panel} onBack={() => setPanel(null)} onSaved={(result) => { setSettingsSnapshot(result); setSaveResult(result); setPanel(null); scheduleChanged(); }} />;
   if (panel === 'fixed') return <FixedSchedulePage onBack={() => setPanel(null)} />;
   function login(event) {
     event.preventDefault();
@@ -89,14 +102,16 @@ export default function MyPage() {
       <button type="button" className="my-report-link" onClick={() => setPanel('report')}><ChartIcon size={22} /><span>이번 주 분석 자세히 보기</span><span className="my-chevron" aria-hidden="true">›</span></button>
     </section>
     {groups.map((group) => <section className="my-preferences" key={group.title} aria-label={group.title}>
-      <h2>{group.title}</h2><div className="my-menu">{group.items.map((item) => <button type="button" className="my-menu-row" key={item.id} onClick={() => setPanel(item.id)}><span className="my-menu-icon"><Icon name={item.icon} /></span><span>{item.label}</span><span className="my-chevron" aria-hidden="true">›</span></button>)}</div>
+      <h2>{group.title}</h2><div className="my-menu">{group.items.map((item) => <button type="button" className="my-menu-row" key={item.id} onClick={() => { setSaveResult(null); setPanel(item.id); }}><span className="my-menu-icon"><Icon name={item.icon} /></span><span>{item.label}</span><small className="my-setting-value">{patternSummary(item.id, settingsSnapshot)}</small><span className="my-chevron" aria-hidden="true">›</span></button>)}</div>
     </section>)}
+    {settingsError && <p className="pattern-error" role="alert">{settingsError} <button type="button" onClick={() => setReload(reload + 1)}>다시 시도</button></p>}
+    {saveResult && <div className="pattern-receipt" role="status"><strong>설정을 저장하고 남은 작업을 재배치했어요.</strong>{saveResult.unplaced.length > 0 && <><p>일부 작업을 마감 전까지 배치하지 못했어요. 작업량·마감·작업 가능 시간을 확인해 주세요.</p><ul>{saveResult.unplaced.map((item) => <li key={item.taskId}>{item.title}: {item.remainingMinutes}분 미배치</li>)}</ul></>}{saveResult.ongoingBlocks > 0 && <p>이미 진행 중인 블록은 기존 시간대로 유지했어요.</p>}</div>}
     {panel === 'account' && <Modal title="계정 설정" onClose={() => setPanel(null)}>
       <div className="demo-account"><p className="my-dialog-description">체험용 계정</p>{loggedIn ? <><h3>{DEMO_USER.name} 님</h3><p>{DEMO_USER.email}</p><button type="button" className="primary-button" onClick={logout}>로그아웃</button></> : <><p className="my-dialog-description">이메일 demo@jday.com · 비밀번호 1234</p><form className="demo-login-form" onSubmit={login}><label htmlFor="demo-email">이메일</label><input id="demo-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required /><label htmlFor="demo-password">비밀번호</label><input id="demo-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />{error && <p className="chat-error" role="alert">{error}</p>}<button className="primary-button" type="submit">로그인</button></form></>}</div>
     </Modal>}
     {selected && <Modal title={selected.label} onClose={() => setPanel(null)}>
-      {panel === 'available' ? <p className="my-dialog-description">현재 저장된 작업 가능 시간: {weeklyReport?.profile.settings.dayStart ?? '미설정'} – {weeklyReport?.profile.settings.dayEnd ?? '미설정'}</p> : panel === 'break' ? <p className="my-dialog-description">현재 블록 사이 휴식: {weeklyReport?.profile.settings.breakMinutes ?? '미설정'}분</p> : panel === 'style' ? <p className="my-dialog-description">최소 작업 단위: {weeklyReport?.profile.settings.minSlotMinutes ?? '미설정'}분 · 최대 연속 블록: {weeklyReport?.profile.settings.maxBlockMinutes ?? '미설정'}분</p> : <p className="my-dialog-description">이 항목은 별도 저장 필드와 설정 API 확장이 필요해요.</p>}
-      <p className="my-dialog-description">설정 수정 API가 아직 없어 현재는 조회만 가능해요. 이전 체험용 브라우저 설정은 실제 일정에 적용하지 않아요.</p>
+      <p className="my-dialog-description">이 항목은 별도 저장 필드와 일정 배치 연동 확장이 필요해요.</p>
+      <p className="my-dialog-description">이전 체험용 브라우저 설정은 실제 일정에 적용하지 않아요.</p>
     </Modal>}
   </div>;
 }
