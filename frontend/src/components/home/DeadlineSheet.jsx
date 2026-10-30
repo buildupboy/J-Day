@@ -5,6 +5,7 @@ import { CloseIcon } from '../common/Icons.jsx';
 import { getWeekDays, addDays } from '../../utils/calendar.js';
 import { toMinutes, formatDuration } from '../../utils/time.js';
 import { priorityOf, TASK_TYPE_LABEL, daysUntil, dDay } from '../../utils/labels.js';
+import SheetHandle from '../common/SheetHandle.jsx';
 
 const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const MAX_WEEKS = 6; // 마감까지 이만큼만 조회한다
@@ -54,7 +55,7 @@ export default function DeadlineSheet({ task, nav, onClose }) {
   return (
     <div className="d-sheet-backdrop" onClick={onClose}>
       <section className="d-sheet" aria-label="가장 빠른 마감 작업" onClick={(e) => e.stopPropagation()}>
-        <span className="d-sheet-handle" aria-hidden="true" />
+        <SheetHandle onClose={onClose} />
         <div className="sheet-head">
           <div className="sheet-title-col">
             <div className="chip-line">

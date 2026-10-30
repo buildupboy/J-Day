@@ -6238,3 +6238,84 @@ button:disabled {
 .calendar-page .tt-block:focus-visible {
   z-index: 2;
 }
+
+/* 바텀 시트 손잡이: 맨 위에 얇게 떠 있고 내용을 밀거나 가리지 않는다. 잡고 아래로 끌어내리면 닫힌다 */
+.sheet-grab {
+  position: relative;
+  z-index: 3;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sheet-grab:active {
+  cursor: grabbing;
+}
+
+/* 보이는 얇은 바 */
+.sheet-grab > span {
+  position: absolute;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transform: translateX(-50%);
+}
+
+/* 잡을 수 있는 영역: 가운데 일부만 덮어 양옆 버튼은 가리지 않는다 */
+.sheet-grab::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 120px;
+  height: 26px;
+  transform: translateX(-50%);
+}
+
+.sheet-grab:focus-visible > span {
+  background: var(--ink);
+}
+
+/* .sheet는 안쪽 스크롤이 있어 스크롤해도 맨 위에 붙어 있다 (위 여백 16px 안에 그린다). sticky 기준은 안쪽 여백을 뺀 위치다 */
+.sheet > .sheet-grab {
+  position: sticky;
+  top: 0;
+}
+
+.sheet > .sheet-grab > span {
+  top: -11px;
+}
+
+.sheet > .sheet-grab::before {
+  top: -16px;
+}
+
+/* .d-sheet는 여백(위 10px) 안에 그린다. gap에 끼지 않도록 겹쳐 둔다 */
+.d-sheet {
+  position: relative;
+}
+
+.d-sheet > .sheet-grab {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+}
+
+.d-sheet > .sheet-grab > span {
+  top: 5px;
+}
+
+.d-sheet > .sheet-grab::before {
+  top: 0;
+}
+
+/* 루틴 칩: 캘린더의 루틴 색과 같다 */
+.d-chip.is-routine {
+  background: var(--routine);
+  color: var(--routine-ink);
+}

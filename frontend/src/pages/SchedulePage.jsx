@@ -9,6 +9,7 @@ import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
 import useBlockDetails from '../hooks/useBlockDetails.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 import useTimetableEmployee from '../hooks/useTimetableEmployee.jsx';
+import SheetHandle from '../components/common/SheetHandle.jsx';
 
 const SHORT_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 화면은 월요일부터, dayOfWeek는 0=일
@@ -197,6 +198,7 @@ function UpcomingDetail({ task, details, onClose }) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <section className="sheet sheet-auto" role="dialog" aria-modal="true" aria-label={`${task.title} 상세`} onClick={(event) => event.stopPropagation()}>
+        <SheetHandle onClose={onClose} />
         <div className="sheet-head"><h2>{task.title}</h2><button type="button" className="icon-button" onClick={onClose} aria-label="닫기">✕</button></div>
         {state.loading ? <p role="status">작업 일정을 불러오는 중이에요…</p> : <p role="alert">일정을 불러오지 못했어요. ({state.error})</p>}
       </section>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import SheetHandle from '../common/SheetHandle.jsx';
 import {
   EditIcon,
   TrashIcon,
@@ -58,6 +59,7 @@ export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <section className="sheet sheet-auto todo-sheet" onClick={(e) => e.stopPropagation()}>
+        <SheetHandle onClose={onClose} />
         <div className="todo-sheet-title">
           <h2>{meta.title ?? todo.title}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="닫기">
@@ -169,7 +171,7 @@ export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }
           }}
         >
           <section className="sheet sheet-auto memo-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-handle" />
+            <SheetHandle onClose={() => setMemoOpen(false)} />
             <div className="memo-bar">
               <button
                 type="button"
