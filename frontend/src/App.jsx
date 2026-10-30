@@ -17,15 +17,21 @@ export default function App() {
   const [scheduleView, setScheduleView] = useState('upcoming'); // 일정 탭: 'upcoming' | 'setup'
   const [overlay, setOverlay] = useState(null); // 'add' | 'newEvent' | 'addTask' | 'fixed' | 'voice' | 'finish'
   const [finishing, setFinishing] = useState(null); // 작업 종료 화면에 넘길 { block, blocks, taskById }
+  const [failedImport, setFailedImport] = useState(null);
 
-  const close = () => setOverlay(null);
+  const close = () => { setOverlay(null); setFailedImport(null); };
   const nav = {
     tab: (id, view) => {
       if (view) setScheduleView(view);
       setTab(id);
       setOverlay(null);
     },
-    open: setOverlay,
+    open: (id) => { setFailedImport(null); setOverlay(id); },
+    importFailed: (context) => {
+      setFailedImport(context);
+      setTab('my');
+      setOverlay('fixed');
+    },
     // 작업 종료 화면: 끝낸 블록과 그날 블록 목록으로 남은/초과 시간을 계산한다
     finish: (context) => {
       setFinishing(context);
@@ -56,7 +62,7 @@ export default function App() {
       )}
       {overlay === 'fixed' && (
         <div className="screen-overlay">
-          <FixedSchedulePage onBack={close} />
+          <FixedSchedulePage onBack={close} initialImport={failedImport} />
         </div>
       )}
       {overlay === 'finish' && finishing && (

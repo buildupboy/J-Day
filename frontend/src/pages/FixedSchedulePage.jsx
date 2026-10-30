@@ -6,8 +6,9 @@ import { lessonConflicts } from '../utils/timetableConflicts.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 import useTimetableEmployee from '../hooks/useTimetableEmployee.jsx';
 import { useAppDialogs } from '../components/common/AppDialogs.jsx';
+import { ImageIcon } from '../components/common/Icons.jsx';
 
-export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineImport = false }) {
+export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineImport = false, initialImport = null }) {
   const { confirm } = useAppDialogs();
   const { chooseEmployee, employeeDialog } = useTimetableEmployee();
   const [lessons, setLessons] = useState([]);
@@ -18,7 +19,7 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
   const [warnings, setWarnings] = useState([]);
   const [reviewReasons, setReviewReasons] = useState([]);
   const [busy, setBusy] = useState('loading');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialImport?.error ?? '');
   const [notice, setNotice] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -27,6 +28,28 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
   const mounted = useRef(true);
   const fileInput = useRef(null);
   const initialLoad = useRef(null);
+  useEffect(() => {
+    if (!initialImport?.file) return;
+    const photo = URL.createObjectURL(initialImport.file);
+    setImage(photo); setFileName(initialImport.file.name);
+    return () => URL.revokeObjectURL(photo);
+  }, [initialImport]);
+  useEffect(() => {
+    if (!initialImport?.draft) return;
+    let active = true;
+    initialLoad.current?.then((ready) => {
+      if (!active || !ready) return;
+      const draft = initialImport.draft;
+      if (draft.lessons?.length) {
+        setLessons(draft.lessons); setVisibleDays(draft.visibleDays ?? []);
+        setOtherBlocks((items) => items.filter((item) => item.kind === 'routine'));
+        setClearRequested(true); setDirty(true);
+      }
+      setWarnings([...(draft.reviewReasons ?? []), ...(draft.warnings ?? [])]);
+      setReviewReasons(draft.reviewReasons ?? []);
+    });
+    return () => { active = false; };
+  }, [initialImport, loaded]);
   useEffect(() => {
     mounted.current = true;
     initialLoad.current = api.getTimetable().then((data) => { if (mounted.current) { setLessons(data.lessons); setOtherBlocks(data.otherBlocks || []); setVisibleDays(data.visibleDays || []); setLoaded(true); } return true; }).catch(() => { if (mounted.current) setError('저장된 시간표를 불러오지 못했어요. 백엔드 서버를 확인하고 다시 열어 주세요.'); return false; }).finally(() => { if (mounted.current) setBusy((current) => current === 'loading' ? '' : current); });
@@ -131,7 +154,7 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
           {image ? <div className="fixed-image-preview"><img src={image} alt="업로드한 원본 시간표" /><small title={fileName}>{fileName}</small></div> : <><span className="fixed-upload-symbol" aria-hidden="true">▦</span><h2>사진으로 시간표 추가</h2><p>업무·근무·수업 등 요일과 시간이 보이는 시간표를 선택해 주세요.</p></>}
         </div>
         <div className="fixed-upload-controls">
-          <label htmlFor={inlineImport ? 'schedule-timetable-photo' : 'timetable-photo'} className={`fixed-upload-label${busy || !loaded ? ' is-disabled' : ''}`}>{image ? '사진 변경' : '시간표 사진 선택'}</label>
+          <label htmlFor={inlineImport ? 'schedule-timetable-photo' : 'timetable-photo'} className={`fixed-upload-label${busy || !loaded ? ' is-disabled' : ''}`}><ImageIcon size={18} />캡처로 불러오기</label>
           {image && <button type="button" className="primary-button" disabled={!!busy || !loaded} onClick={() => extract()}>{busy === 'extract' ? '분석 중…' : '시간표 만들기'}</button>}
         </div>
         <p className="fixed-upload-caption">{image ? '분석 시 OpenAI로 전송하며 사진은 서버에 저장하지 않아요. 저장하면 기존 고정 시간표를 새 사진의 일정으로 교체해요.' : 'PNG · JPG · WebP / 최대 10MB'}</p>

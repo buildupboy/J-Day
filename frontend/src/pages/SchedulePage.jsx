@@ -195,22 +195,24 @@ function SetupView({ nav }) {
     if (!file || importing.current) return;
     setError('');
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
-      setError('10MB 이하의 PNG, JPG, WebP 사진을 선택해 주세요.');
+      nav.importFailed({ error: '10MB 이하의 PNG, JPG, WebP 사진을 선택해 주세요.' });
       return;
     }
     importing.current = true;
     setImportStatus('시간표 분석 중…');
     const photo = URL.createObjectURL(file);
+    let draft = null;
     try {
       const result = await chooseEmployee(await api.extractTimetable(photo));
       if (!result) return;
+      draft = result;
       if (result.requiresReview) throw new Error([...result.reviewReasons, ...result.warnings].join(' ') || '요일과 시간을 확인해 주세요. 자동 저장하지 않았어요.');
       if (!result.lessons?.length) throw new Error('등록할 고정 일정을 찾지 못했어요. 요일과 시간이 잘 보이는 사진을 선택해 주세요.');
       setImportStatus('시간표 저장 중…');
       await api.saveTimetable(result.lessons, result.visibleDays ?? [], { clearExisting: true });
       scheduleChanged();
     } catch (err) {
-      setError(err.message);
+      nav.importFailed({ error: err.message, file, draft });
     } finally {
       URL.revokeObjectURL(photo);
       importing.current = false;
