@@ -320,3 +320,191 @@ body {
   cursor: not-allowed;
 }
 
+
+/* 캘린더 */
+.calendar-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.week-day-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.week-day-num {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.week-day.is-active .week-day-num {
+  background: #111;
+  color: #fff;
+}
+
+.week-day-dots {
+  display: flex;
+  gap: 3px;
+  height: 5px;
+}
+
+.week-day-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #111;
+}
+
+.timetable {
+  position: relative;
+  margin-top: 8px;
+}
+
+.tt-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
+}
+
+.tt-hour span {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  padding-right: 4px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tt-block {
+  position: absolute;
+  left: 52px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 14px;
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.tt-block strong {
+  font-size: 14px;
+}
+
+.tt-fixed {
+  background: var(--bg);
+  color: #555;
+}
+
+.tt-task {
+  background: #111;
+  color: #fff;
+}
+
+.tt-task span {
+  color: #bbb;
+}
+
+.tt-event {
+  border: 1.5px solid #111;
+  background: var(--panel);
+}
+
+.tt-break {
+  align-items: center;
+  border: 1px dashed var(--muted);
+  background: transparent;
+  padding: 0;
+}
+
+.tt-break-label {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.tt-now {
+  position: absolute;
+  left: 40px;
+  right: 0;
+  height: 2px;
+  background: var(--danger);
+}
+
+.tt-now::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 4px;
+}
+
+.month-head {
+  padding-bottom: 8px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.month-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.month-cell.is-out {
+  color: #c4c8d2;
+}
+
+.month-cell.is-today .month-num {
+  font-weight: 800;
+}
+
+.month-cell.is-active {
+  background: #111;
+  color: #fff;
+}
+
+.month-cell.is-active .week-day-dots i {
+  background: #fff;
+}
