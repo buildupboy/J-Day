@@ -1,0 +1,66 @@
+{
+  "user": {
+    "id": "u1",
+    "name": "김동아",
+    "settings": {
+      "dayStart": "07:00",
+      "dayEnd": "24:00",
+      "minSlotMinutes": 30,
+      "maxBlockMinutes": 90,
+      "breakMinutes": 10
+    }
+  },
+  "fixedBlocks": [
+    { "id": "fb-run", "kind": "routine", "title": "아침 운동", "dayOfWeek": [0, 1, 2, 3, 4, 5, 6], "start": "07:00", "end": "07:40" },
+
+    { "id": "fb-ds-mon", "kind": "class", "title": "자료구조", "location": "공학관 301", "dayOfWeek": [1], "start": "09:00", "end": "10:30" },
+    { "id": "fb-ds-wed", "kind": "class", "title": "자료구조", "location": "공학관 301", "dayOfWeek": [3], "start": "09:00", "end": "10:30" },
+    { "id": "fb-db", "kind": "class", "title": "데이터베이스", "location": "공학관 205", "dayOfWeek": [1, 3], "start": "13:00", "end": "14:30" },
+    { "id": "fb-os", "kind": "class", "title": "운영체제", "location": "공학관 402", "dayOfWeek": [2, 4], "start": "10:30", "end": "12:00" },
+    { "id": "fb-eng", "kind": "class", "title": "대학영어", "location": "인문관 110", "dayOfWeek": [2, 4], "start": "15:00", "end": "16:30" },
+    { "id": "fb-stat", "kind": "class", "title": "확률과통계", "location": "자연관 203", "dayOfWeek": [5], "start": "10:00", "end": "13:00" },
+
+    { "id": "fb-job", "kind": "job", "title": "편의점 알바", "location": "학교 앞 편의점", "dayOfWeek": [2, 4], "start": "19:00", "end": "23:00" }
+  ],
+  "tasks": [
+    {
+      "id": "t-db-report",
+      "title": "데이터베이스 ERD 설계 보고서",
+      "deadline": "2026-11-04T23:59:00+09:00",
+      "type": "report",
+      "subtasks": [
+        { "id": "st-1", "title": "요구사항 정리", "estimatedMinutes": 60, "done": true },
+        { "id": "st-2", "title": "ERD 작성", "estimatedMinutes": 120, "done": false },
+        { "id": "st-3", "title": "보고서 작성", "estimatedMinutes": 90, "done": false }
+      ],
+      "estimatedMinutes": 270,
+      "progress": 0.2,
+      "status": "in_progress",
+      "createdAt": "2026-10-27T20:00:00+09:00"
+    },
+    {
+      "id": "t-os-hw",
+      "title": "운영체제 스케줄링 시뮬레이터 과제",
+      "deadline": "2026-11-06T23:59:00+09:00",
+      "type": "coding",
+      "subtasks": [
+        { "id": "st-4", "title": "FCFS·SJF 구현", "estimatedMinutes": 120, "done": false },
+        { "id": "st-5", "title": "RR 구현 및 테스트", "estimatedMinutes": 120, "done": false },
+        { "id": "st-6", "title": "결과 정리", "estimatedMinutes": 60, "done": false }
+      ],
+      "estimatedMinutes": 300,
+      "progress": 0,
+      "status": "todo",
+      "createdAt": "2026-10-29T18:00:00+09:00"
+    }
+  ],
+  "scheduledBlocks": [],
+  "history": [
+    { "id": "h1", "taskTitle": "자료구조 연결리스트 과제", "type": "coding", "estimatedMinutes": 180, "actualMinutes": 230, "completedAt": "2026-09-20T22:00:00+09:00" },
+    { "id": "h2", "taskTitle": "자료구조 스택/큐 과제", "type": "coding", "estimatedMinutes": 150, "actualMinutes": 175, "completedAt": "2026-10-05T23:10:00+09:00" },
+    { "id": "h3", "taskTitle": "대학영어 에세이", "type": "report", "estimatedMinutes": 120, "actualMinutes": 190, "completedAt": "2026-09-28T01:30:00+09:00" },
+    { "id": "h4", "taskTitle": "데이터베이스 정규화 리포트", "type": "report", "estimatedMinutes": 150, "actualMinutes": 200, "completedAt": "2026-10-12T21:40:00+09:00" },
+    { "id": "h5", "taskTitle": "확률과통계 중간고사 준비", "type": "exam", "estimatedMinutes": 480, "actualMinutes": 540, "completedAt": "2026-10-20T23:00:00+09:00" },
+    { "id": "h6", "taskTitle": "운영체제 발표 자료", "type": "presentation", "estimatedMinutes": 120, "actualMinutes": 110, "completedAt": "2026-10-15T20:00:00+09:00" }
+  ]
+}
