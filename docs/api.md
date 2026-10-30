@@ -169,3 +169,13 @@ allocate(tasks, fixedBlocks, { from, to, settings, existingBlocks: [] })
 - 과거 planned는 반환 이력으로 보존하되 새 배치의 예약량에서 차감하지 않는다. 완료 수행량은 Task.progress가 기준이다.
 - changes 항목은 `{ type: 'added', reason, after }`, `{ type: 'removed', reason, before }`, `{ type: 'updated', reason, before, after }`이다. before/after는 ScheduledBlock이며 ID 기준으로 비교한다. 이동/분할된 블록은 제거+추가로 나타날 수 있다.
 - 동일한 DB와 now로 반복 실행하면 같은 배치가 나오며 변경이 없으면 changes는 빈 배열이다.
+
+
+### 선택적 하루 작업량 제한과 여유 시간
+
+- user.settings.maxDailyMinutes: 하루 전체 작업의 최대 분 합계(0~1440 정수). 생략 시 1440으로 기존 동작 유지. 0이면 새 작업을 배치하지 않는다. 기존 planned/done 블록도 작업량에 포함하며 missed·고정 일정·휴식은 제외한다. 이미 한도를 넘은 기존 블록을 삭제하지 않는다.
+- user.settings.bufferMinutes: 돌발 상황용 여유 시간(0~1440 정수, 생략 시 0). 하루의 늦은 빈 구간부터 확보하며 필요하면 여러 구간으로 나눈다. 기존 일정과 휴식을 제외한 빈 시간이 부족하면 확보 가능한 만큼만 비운다. 별도 ScheduledBlock은 생성하지 않는다. findFreeSlots는 원래의 점유 여부만 계산하고 이 정책은 allocate에서 적용한다.
+- 작업량 한도에 도달하면 다음 날로 넘긴다. 마감 때문에 넘길 수 없으면 unplaced로 반환하며 한도/여유 시간을 자동 해제하지 않는다. 완전한 균등 분산이 아니라 하루 최대량에 따른 분산이다.
+- 한도에 남은 분이 minSlotMinutes보다 작으면 최소 길이 이상의 빈 구간 안에서 그만큼 짧은 작업 블록을 허용한다.
+- reschedule에서도 같은 설정을 적용한다. 오늘은 현재 시각 이후의 빈 시간에서 여유 시간을 확보하며, 이미 완료한 오늘 작업량도 한도에 포함한다.
+- 예: maxDailyMinutes=180, bufferMinutes=60이면 하루 작업은 최대 3시간이고 늦은 빈 시간에서 최대 1시간을 비워 둔다. seed의 기본값은 기존 동작 보존을 위해 1440/0이다.

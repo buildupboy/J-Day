@@ -68,6 +68,9 @@ export function allocate(tasks, fixedBlocks, { from, to, settings, existingBlock
   bounds(settings);
   const max = positive(settings.maxBlockMinutes, 'maxBlockMinutes');
   const rest = positive(settings.breakMinutes, 'breakMinutes', 0);
+  const dailyLimit = settings.maxDailyMinutes === undefined ? 1440 : positive(settings.maxDailyMinutes, 'maxDailyMinutes', 0);
+  const buffer = settings.bufferMinutes === undefined ? 0 : positive(settings.bufferMinutes, 'bufferMinutes', 0);
+  if (dailyLimit > 1440 || buffer > 1440) throw new RangeError('하루 작업량과 여유 시간은 1440분 이하여야 합니다.');
   if (max < settings.minSlotMinutes) throw new RangeError('maxBlockMinutes는 minSlotMinutes 이상이어야 합니다.');
   const pending = tasks.filter(task => task.status !== 'done').map(task => {
     const importance = task.importance === undefined ? 2 : task.importance;
@@ -92,15 +95,38 @@ export function allocate(tasks, fixedBlocks, { from, to, settings, existingBlock
     start: clock(Math.max(0, minute(block.start) - rest)),
     end: clock(Math.min(1440, minute(block.end) + rest)),
   }));
+  const dailyUsed = new Map();
+  for (const block of existingBlocks) {
+    if (block.status === 'planned' || block.status === 'done') {
+      dailyUsed.set(block.date, (dailyUsed.get(block.date) ?? 0) + minute(block.end) - minute(block.start));
+    }
+  }
+  // 여유 시간은 하루의 늦은 빈 구간부터 확보한다. 반환되는 작업 블록에는 넣지 않는다.
+  // 작업마다 다시 계산하면 여유 시간이 계속 이동하므로 날짜별 한 번만 계산한다.
+  const bufferedDates = new Set();
   for (const item of pending) {
     for (let stamp = first; stamp <= last && item.remaining > 0 && stamp - KST < item.deadline; stamp += DAY) {
       const date = new Date(stamp).toISOString().slice(0, 10);
       const cutoff = Math.min(1440, Math.floor((item.deadline - (stamp - KST)) / 60000));
+      if (!bufferedDates.has(date)) {
+        bufferedDates.add(date);
+        let remainingBuffer = buffer;
+        if (remainingBuffer > 0) {
+          const free = findFreeSlots(date, fixedBlocks, occupied, { ...settings, minSlotMinutes: 1 });
+          for (const slot of free.reverse()) {
+            const end = minute(slot.end);
+            const length = Math.min(remainingBuffer, end - minute(slot.start));
+            if (length === 0) break;
+            occupied.push({ date, start: clock(end - length), end: clock(end) });
+            remainingBuffer -= length;
+          }
+        }
+      }
       for (const slot of findFreeSlots(date, fixedBlocks, occupied, settings)) {
         let cursor = minute(slot.start);
         const end = Math.min(minute(slot.end), cutoff);
-        while (item.remaining > 0 && end - cursor >= settings.minSlotMinutes) {
-          const length = Math.min(max, item.remaining, end - cursor);
+        while (item.remaining > 0 && end - cursor >= settings.minSlotMinutes && (dailyUsed.get(date) ?? 0) < dailyLimit) {
+          const length = Math.min(max, item.remaining, end - cursor, dailyLimit - (dailyUsed.get(date) ?? 0));
           const base = `sb-${item.task.id}-${date}-${cursor}`;
           let id = base;
           for (let suffix = 1; usedIds.has(id); suffix++) id = `${base}-${suffix}`;
@@ -108,6 +134,7 @@ export function allocate(tasks, fixedBlocks, { from, to, settings, existingBlock
           const block = { id, taskId: item.task.id, date, start: clock(cursor), end: clock(cursor + length), status: 'planned' };
           blocks.push(block);
           occupied.push({ ...block, start: clock(Math.max(0, cursor - rest)), end: clock(Math.min(1440, cursor + length + rest)) });
+          dailyUsed.set(date, (dailyUsed.get(date) ?? 0) + length);
           item.remaining -= length;
           cursor += length + rest;
         }

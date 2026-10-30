@@ -7,7 +7,9 @@
       "dayEnd": "24:00",
       "minSlotMinutes": 30,
       "maxBlockMinutes": 90,
-      "breakMinutes": 10
+      "breakMinutes": 10,
+      "maxDailyMinutes": 1440,
+      "bufferMinutes": 0
     }
   },
   "fixedBlocks": [
