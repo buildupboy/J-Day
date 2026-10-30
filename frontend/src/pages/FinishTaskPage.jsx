@@ -46,11 +46,8 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
   }
   const [maxContinuous, setMaxContinuous] = useState(null);
   useEffect(() => { let active = true; api.getUserSettings().then(data => { if (active) setMaxContinuous(data.settings.maxBlockMinutes); }).catch(() => {}); return () => { active = false; }; }, []);
-  const canContinue = planned > 0 && planned < 30 && nowMin > start && block.status !== 'done' && maxContinuous !== null && nowMin - toMinutes(chainFirst.start) + toMinutes(nextTask?.end ?? '00:00') - toMinutes(nextTask?.start ?? '00:00') <= maxContinuous && nextTask && followingTask
-    && (block.subtaskId ? !later.some(item => item.taskId === block.taskId && item.subtaskId === block.subtaskId && item.status === 'planned') : currentTask?.estimatedMinutes < 30)
-    && currentTask?.type !== 'exam' && followingTask.type !== 'exam'
-    && !currentTask?.reviewOf && !followingTask.reviewOf
-    && (followingTask.id === currentTask?.id || (!followingTask.sourceTasks?.length && !followingTask.progress && !followingTask.actualMinutes));
+  // 짧은 작업 이어서 하기는 일정이 배치된 직후 앱 전체 팝업(ShortMergePrompt)에서 묻는다. 종료 화면에서는 묻지 않는다.
+  const canContinue = false;
   const restUntil = nextFixed ? Math.max(toMinutes(nextFixed.start), end) : end;
 
   const finish = async (choice) => {

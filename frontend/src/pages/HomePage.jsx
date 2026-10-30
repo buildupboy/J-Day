@@ -143,12 +143,6 @@ export default function HomePage({ nav }) {
         showToast('완료 취소는 아직 지원하지 않아요.');
         return;
       }
-      // 이미 시작한 짧은(30분 미만) 작업은 종료 화면에서 다음 짧은 작업을 이어서 할지 묻는다
-      const length = toMinutes(block.end) - toMinutes(block.start);
-      if (length > 0 && length < 30 && toMinutes(block.start) < nowMin) {
-        nav.finish({ block, blocks: today, taskById: schedule.taskById });
-        return;
-      }
       // 시작 전 블록도 미리 완료할 수 있다. 실행 취소를 기다린 뒤 기록하고, 비는 시간의 재배치는 10초 뒤에 한 번만 한다.
       // 상위 작업으로 묶인 줄이면 묶인 하위작업 블록을 모두 완료한다
       const parts = (block.parts ?? [block]).filter((part) => part.status !== 'done');
