@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { PaperclipIcon } from '../common/Icons.jsx';
+import { ChevronUpIcon, NoteIcon, CloseIcon, PaperclipIcon } from '../common/Icons.jsx';
 import { estimateTask } from '../../utils/estimateTask.js';
 
-// "예상 시간을 모르겠어요" 영역: 일정/작업 내용과 안내문 파일을 주면 제이가 예상 시간을 추천한다.
+// "예상 시간을 모르겠어요" 영역: 과제 내용과 안내문 파일을 주면 제이가 예상 시간을 추천한다.
 // TODO: 백엔드 LLM(breakdownTask)과 scheduler/estimator가 구현되면 estimateTask 대신 호출한다.
 export default function EstimateAssist({ title, onApply }) {
   const [open, setOpen] = useState(true);
@@ -18,42 +18,44 @@ export default function EstimateAssist({ title, onApply }) {
     setFiles((prev) => [...prev, ...Array.from(list).map((f) => ({ id: `${f.name}-${f.lastModified}`, name: f.name }))]);
 
   return (
-    <section className="assist">
+    <section className="assist" aria-label="AI 예상 시간 추천">
       <button type="button" className="assist-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         예상 시간을 모르겠어요
-        <span className={open ? 'is-open' : ''}>⌃</span>
+        <span className={open ? '' : 'is-closed'}>
+          <ChevronUpIcon size={18} />
+        </span>
       </button>
 
       {open && (
         <>
-          <p className="ai-note">유형별 기본 예시로 추천해요. 파일 내용 분석과 AI 추정은 이 입력창에 아직 연결되지 않았어요.</p>
-          <label className="assist-label" htmlFor="task-content">
-            일정/작업 내용
-          </label>
-          <textarea
-            id="task-content"
-            rows={3}
-            value={content}
-            placeholder="예: 발표 자료 15장 만들고 팀원과 리허설 1번. 자료는 PPT로 제출"
-            onChange={(e) => setContent(e.target.value)}
-          />
+          <div className="assist-field">
+            <label htmlFor="task-content">과제 내용</label>
+            <textarea
+              id="task-content"
+              rows={3}
+              value={content}
+              placeholder="예: 고유값·고유벡터 문제 8개, 증명 2개. 풀이 과정까지 손글씨로 제출"
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
 
           <div className="assist-files">
             {files.map((f) => (
               <span key={f.id} className="file-chip">
-                <PaperclipIcon size={16} />
+                <NoteIcon size={16} />
                 {f.name}
                 <button
                   type="button"
                   onClick={() => setFiles((prev) => prev.filter((x) => x.id !== f.id))}
                   aria-label="첨부 삭제"
                 >
-                  ✕
+                  <CloseIcon size={16} />
                 </button>
               </span>
             ))}
             <label className="file-add-chip">
-              + 파일 첨부
+              <PaperclipIcon size={16} />
+              파일 첨부
               <input
                 type="file"
                 accept=".pdf,.txt,application/pdf,text/plain"
@@ -67,26 +69,33 @@ export default function EstimateAssist({ title, onApply }) {
             </label>
           </div>
 
-          <button type="button" className="primary-button" disabled={!canAsk} onClick={ask}>
+          <button type="button" className="d-btn d-btn-blue" disabled={!canAsk} onClick={ask}>
             예상 시간 추천받기
           </button>
 
           {result && (
             <div className="assist-result">
               <div className="assist-title">
-                <span className="j-badge">J</span>
-                <strong>약 {result.totalHours}시간 걸릴 것 같아요</strong>
+                <span className="j-mark" aria-hidden="true">
+                  J
+                </span>
+                <div>
+                  <p className="assist-main">
+                    약 <strong>{result.totalHours}시간</strong> 걸릴 것 같아요
+                  </p>
+                  <p className="assist-detail">
+                    범위 {result.minHours}~{result.maxHours}시간 ·{' '}
+                    {result.items.map((it) => `${it.title} ${it.hours}h`).join(', ')}
+                    {result.coef !== 1 && ` · 내 ${result.label} 속도 ×${result.coef} 반영`}
+                  </p>
+                </div>
               </div>
-              <p>
-                범위 {result.minHours}~{result.maxHours}시간 ·{' '}
-                {result.items.map((it) => `${it.title} ${it.hours}h`).join(', ')}
-                {result.coef !== 1 && ` · 내 ${result.label} 속도 ×${result.coef} 반영`}
-              </p>
               <button type="button" className="apply-chip" onClick={() => onApply(result)}>
                 {result.totalHours}시간으로 적용
               </button>
             </div>
           )}
+          <p className="assist-note">지금은 과제 유형별 기본 예시로 추천해요. 첨부 파일 분석은 아직 연결되지 않았어요.</p>
         </>
       )}
     </section>

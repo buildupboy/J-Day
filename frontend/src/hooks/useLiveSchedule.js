@@ -28,7 +28,7 @@ export default function useLiveSchedule(selected, view = 'week') {
   }, [from, to, revision]);
   const taskById = id => state.tasks.find(task => task.id === id) ?? null;
   const blocksForDate = date => (state.days.find(day => day.date === dateKey(date))?.items ?? []).map(block => ({
-    ...block, date: dateKey(date), kind: block.source === 'scheduled' ? 'task' : block.kind === 'routine' ? 'routine' : 'fixed',
+    ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.kind === 'routine' ? 'routine' : 'fixed',
     task: taskById(block.taskId), note: block.status === 'missed' ? '미수행' : block.source === 'scheduled' ? '자동 배치' : undefined,
   }));
   return { ...state, taskById, blocksForDate };
