@@ -7,11 +7,13 @@ import { assertSchema } from './voice-validation.js';
 
 // 서버 검증용 전체 문맥은 보존하고 모델에는 중복 설명과 범위 밖 기록을 줄여 전달한다.
 export function planningModelInput(context) {
-  const { sourceRevision, schemaVersion, priorityPolicy, planningInstructions, ...input } = context;
+  // replaceableBlockIds는 서버 검증용이라 모델에는 보내지 않는다(출력 블록에 id가 없다).
+  const { sourceRevision, schemaVersion, priorityPolicy, planningInstructions, replaceableBlockIds, ...input } = context;
   const slimBlock = ({ id, taskId, subtaskId, date, start, end, status }) => ({ id, taskId, subtaskId, date, start, end, status });
+  const slimFuture = ({ taskId, subtaskId, date, start, end }) => ({ taskId, subtaskId, date, start, end });
   return { ...input,
     protectedBlocks: context.protectedBlocks.filter(block => block.date >= context.window.from && block.date <= context.window.to).map(slimBlock),
-    existingFutureBlocks: (context.existingFutureBlocks ?? []).map(slimBlock) };
+    existingFutureBlocks: (context.existingFutureBlocks ?? []).map(slimFuture) };
 }
 
 /** 공식 입력 준비 → AI → 공식 검증/적용. 호출자의 updateDb 트랜잭션에서 실행한다. */
