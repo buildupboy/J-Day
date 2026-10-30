@@ -23,12 +23,14 @@ const sameDays = (a, b) => a.length === b.length && a.every((d) => b.includes(d)
 // 02-3 반복 일정 등록: 고정 일정·루틴처럼 요일마다 반복하는 일정을 넣는다 (POST /api/fixed-blocks).
 export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
   const editing = Boolean(editingBlock);
+  const dated = Boolean(editingBlock?.date);
+  const [date, setDate] = useState(editingBlock?.date ?? '');
   const [kind, setKind] = useState(editingBlock?.kind === 'routine' ? 'routine' : 'fixed');
   const [title, setTitle] = useState(editingBlock?.title ?? '');
   const [days, setDays] = useState(() => editingBlock?.dayOfWeek ?? [new Date().getDay()]);
   const [start, setStart] = useState(editingBlock?.start ?? '09:00');
   const [end, setEnd] = useState(editingBlock?.end ?? '10:30');
-  const [memo, setMemo] = useState(editingBlock?.memo ?? '');
+  const [memo, setMemo] = useState(editingBlock?.memo ?? editingBlock?.location ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [notice, setNotice] = useState('');
@@ -64,7 +66,8 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
         ...(memo.trim() ? { memo: memo.trim() } : {}),
       };
       if (editing) {
-        await api.updateFixedBlock(editingBlock.id, { title: block.title, dayOfWeek: block.dayOfWeek, start, end, memo: memo.trim() });
+        await api.updateFixedBlock(editingBlock.id, { title: block.title, ...(dated ? { date } : { dayOfWeek: block.dayOfWeek }), start, end, memo: memo.trim(),
+          ...(editingBlock.location !== undefined ? { location: '' } : {}) });
         scheduleChanged();
         onClose();
         return;
@@ -90,11 +93,11 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
         <button type="button" className="d-icon-btn" onClick={onClose} aria-label="닫기">
           <CloseIcon size={20} />
         </button>
-        <h1>{editing ? '루틴 수정' : '반복 일정 추가'}</h1>
+        <h1>{editing ? `${kindLabel} 수정` : '반복 일정 추가'}</h1>
         {nav ? <button type="button" className="d-pill-btn" onClick={() => nav.open('voice')}>
           <MicIcon size={16} />
           말로 하기
-        </button> : <span className="d-icon-btn" aria-hidden="true" />}
+        </button> : <span style={{ width: 44 }} aria-hidden="true" />}
       </header>
 
       <div className="d-field" role="group" aria-label="종류">
@@ -126,7 +129,7 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
         />
       </div>
 
-      <div className="d-field" role="group" aria-label="반복 요일">
+      {!dated && <div className="d-field" role="group" aria-label="반복 요일">
         <div className="d-section-head">
           <p className="d-label">반복 요일</p>
           <div className="preset-row">
@@ -157,14 +160,14 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
           ))}
         </div>
         {!days.length && <p className="d-error">반복할 요일을 하나 이상 골라 주세요.</p>}
-      </div>
+      </div>}
 
       <div className="d-field">
         <p className="d-label">시간</p>
         <DateTimeRows
           rows={[
-            { id: 'start', label: '시작', time: start, onTimeChange: moveStart },
-            { id: 'end', label: '종료', time: end, onTimeChange: setEnd },
+            { id: 'start', label: '시작', ...(dated ? { date, onDateChange: setDate } : {}), time: start, onTimeChange: moveStart, disabled: saving },
+            { id: 'end', label: '종료', time: end, onTimeChange: setEnd, disabled: saving },
           ]}
         />
         {timeError && <p className="d-error">{timeError}</p>}
@@ -176,7 +179,7 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
         <span className="j-mark" aria-hidden="true">
           J
         </span>
-        <p>{editing ? '변경한 내용은 이 루틴의 모든 반복 일정에 적용돼요.' : '고른 요일마다 같은 시간에 반복돼요. 이 시간엔 작업을 넣지 않고, 겹치는 작업은 제이가 다른 시간으로 옮겨 드려요.'}</p>
+        <p>{editing ? dated ? '지정한 날짜의 일정에만 적용돼요.' : '변경한 내용은 이 일정의 모든 반복에 적용돼요.' : '고른 요일마다 같은 시간에 반복돼요. 이 시간엔 작업을 넣지 않고, 겹치는 작업은 제이가 다른 시간으로 옮겨 드려요.'}</p>
       </div>
 
       {notice && (

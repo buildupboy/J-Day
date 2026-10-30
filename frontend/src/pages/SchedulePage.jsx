@@ -235,7 +235,8 @@ function SetupView() {
           </p>
         )}
         {data && <section aria-label="나의 고정 시간표" style={{ marginBottom: 20 }}>
-          <WeekTimetable lessons={all} visibleDays={data.visibleDays ?? []} monochrome showDated={false} />
+          <WeekTimetable lessons={all} visibleDays={data.visibleDays ?? []} monochrome showDated={false}
+            onSelect={setEditingRoutine} />
         </section>}
         {!data && !error && <p className="d-empty">불러오는 중이에요…</p>}
       </section>
