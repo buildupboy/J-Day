@@ -1,5 +1,8 @@
 import { DAY, KST, minute, clock, day, datetime, positive, timestamp } from './time.js';
 import { remainingWork } from './workload.js';
+import { sleepIntervals } from './sleep.js';
+import { restIntervals } from './rest.js';
+import { prioritizeSlots } from './preferred-period.js';
 
 function bounds(settings) {
   const start = minute(settings.dayStart), end = minute(settings.dayEnd);
@@ -13,6 +16,8 @@ export function findFreeSlots(date, fixedBlocks, scheduledBlocks, settings) {
   const weekday = new Date(day(date)).getUTCDay();
   const [start, end] = bounds(settings);
   const occupied = [
+    ...sleepIntervals(settings),
+    ...restIntervals(settings),
     ...fixedBlocks.filter(block => block.dayOfWeek.includes(weekday)),
     ...scheduledBlocks.filter(block => block.date === date),
   ].map(block => {
@@ -77,7 +82,7 @@ export function allocate(tasks, fixedBlocks, { from, to, settings, existingBlock
         }
       }
     }
-    return findFreeSlots(date, fixedBlocks, occupied, dailySettings);
+    return prioritizeSlots(findFreeSlots(date, fixedBlocks, occupied, dailySettings), settings.preferredPeriod);
   }
   for (const item of pending) {
     if (item.remaining === 0) continue;
@@ -106,8 +111,10 @@ export function allocate(tasks, fixedBlocks, { from, to, settings, existingBlock
       const cutoff = Math.min(dayEnd, Math.floor((item.deadline - midnight) / 60000));
       let placedToday = 0;
       for (const slot of slotsFor(stamp)) {
-        let cursor = minute(slot.start);
-        const end = Math.min(minute(slot.end), cutoff);
+        // 선호 구간을 먼저 사용했을 때 생긴 휴식 점유도 뒤의 후보에 반영한다.
+        for (const free of findFreeSlots(date, fixedBlocks, occupied, settings)) {
+        let cursor = Math.max(minute(slot.start), minute(free.start));
+        const end = Math.min(minute(slot.end), minute(free.end), cutoff);
         while (item.remaining > 0 && placedToday < target && (dailyUsed.get(date) ?? 0) < dailyLimit) {
           const unit = nextUnit();
           if (!unit) break;
@@ -129,12 +136,22 @@ export function allocate(tasks, fixedBlocks, { from, to, settings, existingBlock
           cursor += length + rest;
           if (unit.subtaskId !== undefined) readyAfter = Math.max(readyAfter, midnight + cursor * 60000);
         }
+        }
       }
       if (item.remaining === 0) break;
     }
   }
   blocks.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
   const result = { blocks, unplaced: pending.filter(item => item.remaining > 0).map(item => ({ taskId: item.task.id, remainingMinutes: item.remaining })) };
+  if (settings.preferredPeriod != null && result.unplaced.length > 0) {
+    const fallback = allocate(tasks, fixedBlocks, { from, to, settings: { ...settings, preferredPeriod: null }, existingBlocks, now });
+    // 시간대 경계 분할 때문에 마감·우선순위가 높은 작업을 더 놓치지 않는다.
+    for (const item of pending) {
+      const preferredMissing = result.unplaced.find((entry) => entry.taskId === item.task.id)?.remainingMinutes ?? 0;
+      const fallbackMissing = fallback.unplaced.find((entry) => entry.taskId === item.task.id)?.remainingMinutes ?? 0;
+      if (preferredMissing !== fallbackMissing) { if (fallbackMissing < preferredMissing) return fallback; break; }
+    }
+  }
   if (distribution === 'balanced' && result.unplaced.length > 0) {
     const early = allocate(tasks, fixedBlocks, { from, to, settings: { ...settings, distribution: 'early' }, existingBlocks, now });
     // 마감/중요도 우선순위가 높은 과제의 미배치량을 먼저 비교한다.

@@ -13,6 +13,8 @@ async function request(path, { method = 'GET', body } = {}) {
 }
 
 export const api = {
+  getUserSettings: () => request('/user/settings'),
+  saveUserSettings: (settings) => request('/user/settings', { method: 'PATCH', body: { settings, confirmReschedule: true } }),
   getAnalytics: (mode = 'week', from) => request(`/analytics/${mode}${from ? `?from=${encodeURIComponent(from)}` : ''}`),
   getTimetable: () => request('/timetable'),
   extractTimetable: async (image) => {

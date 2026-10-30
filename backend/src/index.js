@@ -7,6 +7,7 @@ import scheduleRouter from './routes/schedule.js';
 import { createChatRouter } from './routes/chat.js';
 import timetableRouter from './routes/timetable.js';
 import analyticsRouter from './routes/analytics.js';
+import userSettingsRouter from './routes/user-settings.js';
 import { initStore } from './store/index.js';
 import { createMissedMonitor } from './scheduler/missed-monitor.js';
 import { reportProgress } from './services/task-service.js';
@@ -29,6 +30,7 @@ const scheduler = process.env.VOICE_SCHEDULER_ENABLED === 'true'
   ? (await import('./scheduler/rescheduler.js')).reschedule : null;
 app.use('/api/chat', createChatRouter({ scheduler, progressReporter: reportProgress }));
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/user', userSettingsRouter);
 
 // 공통 에러 핸들러
 app.use((err, req, res, next) => {

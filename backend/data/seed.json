@@ -10,7 +10,10 @@
       "breakMinutes": 10,
       "maxDailyMinutes": 1440,
       "bufferMinutes": 0,
-      "distribution": "early"
+      "distribution": "early",
+      "sleep": null,
+      "restPeriods": [],
+      "preferredPeriod": null
     }
   },
   "fixedBlocks": [
