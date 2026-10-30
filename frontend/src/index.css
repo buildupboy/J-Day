@@ -26,6 +26,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   max-width: 430px;
   margin: 0 auto;
   background: var(--panel);
