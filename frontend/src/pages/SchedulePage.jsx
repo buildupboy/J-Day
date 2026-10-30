@@ -5,11 +5,11 @@ import { getWeekDays, addDays, WEEKDAY_LABELS } from '../utils/calendar.js';
 import { toMinutes, formatDuration } from '../utils/time.js';
 import { priorityOf, TASK_TYPE_LABEL, FIXED_KIND_LABEL, daysUntil, dDay } from '../utils/labels.js';
 import { toIsoDate } from '../utils/parseTaskText.js';
-import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
 import WeekTimetable from '../components/timetable/WeekTimetable.jsx';
 import RoutineEditDialog from '../components/timetable/RoutineEditDialog.jsx';
 import useBlockDetails from '../hooks/useBlockDetails.js';
-import SheetHandle from '../components/common/SheetHandle.jsx';
+import TaskDetail from '../components/tasks/TaskDetail.jsx';
+import { isPending, usePendingChanges } from '../hooks/useUndo.js';
 
 const SHORT_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 화면은 월요일부터, dayOfWeek는 0=일
@@ -62,6 +62,7 @@ function UpcomingView({ nav }) {
   const [error, setError] = useState('');
   const [selectedTask, setSelectedTask] = useState(null);
   const details = useBlockDetails();
+  usePendingChanges();
 
   useEffect(() => {
     let active = true;
@@ -85,7 +86,7 @@ function UpcomingView({ nav }) {
   const today = new Date();
   // 마감이 남은 작업과 하루짜리 일정을 날짜·시각 순으로 함께 보여 준다
   const upcoming = [
-    ...(tasks ?? []).filter((t) => t.status !== 'done' && daysUntil(t.deadline, today) >= 0).map((t) => ({ ...t, at: t.deadline.slice(0, 16) })),
+    ...(tasks ?? []).filter((t) => t.status !== 'done' && !isPending(`task:${t.id}`) && !isPending(`taskDone:${t.id}`) && daysUntil(t.deadline, today) >= 0).map((t) => ({ ...t, at: t.deadline.slice(0, 16) })),
     ...events.filter((e) => daysUntil(e.date, today) >= 0).map((e) => ({ ...e, isEvent: true, deadline: e.date, at: `${e.date}T${e.start}` })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   const groups = [];
@@ -161,50 +162,11 @@ function UpcomingView({ nav }) {
           })}
         </section>
       ))}
-      {selectedTask && <UpcomingDetail key={selectedTask.id} task={selectedTask} details={details} onClose={() => setSelectedTask(null)} />}
+      {selectedTask && <TaskDetail key={selectedTask.id} task={selectedTask} details={details} onClose={() => setSelectedTask(null)} />}
     </>
   );
 }
 
-function UpcomingDetail({ task, details, onClose }) {
-  const [state, setState] = useState({ loading: true, block: null, error: '' });
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      const today = toIsoDate(new Date());
-      try {
-        for (let from = new Date(`${today}T00:00:00`); toIsoDate(from) <= task.deadline.slice(0, 10); from = addDays(from, 7)) {
-          const week = await api.getWeekSchedule(toIsoDate(from));
-          if (!active) return;
-          const matches = week.days.flatMap((day) => day.items
-            .filter((item) => item.source === 'scheduled' && item.taskId === task.id)
-            .map((item) => ({ ...item, date: day.date, kind: 'task', task }))
-          ).sort((a, b) => `${a.date}T${a.start}`.localeCompare(`${b.date}T${b.start}`));
-          const block = matches.find((item) => item.status !== 'done' && item.status !== 'missed') ?? matches[0];
-          if (block) {
-            setState({ loading: false, block, error: '' });
-            return;
-          }
-        }
-        if (active) setState({ loading: false, block: { id: task.id, taskId: task.id, title: task.title, kind: 'task', task }, error: '' });
-      } catch (error) {
-        if (active) setState({ loading: false, block: null, error: error.message });
-      }
-    }
-    load();
-    return () => { active = false; };
-  }, [task]);
-  if (state.block) return <BlockDetailSheet block={state.block} details={details} onClose={onClose} />;
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <section className="sheet sheet-auto" role="dialog" aria-modal="true" aria-label={`${task.title} 상세`} onClick={(event) => event.stopPropagation()}>
-        <SheetHandle onClose={onClose} />
-        <div className="sheet-head"><h2>{task.title}</h2><button type="button" className="icon-button" onClick={onClose} aria-label="닫기">✕</button></div>
-        {state.loading ? <p role="status">작업 일정을 불러오는 중이에요…</p> : <p role="alert">일정을 불러오지 못했어요. ({state.error})</p>}
-      </section>
-    </div>
-  );
-}
 
 function SetupView() {
   const [editingRoutine, setEditingRoutine] = useState(null);

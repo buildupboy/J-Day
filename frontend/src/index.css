@@ -6370,6 +6370,7 @@ button:disabled {
   color: var(--panel);
   font-size: 13px;
   transform: translateX(-50%);
+  width: max-content;
   white-space: nowrap;
 }
 
@@ -6392,4 +6393,66 @@ button:disabled {
   background: var(--accent-soft);
   color: var(--routine-ink);
   font-size: 13px;
+}
+
+/* 실행 취소 안내: 재배치 카운트다운 위에 뜬다 */
+.undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 150px;
+  z-index: 52;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  max-width: calc(100% - 40px);
+  padding: 10px 10px 10px 16px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--panel);
+  font-size: 13px;
+  transform: translateX(-50%);
+  box-shadow: 0 6px 20px rgba(17, 19, 24, 0.18);
+}
+
+.undo-toast span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.undo-toast button {
+  flex: none;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #9db0ff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tt-block.is-done .tt-done-mark {
+  display: inline;
+  text-decoration: none;
+}
+
+/* 진행 확인 카드: 아침 브리핑 자리 */
+.check-in {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.check-in-note {
+  margin: -4px 0 0;
+  color: var(--subtle);
+  font-size: 13px;
+}
+
+.check-in-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }

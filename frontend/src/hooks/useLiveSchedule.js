@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { getWeekDays, getMonthGrid, addDays } from '../utils/calendar.js';
+import { isPending, usePendingChanges } from './useUndo.js';
 
 export const scheduleChanged = () => window.dispatchEvent(new Event('schedule-changed'));
 export const dateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -11,6 +12,7 @@ export default function useLiveSchedule(selected, view = 'week') {
   const from = dateKey(range[0]), to = dateKey(range.at(-1));
   const [revision, setRevision] = useState(0);
   const [state, setState] = useState({ tasks: [], days: [], loading: true, error: null });
+  usePendingChanges();
   useEffect(() => {
     const update = () => setRevision(value => value + 1);
     window.addEventListener('schedule-changed', update);
@@ -26,7 +28,9 @@ export default function useLiveSchedule(selected, view = 'week') {
       .catch(error => { if (!cancelled) setState({ tasks: [], days: [], loading: false, error: error.message }); });
     return () => { cancelled = true; };
   }, [from, to, revision]);
-  const taskById = id => state.tasks.find(task => task.id === id) ?? null;
+  // 실행 취소를 기다리는 삭제는 먼저 지운 것처럼 보여 준다
+  const tasks = state.tasks.filter(task => !isPending(`task:${task.id}`));
+  const taskById = id => tasks.find(task => task.id === id) ?? null;
   // 같은 상위 작업의 하위작업 블록은 바로 이어지는 것끼리 하나로 묶어 상위 작업 이름으로 보여 준다
   const groupByTask = items => items.reduce((out, block) => {
     const prev = out.at(-1);
@@ -40,14 +44,19 @@ export default function useLiveSchedule(selected, view = 'week') {
   }, []);
   // grouped: true면 같은 상위 작업의 이어지는 하위작업을 하나로 묶어 상위 작업 이름으로 보여 준다(캘린더).
   // false면 하위작업 블록을 그대로 둔다(홈의 오늘 할 일).
-  const blocksForDate = (date, { grouped = true } = {}) => {
-    const items = [...(state.days.find(day => day.date === dateKey(date))?.items ?? [])].sort((a, b) => a.start.localeCompare(b.start));
+  // released: 시작 전에 미리 완료해 시간을 비운 기록. 캘린더에는 없고 오늘 할 일에만 완료로 남긴다(includeReleased).
+  const blocksForDate = (date, { grouped = true, includeReleased = false } = {}) => {
+    const items = (state.days.find(day => day.date === dateKey(date))?.items ?? [])
+      .filter(block => (includeReleased || !block.released) && !(block.taskId && isPending(`task:${block.taskId}`)))
+      .sort((a, b) => a.start.localeCompare(b.start));
     return (grouped ? groupByTask(items) : items).map(block => ({
       ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.source === 'rest' ? 'break' : block.kind === 'routine' ? 'routine' : block.kind === 'event' ? 'daily' : 'fixed',
       task: taskById(block.taskId), note: block.status === 'missed' ? '미수행' : block.source === 'scheduled' ? '자동 배치' : undefined,
       ...(grouped && block.source === 'scheduled' && taskById(block.taskId) ? { title: taskById(block.taskId).title } : {}),
-      ...(grouped && block.parts.length > 1 && block.parts.every(part => part.status === 'done') ? { status: 'done' } : {}),
+      // 묶음은 모두 끝났을 때만 완료다. 아니면 아직 안 끝난 첫 블록의 상태를 쓴다
+      ...(grouped && block.parts.length > 1 ? { status: block.parts.every(part => part.status === 'done') ? 'done' : block.parts.find(part => part.status !== 'done').status,
+        released: block.parts.every(part => part.released) } : {}),
     }));
   };
-  return { ...state, taskById, blocksForDate };
+  return { ...state, tasks, taskById, blocksForDate };
 }

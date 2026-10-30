@@ -50,7 +50,10 @@ export default function DayTimetable({ date, blocks = [], selectedId, onSelectBl
               className={`tt-block tt-${b.kind} ${e - s <= 60 ? 'is-compact' : ''} ${status ? `is-${status}` : ''} ${b.id === selectedId ? 'is-selected' : ''}`}
               style={{ top: top(s), height: Math.max(top(e) - top(s) - 2, 12) }}
             >
-              <strong>{b.title}</strong>
+              <strong>
+                {status === 'done' && <span className="tt-done-mark" aria-hidden="true">✓ </span>}
+                {b.title}
+              </strong>
               <span>
                 {b.start}–{b.end}
                 {status === 'done' && ' · 완료'}

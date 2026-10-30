@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api/client.js';
+import { queueReschedule, EDIT_DELAY_MS } from '../hooks/useDeferredReschedule.js';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition.js';
 import { CloseIcon, MicIcon } from '../components/common/Icons.jsx';
 import DateWheel from '../components/tasks/DateWheel.jsx';
@@ -68,9 +69,11 @@ export default function TasksPage({ onClose }) {
       subtasks,
     };
     try {
-      const result = await api.createTask(task);
+      // 저장만 하고 배치는 30초 뒤에 한다. 그 사이 다른 작업을 더 추가하면 다시 센다
+      await api.createTask({ ...task, reschedule: false });
       scheduleChanged();
-      setToast(result.unplaced?.length ? `'${task.title}' 저장됨 · 배치하지 못한 시간이 있어요` : `'${task.title}' 저장·배치 완료`);
+      queueReschedule({ delayMs: EDIT_DELAY_MS, reason: 'new_task' });
+      setToast(`'${task.title}' 저장했어요`);
       setTimeout(() => setToast(''), 2200);
       setTitle('');
       setHours('');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import BottomNav from './components/common/BottomNav.jsx';
 import RescheduleNotice from './components/common/RescheduleNotice.jsx';
+import UndoToast from './components/common/UndoToast.jsx';
 import AddSheet from './components/common/AddSheet.jsx';
 import VoiceScreen from './components/voice/VoiceScreen.jsx';
 import HomePage from './pages/HomePage.jsx';
@@ -84,6 +85,7 @@ export default function App() {
       )}
       {reminderMessage && <div className="toast" role="status">{reminderMessage}</div>}
       <RescheduleNotice />
+      <UndoToast />
       {overlay === 'voice' && <VoiceScreen nav={nav} onClose={close} />}
     </div>
   );

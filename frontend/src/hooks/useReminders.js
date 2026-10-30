@@ -5,6 +5,7 @@ import { reminderTimes } from '../utils/reminder.js';
 const POLL_MS = 30000;
 const FIRED_KEY = 'jday-fired-reminders';
 const MAX_LATE_MS = 6 * 3600000; // 앱을 늦게 열어도 이 시간 안의 알림만 보여 준다
+const CHECK_IN_MS = 30 * 60000; // 예정 종료 뒤 서버가 미수행으로 바꾸기 전까지
 
 const readFired = () => {
   try { return JSON.parse(localStorage.getItem(FIRED_KEY)) ?? []; } catch { return []; }
@@ -36,6 +37,21 @@ export default function useReminders() {
           setMessage(body);
           if ('Notification' in window && Notification.permission === 'granted') new Notification('제이', { body });
         }
+      }
+      // 예정 시간이 끝난 작업: 종료 보고가 없으면 시간이 더 필요한지 묻는다 (서버가 미수행으로 바꾸기 전까지)
+      let today = null;
+      try { today = await api.getTodaySchedule(); } catch { /* 다음 확인 때 다시 본다 */ }
+      for (const block of today?.items ?? []) {
+        if (stopped || block.source !== 'scheduled' || block.status !== 'planned') continue;
+        const end = new Date(`${today.date}T${block.end}:00+09:00`).getTime();
+        if (end > now || now - end > CHECK_IN_MS) continue;
+        const key = `checkin:${block.id}:${block.end}`;
+        if (fired.includes(key)) continue;
+        fired.push(key);
+        const title = tasks.find((task) => task.id === block.taskId)?.title ?? block.title;
+        const body = `‘${title}’ 예정 시간이 끝났어요. 시간이 더 필요하세요?`;
+        setMessage(body);
+        if ('Notification' in window && Notification.permission === 'granted') new Notification('제이', { body });
       }
       writeFired(fired);
     };

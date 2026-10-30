@@ -55,6 +55,10 @@ export const api = {
 
   updateFixedBlock: (id, patch) => request(`/schedule/fixed/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
   postponeBlocks: (payload) => request('/schedule/blocks/postpone', { method: 'POST', body: payload }),
+  // when: 'today' | 'tomorrow' — 그날의 첫 빈 자리로 옮긴다
+  postponeTo: (blockIds, when) => request('/schedule/blocks/postpone', { method: 'POST', body: { blockIds, when } }),
+  // 하고 있는 작업을 minutes만큼 늘리고 오늘 뒤 작업을 함께 민다
+  extendBlock: (blockId, minutes) => request('/schedule/blocks/extend', { method: 'POST', body: { blockId, minutes } }),
   deleteCalendarItem: (source, id, date) => request(`/schedule/items/${encodeURIComponent(source)}/${encodeURIComponent(id)}`, { method: 'DELETE', body: { date } }),
 
 

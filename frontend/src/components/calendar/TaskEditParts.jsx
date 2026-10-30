@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { api } from '../../api/client.js';
 import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
+import { queueReschedule, cancelQueuedReschedule, EDIT_DELAY_MS } from '../../hooks/useDeferredReschedule.js';
+import { offerUndo, markPending, notify } from '../../hooks/useUndo.js';
 import { formatDuration } from '../../utils/time.js';
 import { ChevronIcon } from '../common/Icons.jsx';
 import DeadlineInput from '../tasks/DeadlineInput.jsx';
@@ -28,6 +30,20 @@ async function run(action) {
   }
 }
 
+// 배치에 영향을 주는 수정을 저장한 뒤 부른다 (메모·알림은 제외).
+// 30초 뒤 재배치 카운트다운을 걸고, 실행 취소하면 수정을 되돌리면서 그 재배치도 취소한다
+function afterScheduleEdit(message, revert) {
+  const request = queueReschedule({ delayMs: EDIT_DELAY_MS, reason: 'manual' });
+  offerUndo({
+    message,
+    undo: async () => {
+      await revert();
+      scheduleChanged();
+      cancelQueuedReschedule(request);
+    },
+  });
+}
+
 // 상위 작업의 제목·마감·중요도 수정 폼
 export function TaskEditForm({ task, onDone }) {
   const [title, setTitle] = useState(task.title);
@@ -42,12 +58,16 @@ export function TaskEditForm({ task, onDone }) {
       return;
     }
     setSaving(true);
+    const before = { title: task.title, deadline: task.deadline, importance: task.importance ?? 2 };
     const message = await run(() =>
       api.updateTask(task.id, { title: title.trim(), deadline: fromLocalInput(deadline), importance: Number(importance) }),
     );
     setSaving(false);
     if (message) setError(message);
-    else onDone();
+    else {
+      afterScheduleEdit(`'${before.title}' 작업을 수정했어요`, () => api.updateTask(task.id, before));
+      onDone();
+    }
   };
 
   return (
@@ -207,15 +227,35 @@ export function SubtaskRow({ task, subtask, done, highlighted, onToggle }) {
       setError('이름과 소요 시간(분)을 확인해 주세요.');
       return;
     }
+    const before = { title: subtask.title, estimatedMinutes: subtask.estimatedMinutes };
     const message = await run(() => api.updateSubtask(task.id, subtask.id, { title: title.trim(), estimatedMinutes: value }));
     if (message) setError(message);
-    else setEditing(false);
+    else {
+      afterScheduleEdit(`'${before.title}' 하위 작업을 수정했어요`, () => api.updateSubtask(task.id, subtask.id, before));
+      setEditing(false);
+    }
   };
 
   const remove = async () => {
     if (!(await confirm(`‘${subtask.title}’ 하위 작업을 삭제할까요?`))) return;
-    const message = await run(() => api.deleteSubtask(task.id, subtask.id));
-    if (message) setError(message);
+    // 실행 취소를 기다린 뒤 보낸다 (다시 추가하면 순서가 바뀌므로 미뤄서 지운다)
+    const key = `subtask:${subtask.id}`;
+    markPending(key, true);
+    const request = queueReschedule({ delayMs: EDIT_DELAY_MS, reason: 'manual' });
+    offerUndo({
+      message: `'${subtask.title}' 하위 작업을 삭제했어요`,
+      undo: () => {
+        markPending(key, false);
+        cancelQueuedReschedule(request);
+      },
+      commit: async () => {
+        const message = await run(() => api.deleteSubtask(task.id, subtask.id));
+        if (message) {
+          markPending(key, false);
+          notify(`삭제하지 못했어요. ${message}`);
+        }
+      },
+    });
   };
 
   if (editing) {
@@ -281,9 +321,15 @@ export function SubtaskAddForm({ task, onDone }) {
       setError('이름과 소요 시간(분)을 확인해 주세요.');
       return;
     }
-    const message = await run(() => api.addSubtask(task.id, { title: title.trim(), estimatedMinutes: value }));
+    let added;
+    const message = await run(async () => {
+      added = (await api.addSubtask(task.id, { title: title.trim(), estimatedMinutes: value })).subtask;
+    });
     if (message) setError(message);
-    else onDone();
+    else {
+      afterScheduleEdit(`'${added.title}' 하위 작업을 추가했어요`, () => api.deleteSubtask(task.id, added.id));
+      onDone();
+    }
   };
 
   return (

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
-import DeadlineSheet from '../components/home/DeadlineSheet.jsx';
+import TaskDetail from '../components/tasks/TaskDetail.jsx';
+import CheckInCard, { CHECK_IN_GRACE } from '../components/home/CheckInCard.jsx';
 import FreeTimeSheet from '../components/home/FreeTimeSheet.jsx';
 import useTodoActions from '../hooks/useTodoActions.js';
 import useBlockDetails from '../hooks/useBlockDetails.js';
-import { queueReschedule, delayPendingReschedule } from '../hooks/useDeferredReschedule.js';
+import { queueReschedule, cancelQueuedReschedule, delayPendingReschedule } from '../hooks/useDeferredReschedule.js';
+import { offerUndo, markPending, isPending, notify } from '../hooks/useUndo.js';
 import { BellIcon, SpeakerIcon, MicIcon, StopIcon, CalendarIcon, ClockIcon, ChevronIcon } from '../components/common/Icons.jsx';
 import useLiveSchedule, { scheduleChanged, dateKey } from '../hooks/useLiveSchedule.js';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis.js';
@@ -13,7 +15,7 @@ import { toMinutes, formatDuration, freeSlots, fromMinutes } from '../utils/time
 import { priorityOf, FIXED_KIND_LABEL, formatLongDate, formatClock, josa, daysUntil, dDay } from '../utils/labels.js';
 
 const KIND_LABEL = { routine: '루틴', fixed: '고정 일정', task: '작업' };
-const OVERRUN_WINDOW = 180; // 분
+const OVERRUN_WINDOW = CHECK_IN_GRACE; // 분. 서버가 미수행으로 바꾸기 전까지만 '시간 초과'로 본다
 const FREE_FROM = 7 * 60; // 여유 시간을 세는 하루 시작
 const FREE_TO = 24 * 60;
 const FREE_MIN_GAP = 20; // 이보다 짧은 틈은 휴식으로 두고 세지 않는다
@@ -84,30 +86,47 @@ export default function HomePage({ nav }) {
     setTimeout(() => setToast(''), 2000);
   };
 
-  // 오늘 할 일: 휴식을 뺀 오늘 블록을 시간순으로
-  const today = schedule.blocksForDate(now, { grouped: false }).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-  const todos = today
+  const byTime = (a, b) => toMinutes(a.start) - toMinutes(b.start);
+  // 시간 계산(지금·다음·여유 시간)은 하위작업 블록 단위로 한다. 미리 완료해 시간을 비운 기록은 넣지 않는다
+  const today = schedule.blocksForDate(now, { grouped: false }).sort(byTime);
+  // 오늘 할 일: 하위작업은 따로 보이지 않고 이어지는 블록을 상위 작업 하나로 묶는다(캘린더와 같다).
+  // 미리 완료해 시간을 비운 작업도 완료로 남겨 둔다
+  const todos = schedule
+    .blocksForDate(now, { includeReleased: true })
+    .sort(byTime)
     .filter((b) => b.kind !== 'break' && !actions.isHidden(b.id))
     .map((b) => ({ ...b, title: actions.metaOf(b.id).title ?? b.title }));
-  const doneIds = new Set([...localDoneIds, ...todos.filter((b) => b.status === 'done').map((b) => b.id)]);
+  // 실행 취소를 기다리는 완료도 체크된 것으로 보여 준다
+  const isDone = (b) =>
+    localDoneIds.has(b.id) ||
+    b.status === 'done' ||
+    isPending(`done:${b.id}`) ||
+    (b.taskId && isPending(`taskDone:${b.taskId}`)) ||
+    (b.parts?.length > 0 && b.parts.every((part) => part.status === 'done' || isPending(`done:${part.id}`)));
+  // '지금' 카드에도 하위작업 대신 상위 작업 이름을 쓴다
+  const live = today
+    .filter((b) => b.kind !== 'break' && !actions.isHidden(b.id))
+    .map((b) => (b.kind === 'task' && b.task ? { ...b, title: b.task.title } : b));
+  const doneIds = new Set([...todos, ...live].filter(isDone).map((b) => b.id));
 
   // 예정 종료가 지났는데 종료 보고가 없는 작업은 아직 하는 중으로 본다 (최근 3시간 안)
-  const overrun = todos
+  const overrun = live
     .filter((b) => b.kind === 'task' && b.status === 'planned' && !doneIds.has(b.id))
     .filter((b) => toMinutes(b.end) <= nowMin && nowMin - toMinutes(b.end) <= OVERRUN_WINDOW)
     .at(-1);
   // 이미 끝낸 작업 블록은 '지금'으로 보지 않는다
   const current =
     overrun ??
-    todos.find(
+    live.find(
       (b) => toMinutes(b.start) <= nowMin && nowMin < toMinutes(b.end) && !(b.kind === 'task' && doneIds.has(b.id))
     );
-  const next = todos.find((b) => toMinutes(b.start) > nowMin);
+  const next = live.find((b) => toMinutes(b.start) > nowMin && !(b.kind === 'task' && doneIds.has(b.id)));
   const currentPriority = current?.kind === 'task' ? priorityOf(current.task) : null;
-  // 상위 작업 이름 · 아직 안 끝난 다른 하위작업
+  const checkIn = overrun && !isPending(`checkin:${overrun.id}`) ? overrun : null;
+  // 지금 할 하위작업 · 아직 안 끝난 다른 하위작업
   const liveDetail = current?.task
     ? [
-        current.task.title !== current.title && current.task.title,
+        current.task.subtasks?.find((st) => st.id === current.subtaskId)?.title,
         current.task.subtasks
           ?.filter((st) => !st.done && st.id !== current.subtaskId)
           .slice(0, 2)
@@ -124,25 +143,36 @@ export default function HomePage({ nav }) {
         showToast('완료 취소는 아직 지원하지 않아요.');
         return;
       }
-      // 시작 전 블록도 미리 완료할 수 있다. 기록만 바로 저장하고, 비는 시간의 재배치는 10초 뒤에 한 번만 한다
-      setDoneIds((prev) => new Set(prev).add(block.id));
-      try {
-        await api.reportProgress(block.taskId, {
-          blockId: block.id,
-          blockStatus: 'done',
-          reschedule: false,
-          ...(block.subtaskId ? { subtaskId: block.subtaskId, subtaskDone: true } : {}),
-        });
-        scheduleChanged();
-        queueReschedule();
-      } catch (error) {
-        setDoneIds((prev) => {
-          const nextIds = new Set(prev);
-          nextIds.delete(block.id);
-          return nextIds;
-        });
-        showToast(error.message);
-      }
+      // 시작 전 블록도 미리 완료할 수 있다. 실행 취소를 기다린 뒤 기록하고, 비는 시간의 재배치는 10초 뒤에 한 번만 한다.
+      // 상위 작업으로 묶인 줄이면 묶인 하위작업 블록을 모두 완료한다
+      const parts = (block.parts ?? [block]).filter((part) => part.status !== 'done');
+      const key = `done:${block.id}`;
+      markPending(key, true);
+      const request = queueReschedule();
+      offerUndo({
+        message: `'${block.title}' 완료했어요`,
+        undo: () => {
+          markPending(key, false);
+          cancelQueuedReschedule(request);
+        },
+        commit: async () => {
+          try {
+            for (const part of parts) {
+              await api.reportProgress(block.taskId, {
+                blockId: part.id,
+                blockStatus: 'done',
+                reschedule: false,
+                ...(part.subtaskId ? { subtaskId: part.subtaskId, subtaskDone: true } : {}),
+              });
+            }
+            // 성공하면 표시를 그대로 둔다. 다시 불러온 일정이 완료 상태를 갖고 온다
+            scheduleChanged();
+          } catch (error) {
+            markPending(key, false);
+            notify(`완료하지 못했어요. ${error.message}`);
+          }
+        },
+      });
       return;
     }
     setDoneIds((prev) => {
@@ -154,10 +184,10 @@ export default function HomePage({ nav }) {
   };
 
   // 하위작업을 눌러도 상세는 상위 작업 기준으로 보여 준다 (이 하위작업은 '이 시간에 할 일'로 표시됨)
-  const openBlock = today.find((b) => b.id === openTodoId);
+  const openBlock = todos.find((b) => b.id === openTodoId);
   const openTodo = openBlock && (openBlock.task ? { ...openBlock, title: openBlock.task.title } : openBlock);
 
-  const briefing = briefingText(today);
+  const briefing = briefingText(todos.filter((b) => !b.released));
 
   // 가장 빠른 마감: 끝나지 않은 작업 중 마감이 가장 가까운 것
   const nearest = schedule.tasks
@@ -177,10 +207,11 @@ export default function HomePage({ nav }) {
     : '남은 빈 시간이 없어요';
 
   const metaOf = (b) => {
-    const minutes = toMinutes(b.end) - toMinutes(b.start);
+    // 묶인 작업은 사이 휴식을 빼고 하위작업 블록 시간만 더한다
+    const minutes = (b.parts ?? [b]).reduce((sum, part) => sum + toMinutes(part.end) - toMinutes(part.start), 0);
     const context =
       b.kind === 'task'
-        ? (b.task && b.task.title !== b.title ? b.task.title : b.note) ?? '작업'
+        ? b.note ?? '작업'
         : b.location ?? FIXED_KIND_LABEL[b.fixedKind] ?? KIND_LABEL[b.kind];
     return `${b.start} · ${formatDuration(minutes)} · ${context}`;
   };
@@ -206,7 +237,16 @@ export default function HomePage({ nav }) {
         </p>
       )}
 
-      {!confirmed && (
+      {/* 예정 시간이 끝난 작업이 있으면 아침 브리핑 자리에서 시간이 더 필요한지 묻는다 */}
+      {checkIn && (
+        <CheckInCard
+          block={checkIn}
+          nowMin={nowMin}
+          onFinish={() => nav.finish({ block: checkIn, blocks: today, taskById: schedule.taskById })}
+        />
+      )}
+
+      {!checkIn && !confirmed && (
       <section className="d-card briefing" aria-label="제이의 아침 브리핑">
         <div className="briefing-head">
           <div className="briefing-who">
@@ -380,7 +420,7 @@ export default function HomePage({ nav }) {
         </button>
       </section>
 
-      {sheet === 'deadline' && nearest && <DeadlineSheet task={nearest} nav={nav} onClose={() => setSheet(null)} />}
+      {sheet === 'deadline' && nearest && <TaskDetail task={nearest} details={details} onClose={() => setSheet(null)} />}
       {sheet === 'free' && (
         <FreeTimeSheet
           slots={slots}

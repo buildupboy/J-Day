@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { api } from '../../api/client.js';
 import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
+import { queueReschedule, cancelQueuedReschedule, EDIT_DELAY_MS } from '../../hooks/useDeferredReschedule.js';
+import { offerUndo, markPending, isPending, notify, usePendingChanges } from '../../hooks/useUndo.js';
 import { toMinutes, formatDuration } from '../../utils/time.js';
 import { getTaskById } from '../../data/sampleSchedule.js';
 import { useAppDialogs } from '../common/AppDialogs.jsx';
@@ -44,17 +46,42 @@ export default function BlockDetailSheet({ block, details, onClose }) {
   const [postponing, setPostponing] = useState(false);
   const task = block.task ?? (block.taskId ? getTaskById(block.taskId) : null);
   const isFixed = block.source === 'fixed'; // 수업·알바·루틴 (반복 일정)
+  usePendingChanges();
   // 작업 블록의 삭제는 상위 작업 전체를, 그 외(고정 시간·루틴)는 그 날짜의 일정만 지운다
   const remove = async () => {
     const message = task
       ? `‘${task.title}’ 작업을 삭제할까요? 하위 작업과 캘린더에 배치된 블록이 모두 사라져요.`
       : `‘${block.title}’ 일정을 캘린더에서 삭제할까요?`;
     if (!(await confirm(message))) return;
+    if (task) {
+      // 작업 삭제는 실행 취소를 기다린 뒤 보낸다. 그동안 화면에서는 지운 것처럼 보인다
+      const key = `task:${task.id}`;
+      markPending(key, true);
+      // 지운 작업이 쓰던 시간은 30초 뒤 다시 배치한다
+      const request = queueReschedule({ delayMs: EDIT_DELAY_MS, reason: 'manual' });
+      offerUndo({
+        message: `'${task.title}' 작업을 삭제했어요`,
+        undo: () => {
+          markPending(key, false);
+          cancelQueuedReschedule(request);
+        },
+        commit: async () => {
+          try {
+            await api.deleteTask(task.id);
+            scheduleChanged();
+          } catch (error) {
+            markPending(key, false);
+            notify(`삭제하지 못했어요. ${error.message}`);
+          }
+        },
+      });
+      onClose();
+      return;
+    }
     setDeleting(true);
     setDeleteError('');
     try {
-      if (task) await api.deleteTask(task.id);
-      else await api.deleteCalendarItem(block.source, block.id, block.date);
+      await api.deleteCalendarItem(block.source, block.id, block.date);
       scheduleChanged();
       onClose();
     } catch (error) {
@@ -65,19 +92,42 @@ export default function BlockDetailSheet({ block, details, onClose }) {
   const slotMinutes = block.start && block.end ? toMinutes(block.end) - toMinutes(block.start) : 0;
   const status = details.statusOf(block.id);
 
-  const isDone = (st) => st.done !== details.toggled.has(st.id);
-  const subtasks = task?.subtasks ?? [];
+  const taskDone = task?.status === 'done' || status === 'done' || (task && isPending(`taskDone:${task.id}`));
+  const isDone = (st) => taskDone || st.done !== details.toggled.has(st.id);
+  // 실행 취소를 기다리는 하위 작업 삭제는 먼저 지운 것처럼 보여 준다
+  const subtasks = (task?.subtasks ?? []).filter((st) => !isPending(`subtask:${st.id}`));
   const doneSubtasks = subtasks.filter(isDone);
   // 총 시간은 하위 작업 합계에 유형별 개인 보정(지난 수행 기록 기준)을 적용한 값이다
   const subtaskSum = subtasks.reduce((sum, st) => sum + st.estimatedMinutes, 0);
   const correction = subtasks.length ? (task.estimatedMinutes ?? subtaskSum) - subtaskSum : 0;
   const doneMinutes = doneSubtasks.reduce((sum, st) => sum + st.estimatedMinutes, 0);
 
-  // 블록을 완료 처리하면 이 블록의 하위 작업도 함께 완료로 맞춘다 (완료 취소 시에는 체크를 건드리지 않는다)
+  // 작업 전체를 완료한다. 서버가 하위 작업을 모두 완료로 바꾸고, 남은 배치 시간은 30초 뒤 재배치 때 비운다.
+  // 실행 취소를 기다린 뒤 보내고, 그동안은 완료된 것처럼 보여 준다
   const markDone = () => {
-    const sub = subtasks.find((st) => st.id === block.subtaskId);
-    if (sub && status !== 'done' && !isDone(sub)) details.toggleSubtask(sub.id);
-    details.setStatus(block.id, 'done');
+    const key = `taskDone:${task.id}`;
+    markPending(key, true);
+    const request = queueReschedule({ delayMs: EDIT_DELAY_MS, reason: 'progress' });
+    offerUndo({
+      message: `'${task.title}' 작업을 완료했어요`,
+      undo: () => {
+        markPending(key, false);
+        cancelQueuedReschedule(request);
+      },
+      commit: async () => {
+        try {
+          await api.reportProgress(task.id, {
+            progress: 1,
+            reschedule: false,
+            ...(block.source === 'scheduled' && block.status !== 'done' ? { blockId: block.id, blockStatus: 'done' } : {}),
+          });
+          scheduleChanged();
+        } catch (error) {
+          markPending(key, false);
+          notify(`완료하지 못했어요. ${error.message}`);
+        }
+      },
+    });
   };
 
   return (
@@ -87,7 +137,8 @@ export default function BlockDetailSheet({ block, details, onClose }) {
         <div className="sheet-head">
           <div>
             <span className={`kind-chip tt-${block.kind}`}>{KIND_LABEL[block.kind]}</span>
-            <h2>{block.title}</h2>
+            {/* 작업은 하위작업 대신 상위 작업 이름을 쓴다. 이 시간에 할 하위작업은 목록에 표시된다 */}
+            <h2>{task ? task.title : block.title}</h2>
           </div>
           <div className="sheet-head-actions">
           {(task || isFixed) && (
@@ -137,10 +188,6 @@ export default function BlockDetailSheet({ block, details, onClose }) {
           )}
           {task && (
             <>
-              <div>
-                <dt>상위 작업</dt>
-                <dd>{task.title}</dd>
-              </div>
               <div>
                 <dt>마감일</dt>
                 <dd>{deadlineText(task.deadline)}</dd>
@@ -246,16 +293,17 @@ export default function BlockDetailSheet({ block, details, onClose }) {
                 type="button"
                 className={`action-button ${postponing ? 'is-on' : ''}`}
                 onClick={() => setPostponing((v) => !v)}
-                disabled={status === 'done' || block.source !== 'scheduled'}
+                disabled={taskDone || block.source !== 'scheduled'}
               >
                 미루기
               </button>
               <button
                 type="button"
-                className={`action-button action-primary ${status === 'done' ? 'is-on' : ''}`}
+                className={`action-button action-primary ${taskDone ? 'is-on' : ''}`}
                 onClick={markDone}
+                disabled={taskDone}
               >
-                {status === 'done' ? '완료 취소' : '완료'}
+                {taskDone ? '완료한 작업' : '완료'}
               </button>
             </div>}
           </>
