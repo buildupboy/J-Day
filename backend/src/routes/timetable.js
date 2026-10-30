@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { readDb, updateDb } from '../store/index.js';
+import { timetableBlocks } from '../services/fixed-blocks-service.js';
 import { extractTimetable, validateTimetableImages, validateLessons, assertNoTimetableConflicts } from '../services/timetable.js';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 0 } });
@@ -35,4 +36,17 @@ router.put('/', async (req, res, next) => {
     res.json({ lessons });
   } catch (error) { next(error); }
 });
+// 수업·알바 한 건씩 추가/수정/삭제. 바꾸면 남은 작업을 다시 배치한다.
+function change(handler, status = 200) {
+  return async (req, res, next) => {
+    try {
+      let result;
+      await updateDb((db) => { result = handler(db, req, { now: new Date() }); return db; });
+      res.status(status).json(result);
+    } catch (error) { next(error); }
+  };
+}
+router.post('/', change((db, req, options) => timetableBlocks.create(db, req.body, options), 201));
+router.patch('/:id', change((db, req, options) => timetableBlocks.update(db, req.params.id, req.body, options)));
+router.delete('/:id', change((db, req, options) => timetableBlocks.remove(db, req.params.id, options)));
 export default router;

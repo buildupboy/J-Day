@@ -30,3 +30,14 @@ export function positive(value, name, minimum = 1) {
   if (!Number.isInteger(value) || value < minimum) throw new RangeError(`${name} 값이 올바르지 않습니다.`);
   return value;
 }
+/** 날짜가 지정된 일정은 그 날에만, 아니면 요일 반복으로 적용한다. */
+export function appliesOn(block, date, weekday) {
+  return block.date !== undefined ? block.date === date : block.dayOfWeek.includes(weekday);
+}
+/** 한국 시간 기준 자정부터의 분. */
+export function kstMinutes(now) {
+  return Math.floor(((timestamp(now) + KST) % DAY) / 60000);
+}
+export function kstIso(now) {
+  return new Date(timestamp(now) + KST).toISOString().replace('Z', '+09:00');
+}

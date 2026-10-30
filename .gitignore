@@ -32,3 +32,4 @@ desktop.ini
 .idea/
 *.swp
 *.suo
+backend/data/uploads/

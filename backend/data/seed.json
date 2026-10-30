@@ -10,7 +10,9 @@
       "breakMinutes": 10,
       "maxDailyMinutes": 1440,
       "bufferMinutes": 0,
-      "distribution": "early"
+      "distribution": "early",
+      "preferredTime": null,
+      "notifications": { "enabled": true, "beforeMinutes": 10, "freeTime": true }
     }
   },
   "fixedBlocks": [
@@ -62,6 +64,9 @@
     }
   ],
   "scheduledBlocks": [],
+  "events": [],
+  "proposals": [],
+  "files": [],
   "voiceCommands": [],
   "schedulerRequests": [],
   "history": [

@@ -73,10 +73,25 @@
 ### db.json 최상위 구조
 
 ```json
-{ "user": { "settings": {} }, "fixedBlocks": [], "tasks": [], "scheduledBlocks": [], "history": [], "voiceCommands": [], "schedulerRequests": [] }
+{ "user": { "settings": {} }, "fixedBlocks": [], "events": [], "tasks": [], "scheduledBlocks": [], "proposals": [], "files": [], "history": [], "voiceCommands": [], "schedulerRequests": [] }
 ```
 
-`user.settings`: `dayStart`, `dayEnd`, `minSlotMinutes`, `maxBlockMinutes`, `breakMinutes`
+`user.settings`: `dayStart`, `dayEnd`, `minSlotMinutes`, `maxBlockMinutes`, `breakMinutes`, `maxDailyMinutes`, `bufferMinutes`, `distribution`, `preferredTime`(저장만 하고 배치에는 아직 쓰지 않음), `notifications`(`enabled`, `beforeMinutes`, `freeTime`)
+
+### Event — 날짜가 정해진 일정 (`db.events`)
+
+`{ id, title, date:"YYYY-MM-DD", start:"HH:mm", end:"HH:mm"|없음, openEnded?, location?, memo?, category?, freePlan?, freeUntil?, returnedAt?, auto? }`
+
+- 스케줄러는 Event를 그 날짜에만 적용되는 고정 일정으로 본다(작업 블록이 피해서 배치됨).
+- `openEnded:true`(끝 시간 없음)는 `freeUntil`, 없으면 `dayEnd`까지 비워 둔다. `auto:true`는 "쉬기"로 자동 생성된 휴식이다(다가오는 일정에서 제외).
+
+### ScheduledBlock 추가 필드
+
+`startedAt`(시작 기록), `endedAt`(종료 기록), `originalEnd`(일찍 끝내 줄이기 전 종료 시각)
+
+### Proposal — 재배치 제안 (`db.proposals`, 최대 20개)
+
+`{ id:"p_xxxx", kind:"extend"|"briefing", message, changes:[{title,type,from,to}], afterBlocks, baseVersion, blockId? }`. 수락 시 `scheduledBlocks`가 그 사이 바뀌었으면(`baseVersion` 불일치) 409로 만료 처리한다.
 
 ## API 목록
 
@@ -92,6 +107,31 @@
 | ✅ | POST | `/api/tasks/:id/reviews` | 복습 등록 |
 | ✅ | PATCH | `/api/tasks/:id/progress` | 진행 보고·자동 재배치 |
 | ✅ | POST | `/api/schedule/reschedule` | 재배치·저장 |
+| ✅ | GET | `/api/schedule?date=` | 하루 타임라인(없으면 오늘). `/schedule/week`는 `start`도 받음 |
+| ✅ | GET | `/api/today` | 홈: 지금·다음·오늘 할 일·임박한 마감 |
+| ✅ | GET | `/api/now` | 진행 중 블록·남은 시간·alert(`time_up`, `free_time`) |
+| ✅ | GET | `/api/briefing/today` | 아침 브리핑 문장 + `proposalId`(밀린 작업이 있을 때만) |
+| ✅ | GET | `/api/upcoming` | 일정+작업 마감을 날짜순·주별로 |
+| ✅ | GET/POST | `/api/events` | 일정 목록(`from`,`to`)·등록(`openEnded`) |
+| ✅ | PATCH/DELETE | `/api/events/:id` | 일정 수정·삭제 |
+| ✅ | POST | `/api/events/:id/free-plan` | `{action:"tomorrow"}` 또는 `{action:"after",time}` |
+| ✅ | POST | `/api/events/:id/return` | "돌아왔어요" 자유 시간 종료·재배치 |
+| ✅ | PATCH/DELETE | `/api/tasks/:id` | 작업 수정·삭제(블록 정리 후 재배치) |
+| ✅ | POST | `/api/tasks/:id/complete` | 완료 처리 |
+| ✅ | POST | `/api/tasks/estimate` | 예상 시간 추천(AI, 실패 시 규칙 기반 `source:"rule"`) |
+| ✅ | POST | `/api/uploads` | multipart `file` 업로드(10MB, 이미지·PDF·txt·docx·pptx) → `fileId` |
+| ✅ | POST | `/api/timetable`, PATCH/DELETE `/api/timetable/:id` | 수업·알바 한 건 추가·수정·삭제 |
+| ✅ | GET/POST | `/api/routines` | 루틴 목록·추가 |
+| ✅ | PATCH/DELETE | `/api/routines/:id` | 루틴 수정·삭제 |
+| ✅ | POST | `/api/blocks/:id/start` | 시작 기록 |
+| ✅ | POST | `/api/blocks/:id/end` | 종료 기록 → `earlyMin`, 진행률 반영·재배치 |
+| ✅ | POST | `/api/blocks/:id/after-end` | `{action:"rest"|"pull_next"}` |
+| ✅ | POST | `/api/blocks/:id/extend` | `{minutes:15|30|60}` → `proposalId`, `changes` |
+| ✅ | GET | `/api/proposals/:id` | 제안 내용(전/후, `stale`) |
+| ✅ | POST | `/api/proposals/:id/accept`, `/reject` | 반영·취소 |
+| ✅ | GET | `/api/me` | 프로필 |
+| ✅ | GET/PATCH | `/api/settings` | 설정 조회·변경(변경 시 재배치) |
+| ✅ | GET | `/api/reports/weekly?start=` | 주간 분석(`/analytics/week`와 같은 결과) |
 
 ### POST /api/chat/interpret — 음성 텍스트 해석
 
@@ -308,6 +348,14 @@ LLM 호출은 포함하지 않는다. LLM/프런트엔드 담당자는 이미 �
 POST /api/schedule/reschedule은 {reason:new_task|missed|progress|manual}을 받아 최신 DB를 읽고 서버 시각으로 재배치한 뒤 저장하고 {scheduledBlocks,changes,unplaced}를 반환한다. 잘못된 요청은 400, 읽기/계산/저장 오류는 500이다. 설명은 ?explain=true로 추가한다.
 
 
+### 명세 호환 입력과 동작 메모
+
+- `POST /api/tasks`는 `priority`(`must`=3, `should`=2, `could`=1)·`estimateMin`·시간대 없는 `deadline`("2026-11-27T23:59", 날짜만이면 23:59)·`description`·`fileIds`도 받는다. `type`을 생략하면 제목·설명으로 추정한다. 응답에 해당 작업의 `blocks`가 포함된다.
+- `POST /blocks/:id/end`는 계획 분량을 끝낸 것으로 보고 진행률을 올린다(`{progress}`, `{subtaskDone:true}`로 덮어쓸 수 있음). 시작하지 않은 블록은 400, 이미 끝난 블록은 409이다.
+- `after-end`의 `rest`는 비운 시간을 "휴식" Event로 막고, `pull_next`는 재배치로 다음 작업을 앞당긴다.
+- `extend`는 `db`를 복제해 미리 재배치한 결과만 제안으로 저장한다. 뒤 고정 일정과 겹치거나 자정을 넘으면 409/400이다.
+- `GET /api/briefing/today`는 제안을 저장하므로 요청마다 `db.proposals`가 쌓일 수 있다(최대 20개 유지).
+
 ### 미수행 자동 확인
 
 - backend/src/index.js로 서버를 실행하면 60초 간격으로 확인한다. 첫 확인은 서버 시작 60초 후이다. LLM 호출이나 별도 HTTP 호출 없이 저장소와 스케줄러를 사용한다.
@@ -316,4 +364,4 @@ POST /api/schedule/reschedule은 {reason:new_task|missed|progress|manual}을 받
 - AUTO_RESCHEDULE_ENABLED=false로 주기 확인을 끌 수 있다. 값이 없으면 켜진다. 라우터/테스트 모듈 import만으로는 주기 작업을 시작하지 않는다.
 - 단일 서버 프로세스용이다. 같은 JSON 파일을 사용하는 서버를 여러 개 실행하는 운영 방식은 지원하지 않는다.
 
-LLM의 자연어 해석·실제 모델 호출과 프런트엔드 화면 연결은 팀원 담당으로 남겨둔다. 고정 일정 CRUD, 작업 수정/삭제, 시험 날짜 변경 API도 이번 연결 범위에 포함하지 않는다.
+LLM의 자연어 해석·실제 모델 호출과 프런트엔드 화면 연결은 팀원 담당으로 남겨둔다. 시험 날짜 변경 API는 이번 연결 범위에 포함하지 않는다.

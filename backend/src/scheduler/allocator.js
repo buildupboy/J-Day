@@ -1,4 +1,4 @@
-import { DAY, KST, minute, clock, day, datetime, positive, timestamp } from './time.js';
+import { DAY, KST, minute, clock, day, datetime, positive, timestamp, appliesOn } from './time.js';
 import { remainingWork } from './workload.js';
 
 function bounds(settings) {
@@ -13,7 +13,7 @@ export function findFreeSlots(date, fixedBlocks, scheduledBlocks, settings) {
   const weekday = new Date(day(date)).getUTCDay();
   const [start, end] = bounds(settings);
   const occupied = [
-    ...fixedBlocks.filter(block => block.dayOfWeek.includes(weekday)),
+    ...fixedBlocks.filter(block => appliesOn(block, date, weekday)),
     ...scheduledBlocks.filter(block => block.date === date),
   ].map(block => {
     const left = minute(block.start), right = minute(block.end);

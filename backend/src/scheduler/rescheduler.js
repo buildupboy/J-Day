@@ -1,4 +1,5 @@
 import { allocate } from './allocator.js';
+import { fixedWithEvents } from './fixed.js';
 
 import { DAY, KST, instant, timestamp, datetime } from './time.js';
 const reasons = new Set(['new_task', 'missed', 'progress', 'manual']);
@@ -37,7 +38,7 @@ export function reschedule(db, { now, reason }) {
     last = Math.max(last, Math.floor((datetime(task.deadline) + KST) / DAY) * DAY);
   }
   // 진행 중 블록은 now 이후 예약분만 남은 작업량에서 차감한다.
-  const { blocks: generated, unplaced } = allocate(db.tasks, db.fixedBlocks, {
+  const { blocks: generated, unplaced } = allocate(db.tasks, fixedWithEvents(db), {
     from: today, to: new Date(last).toISOString().slice(0, 10), settings: db.user.settings,
     existingBlocks: preserved, now,
   });

@@ -9,6 +9,15 @@ import { fail, explainRequested } from '../services/validation.js';
 const reasons = new Set(['new_task','missed','progress','manual']);
 export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpdate, now = () => new Date() } = {}) {
   const router = Router();
+  // 명세: GET /schedule?date=YYYY-MM-DD (없으면 오늘)
+  router.get('/', async (req, res, next) => {
+    try {
+      const explain = explainRequested(req.query), current = now();
+      const date = req.query.date ?? todayKst(current);
+      try { if (typeof date !== 'string') throw new Error(); day(date); } catch { fail('date는 유효한 YYYY-MM-DD여야 합니다.'); }
+      res.json(timeline(await readDb(), date, { explain, now: current }));
+    } catch (err) { next(err); }
+  });
   router.get('/today', async (req, res, next) => {
     try {
       const explain = explainRequested(req.query), current = now();
@@ -18,7 +27,7 @@ export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpd
   router.get('/week', async (req, res, next) => {
     try {
       const explain = explainRequested(req.query), current = now();
-      const from = req.query.from ?? mondayKst(current);
+      const from = req.query.start ?? req.query.from ?? mondayKst(current);
       try { if (typeof from !== 'string') throw new Error(); day(from); } catch { fail('from은 유효한 YYYY-MM-DD여야 합니다.'); }
       res.json(weekTimeline(await readDb(), from, { explain, now: current }));
     } catch (err) { next(err); }

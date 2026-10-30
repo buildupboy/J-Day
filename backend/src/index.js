@@ -7,6 +7,11 @@ import scheduleRouter from './routes/schedule.js';
 import { createChatRouter } from './routes/chat.js';
 import timetableRouter from './routes/timetable.js';
 import analyticsRouter from './routes/analytics.js';
+import homeRouter from './routes/home.js';
+import eventsRouter from './routes/events.js';
+import { blocksRouter, proposalsRouter } from './routes/blocks.js';
+import meRouter from './routes/me.js';
+import uploadsRouter from './routes/uploads.js';
 import { initStore } from './store/index.js';
 import { createMissedMonitor } from './scheduler/missed-monitor.js';
 import { reportProgress } from './services/task-service.js';
@@ -29,6 +34,12 @@ const scheduler = process.env.VOICE_SCHEDULER_ENABLED === 'true'
   ? (await import('./scheduler/rescheduler.js')).reschedule : null;
 app.use('/api/chat', createChatRouter({ scheduler, progressReporter: reportProgress }));
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/events', eventsRouter);
+app.use('/api/blocks', blocksRouter);
+app.use('/api/proposals', proposalsRouter);
+app.use('/api/uploads', uploadsRouter);
+app.use('/api', homeRouter);
+app.use('/api', meRouter);
 
 // 공통 에러 핸들러
 app.use((err, req, res, next) => {
