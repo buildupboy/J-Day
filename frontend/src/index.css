@@ -2208,56 +2208,198 @@ body {
   white-space: nowrap;
 }
 
-/* 마감일 직접 입력 */
-.deadline-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.3fr;
+/* 마감일 선택: 칩 + 달력 / 스크롤 휠 */
+.deadline-pills {
+  display: flex;
   gap: 10px;
 }
 
-.deadline-field {
+.pill {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.pill.is-empty {
+  color: #aab0be;
+}
+
+.pill.is-on {
+  background: #111;
+  color: #fff;
+}
+
+.picker-panel {
+  margin-top: 12px;
+  padding: 14px 12px;
+  border-radius: 18px;
+  background: var(--bg);
+}
+
+.cal-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 14px 10px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--bg);
-  font-size: 16px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
 }
 
-.deadline-field:focus-within {
-  border-color: #111;
-}
-
-.deadline-field input {
-  width: 100%;
-  min-width: 0;
+.cal-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
   border: none;
-  outline: none;
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 20px;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cal-title span {
+  display: inline-flex;
+  transition: transform 0.15s;
+}
+
+.cal-title span.is-open {
+  transform: rotate(90deg);
+}
+
+.cal-nav {
+  display: flex;
+  gap: 18px;
+}
+
+.cal-nav button {
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.cal-nav button:first-child svg {
+  transform: rotate(180deg);
+}
+
+.cal-nav button:disabled {
+  color: #c4c8d2;
+  cursor: default;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 4px;
   text-align: center;
 }
 
-.deadline-field.time input {
-  width: 36px;
+.cal-weekday {
+  padding: 6px 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
-.deadline-field .unit {
-  flex: none;
-  color: var(--muted);
+.cal-weekday.is-sun {
+  color: var(--danger);
+}
+
+.cal-day {
+  justify-self: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.cal-day.is-today {
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1.5px #111;
+}
+
+.cal-day.is-selected {
+  background: #111;
+  color: #fff;
+}
+
+.cal-day:disabled {
+  color: #c4c8d2;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* 스크롤 휠 */
+.wheel-row {
+  display: grid;
+  gap: 4px;
+}
+
+.wheel-row.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.wheel {
+  position: relative;
+  height: 200px;
+}
+
+.wheel-band {
+  position: absolute;
+  top: 80px;
+  right: 0;
+  left: 0;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--panel);
+  pointer-events: none;
+}
+
+.wheel ul {
+  position: relative;
+  height: 100%;
+  margin: 0;
+  padding: 80px 0;
+  overflow-y: auto;
+  list-style: none;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+
+.wheel ul::-webkit-scrollbar {
+  display: none;
+}
+
+.wheel-item {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  color: #b3b8c5;
+  font-size: 16px;
+  scroll-snap-align: center;
+  cursor: pointer;
+}
+
+.wheel-item.is-on {
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 800;
 }
 
 .deadline-preview {
   margin: 8px 0 0;
   color: var(--muted);
   font-size: 13px;
-}
-
-.deadline-preview.is-error {
-  color: var(--danger);
 }
