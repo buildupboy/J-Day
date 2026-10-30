@@ -60,6 +60,12 @@ export default function DeadlineInput({ date, time, onDateChange, onTimeChange }
     return [...Array(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
   }, [view]);
 
+  // 올해에는 이미 지난 달을 보여 주지 않는다
+  const monthItems = useMemo(() => {
+    const first = view.year === today.year ? today.month : 0;
+    return Array.from({ length: 12 - first }, (_, i) => ({ value: String(first + i), label: `${first + i + 1}월` }));
+  }, [view.year, today.year, today.month]);
+
   const yearValues = useMemo(() => {
     const years = Array.from({ length: YEAR_SPAN + 1 }, (_, i) => today.year + i);
     if (!years.includes(view.year)) years.push(view.year);
@@ -118,13 +124,20 @@ export default function DeadlineInput({ date, time, onDateChange, onTimeChange }
               <WheelPicker
                 items={toItems(yearValues, '년')}
                 value={String(view.year)}
-                onChange={(y) => setView((v) => ({ ...v, year: Number(y) }))}
+                onChange={(y) =>
+                  setView((v) => {
+                    const year = Number(y);
+                    // 올해로 돌아오면 이미 지난 달은 고를 수 없으니 이번 달로 맞춘다
+                    return { year, month: year === today.year ? Math.max(v.month, today.month) : v.month };
+                  })
+                }
                 label="년"
               />
               <WheelPicker
-                items={Array.from({ length: 12 }, (_, i) => ({ value: String(i), label: `${i + 1}월` }))}
+                items={monthItems}
                 value={String(view.month)}
                 onChange={(m) => setView((v) => ({ ...v, month: Number(m) }))}
+                onPick={() => setPickingMonth(false)} // 월을 누르면 그 달의 달력으로 돌아간다
                 label="월"
               />
             </div>

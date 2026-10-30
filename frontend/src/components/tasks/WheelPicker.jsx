@@ -3,7 +3,8 @@ import { useEffect, useRef } from 'react';
 const ITEM_H = 40; // px. CSS의 .wheel-item 높이와 같아야 한다
 
 // 스크롤해서 고르는 휠 선택기. 가운데 줄에 걸린 항목이 선택값이다.
-export default function WheelPicker({ items, value, onChange, label }) {
+// onPick: 항목을 직접 눌렀을 때만 호출된다 (이미 선택된 항목을 눌러도 호출). 스크롤로 고른 경우에는 호출되지 않는다.
+export default function WheelPicker({ items, value, onChange, onPick, label }) {
   const ref = useRef(null);
   const timer = useRef(null);
   const index = Math.max(
@@ -38,7 +39,10 @@ export default function WheelPicker({ items, value, onChange, label }) {
             role="option"
             aria-selected={i === index}
             className={`wheel-item ${i === index ? 'is-on' : ''}`}
-            onClick={() => onChange(it.value)}
+            onClick={() => {
+              onChange(it.value);
+              onPick?.(it.value);
+            }}
           >
             {it.label}
           </li>
