@@ -12,7 +12,7 @@ const REPEATS = [
   ['daily', '매일'],
 ];
 
-// 02-2 일정 등록: 시간이 정해진 약속·예약·시험을 고정 일정으로 넣는다 (POST /api/fixed-blocks).
+// 02-2 일정 등록: 시간이 정해진 약속·예약·시험을 넣는다. 저장은 고정 블록(kind: event)이라 그 시간엔 작업을 배치하지 않는다 (POST /api/fixed-blocks).
 // 항상 '일정'(event)으로 저장한다. 반복 '안 함'은 그날 하루만, '매주'·'매일'은 해당 요일마다 반복한다.
 export default function NewEventPage({ nav, onClose }) {
   const [title, setTitle] = useState('');
@@ -181,7 +181,10 @@ export default function NewEventPage({ nav, onClose }) {
         <span className="j-mark" aria-hidden="true">
           J
         </span>
-        <p>고정 일정으로 등록돼요. 이 시간엔 작업을 넣지 않고, 겹치는 작업이 있으면 제이가 다른 시간으로 옮겨 드려요.</p>
+        <p>
+          {repeat === 'none' ? '' : `${repeat === 'daily' ? '매일' : '매주'} 반복돼요. `}
+          이 시간엔 작업을 넣지 않고, 겹치는 작업이 있으면 제이가 다른 시간으로 옮겨 드려요.
+        </p>
       </div>
 
       {notice && (
