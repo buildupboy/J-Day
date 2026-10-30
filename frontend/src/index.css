@@ -1869,11 +1869,15 @@ body {
   cursor: pointer;
 }
 
-.bar-close {
-  justify-self: start;
+.bar-close,
+.bar-speak {
   width: 40px;
   justify-content: center;
   padding: 0;
+}
+
+.bar-close {
+  justify-self: start;
 }
 
 .bar-speak {
@@ -1961,64 +1965,6 @@ body {
 
 .text-field:focus {
   border-color: #111;
-}
-
-/* 휠 선택기 */
-.wheel-row {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 4px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--bg);
-}
-
-.wheel {
-  position: relative;
-  height: 200px;
-}
-
-.wheel-band {
-  position: absolute;
-  top: 80px;
-  right: 0;
-  left: 0;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--panel);
-  pointer-events: none;
-}
-
-.wheel ul {
-  position: relative;
-  height: 100%;
-  margin: 0;
-  padding: 80px 0;
-  overflow-y: auto;
-  list-style: none;
-  scroll-snap-type: y mandatory;
-  scrollbar-width: none;
-}
-
-.wheel ul::-webkit-scrollbar {
-  display: none;
-}
-
-.wheel-item {
-  display: grid;
-  place-items: center;
-  height: 40px;
-  color: #b3b8c5;
-  font-size: 16px;
-  scroll-snap-align: center;
-  cursor: pointer;
-}
-
-.wheel-item.is-on {
-  color: var(--text);
-  font-size: 19px;
-  font-weight: 800;
 }
 
 /* 예상 소요 시간 */
@@ -2260,4 +2206,58 @@ body {
 .duration-field .unit {
   flex: none;
   white-space: nowrap;
+}
+
+/* 마감일 직접 입력 */
+.deadline-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr;
+  gap: 10px;
+}
+
+.deadline-field {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  font-size: 16px;
+}
+
+.deadline-field:focus-within {
+  border-color: #111;
+}
+
+.deadline-field input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 20px;
+  text-align: center;
+}
+
+.deadline-field.time input {
+  width: 36px;
+}
+
+.deadline-field .unit {
+  flex: none;
+  color: var(--muted);
+}
+
+.deadline-preview {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.deadline-preview.is-error {
+  color: var(--danger);
 }

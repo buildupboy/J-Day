@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../api/client.js';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition.js';
 import { MicIcon } from '../components/common/Icons.jsx';
-import WheelPicker from '../components/tasks/WheelPicker.jsx';
+import DeadlineInput from '../components/tasks/DeadlineInput.jsx';
 import EstimateAssist from '../components/tasks/EstimateAssist.jsx';
-import { parseTaskText, toIsoDate } from '../utils/parseTaskText.js';
+import { parseTaskText } from '../utils/parseTaskText.js';
 
 const PRIORITIES = [
   { id: 'must', name: 'Must', rank: '1순위', hint: 'Must · 가장 먼저 배치돼요' },
@@ -12,37 +12,10 @@ const PRIORITIES = [
   { id: 'optional', name: 'Could', rank: '3순위', hint: 'Could · 여유 시간에 배치돼요' },
 ];
 
-const TIME_ITEMS = ['12:00', '18:00', '23:59'].map((t) => ({ value: t, label: t }));
-const DATE_RANGE_DAYS = 180;
-
-function dateLabel(iso) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-}
-
-// 마감일 휠에 보여 줄 날짜 목록: 오늘부터 180일. 범위 밖 값이 들어오면 그 값도 포함한다.
-function buildDateItems(selected) {
-  const base = new Date();
-  base.setHours(0, 0, 0, 0);
-  const isos = Array.from({ length: DATE_RANGE_DAYS }, (_, i) => {
-    const d = new Date(base);
-    d.setDate(d.getDate() + i);
-    return toIsoDate(d);
-  });
-  if (selected && !isos.includes(selected)) isos.push(selected);
-  isos.sort();
-  return isos.map((iso) => ({ value: iso, label: dateLabel(iso) }));
-}
-
-function defaultDeadline() {
-  const d = new Date();
-  d.setDate(d.getDate() + 7);
-  return toIsoDate(d);
-}
-
 // 일정 탭: 작업 추가. 제목·마감일·예상 시간·중요도를 입력하거나 말로 채운다.
 export default function TasksPage({ onClose }) {
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(defaultDeadline);
+  const [date, setDate] = useState(''); // 'YYYY-MM-DD', 입력이 올바르지 않으면 ''
   const [time, setTime] = useState('23:59');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
@@ -50,8 +23,7 @@ export default function TasksPage({ onClose }) {
   const [priority, setPriority] = useState('must');
   const [filled, setFilled] = useState(false); // 말한 내용으로 자동 채웠는지
   const [toast, setToast] = useState('');
-
-  const dateItems = useMemo(() => buildDateItems(date), [date]);
+  const [formKey, setFormKey] = useState(0); // 등록 후 마감일 입력칸을 비우기 위한 키
 
   const { supported, listening, interimTranscript, error, start, stop } = useSpeechRecognition({
     onFinalResult: (text) => {
@@ -64,7 +36,7 @@ export default function TasksPage({ onClose }) {
   });
 
   const totalMinutes = (Number(hours) || 0) * 60 + (Number(minutes) || 0);
-  const canSubmit = Boolean(title.trim() && totalMinutes > 0);
+  const canSubmit = Boolean(title.trim() && date && totalMinutes > 0);
   const priorityInfo = PRIORITIES.find((p) => p.id === priority);
 
   const applyEstimate = (est) => {
@@ -87,7 +59,8 @@ export default function TasksPage({ onClose }) {
     setToast(`'${task.title}' 작업을 등록했어요`);
     setTimeout(() => setToast(''), 2200);
     setTitle('');
-    setDate(defaultDeadline());
+    setDate('');
+    setFormKey((k) => k + 1);
     setTime('23:59');
     setHours('');
     setMinutes('');
@@ -107,9 +80,9 @@ export default function TasksPage({ onClose }) {
           className={`bar-button bar-speak ${listening ? 'is-listening' : ''}`}
           onClick={listening ? stop : start}
           disabled={!supported}
+          aria-label={listening ? '듣기 중지' : '말로 하기'}
         >
-          <MicIcon size={18} />
-          {listening ? '듣는 중' : '말로 하기'}
+          <MicIcon size={20} />
         </button>
       </header>
 
@@ -137,10 +110,7 @@ export default function TasksPage({ onClose }) {
       />
 
       <span className="section-label">마감일</span>
-      <div className="wheel-row">
-        <WheelPicker items={dateItems} value={date} onChange={setDate} label="마감 날짜" />
-        <WheelPicker items={TIME_ITEMS} value={time} onChange={setTime} label="마감 시각" />
-      </div>
+      <DeadlineInput key={formKey} date={date} time={time} onDateChange={setDate} onTimeChange={setTime} />
 
       <span className="section-label">예상 소요 시간</span>
       <div className="duration-row">

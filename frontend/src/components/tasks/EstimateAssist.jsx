@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PaperclipIcon } from '../common/Icons.jsx';
 import { estimateTask } from '../../utils/estimateTask.js';
 
-// "예상 시간을 모르겠어요" 영역: 과제 내용과 안내문 파일을 주면 제이가 예상 시간을 추천한다.
+// "예상 시간을 모르겠어요" 영역: 일정/작업 내용과 안내문 파일을 주면 제이가 예상 시간을 추천한다.
 // TODO: 백엔드 LLM(breakdownTask)과 scheduler/estimator가 구현되면 estimateTask 대신 호출한다.
 export default function EstimateAssist({ title, onApply }) {
   const [open, setOpen] = useState(true);
@@ -27,13 +27,13 @@ export default function EstimateAssist({ title, onApply }) {
       {open && (
         <>
           <label className="assist-label" htmlFor="task-content">
-            과제 내용
+            일정/작업 내용
           </label>
           <textarea
             id="task-content"
             rows={3}
             value={content}
-            placeholder="예: 고유값·고유벡터 문제 8개, 증명 2개. 풀이 과정까지 손글씨로 제출"
+            placeholder="예: 발표 자료 15장 만들고 팀원과 리허설 1번. 자료는 PPT로 제출"
             onChange={(e) => setContent(e.target.value)}
           />
 
