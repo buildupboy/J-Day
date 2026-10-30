@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import TodoActionSheet from '../components/home/TodoActionSheet.jsx';
 import useTodoActions from '../hooks/useTodoActions.js';
-import { BellIcon, UserIcon, CalendarIcon, ClockIcon, ChevronIcon, CheckIcon } from '../components/common/Icons.jsx';
+import { BellIcon, UserIcon, CalendarIcon, ClockIcon, ChevronIcon, CheckIcon, NoteIcon } from '../components/common/Icons.jsx';
 import { getBlocksForDate, getTaskById, getTasks } from '../data/sampleSchedule.js';
 import { formatKoreanDate, toMinutes, formatDuration, freeMinutes } from '../utils/time.js';
 
@@ -152,6 +152,12 @@ export default function HomePage({ onOpenMy, onNavigate }) {
                 <span className="todo-body">
                   <strong className={doneIds.has(b.id) ? 'is-done' : ''}>{b.title}</strong>
                   <small>{b.location ?? b.note ?? KIND_FALLBACK[b.kind]}</small>
+                  {actions.metaOf(b.id).memo && (
+                    <small className="todo-memo-line">
+                      <NoteIcon size={12} />
+                      <span>{actions.metaOf(b.id).memo}</span>
+                    </small>
+                  )}
                 </span>
               </button>
               <button

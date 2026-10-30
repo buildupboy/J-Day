@@ -1221,3 +1221,16 @@ body {
   margin-bottom: 0;
   font-size: 17px;
 }
+
+.todo-body small.todo-memo-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.todo-memo-line span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
