@@ -39,7 +39,7 @@ export default function useLiveSchedule(selected, view = 'week') {
     return out;
   }, []);
   const blocksForDate = date => groupByTask([...(state.days.find(day => day.date === dateKey(date))?.items ?? [])].sort((a, b) => a.start.localeCompare(b.start))).map(block => ({
-    ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.source === 'rest' ? 'break' : block.kind === 'routine' ? 'routine' : 'fixed',
+    ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.source === 'rest' ? 'break' : block.kind === 'routine' ? 'routine' : block.kind === 'event' ? 'daily' : 'fixed',
     task: taskById(block.taskId), note: block.status === 'missed' ? '미수행' : block.source === 'scheduled' ? '자동 배치' : undefined,
     ...(block.source === 'scheduled' && taskById(block.taskId) ? { title: taskById(block.taskId).title } : {}),
     ...(block.parts.length > 1 && block.parts.every(part => part.status === 'done') ? { status: 'done' } : {}),

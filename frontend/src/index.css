@@ -6218,3 +6218,23 @@ button:disabled {
   background: var(--accent);
   color: #fff;
 }
+
+/* 선택 블록 테두리가 타임테이블 오른쪽 끝에서 잘리지 않게 링(4px)만큼 띄운다 */
+.calendar-page .tt-block {
+  right: 4px;
+}
+
+/* 클릭 시 브라우저 기본 검은 포커스선 대신 같은 파란 링을 쓴다 */
+.calendar-page .tt-block:focus {
+  outline: none;
+}
+
+.calendar-page .tt-block:focus-visible {
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent);
+}
+
+/* 선택(또는 키보드 포커스)된 블록을 이웃 블록 위에 그려 링 아래쪽이 가려지지 않게 한다 */
+.calendar-page .tt-block.is-selected,
+.calendar-page .tt-block:focus-visible {
+  z-index: 2;
+}

@@ -20,7 +20,7 @@ const PRESETS = [
 
 const sameDays = (a, b) => a.length === b.length && a.every((d) => b.includes(d));
 
-// 02-3 반복 일정 등록: 고정 일정·루틴처럼 요일마다 반복하는 일정을 넣는다 (POST /api/fixed-blocks).
+// 02-3 고정 일정 등록: 고정 일정·루틴처럼 요일마다 반복하는 일정을 넣는다 (POST /api/fixed-blocks).
 export default function RepeatEventPage({ nav, onClose }) {
   const [kind, setKind] = useState('fixed');
   const [title, setTitle] = useState('');
@@ -83,7 +83,7 @@ export default function RepeatEventPage({ nav, onClose }) {
         <button type="button" className="d-icon-btn" onClick={onClose} aria-label="닫기">
           <CloseIcon size={20} />
         </button>
-        <h1>반복 일정 추가</h1>
+        <h1>고정 일정 추가</h1>
         <button type="button" className="d-pill-btn" onClick={() => nav.open('voice')}>
           <MicIcon size={16} />
           말로 하기
@@ -189,7 +189,7 @@ export default function RepeatEventPage({ nav, onClose }) {
           </button>
         ) : (
           <button type="submit" className="d-btn d-btn-dark d-btn-lg" disabled={!canSubmit}>
-            {saving ? '저장하고 다시 배치하는 중…' : '반복 일정 추가'}
+            {saving ? '저장하고 다시 배치하는 중…' : '고정 일정 추가'}
           </button>
         )}
       </div>

@@ -3,7 +3,7 @@ import { MicIcon, CalendarIcon, ListIcon, RepeatIcon, ChevronIcon } from './Icon
 const OPTIONS = [
   { id: 'newEvent', icon: <CalendarIcon size={22} />, title: '일정', hint: '시간이 정해진 약속·예약·시험' },
   { id: 'addTask', icon: <ListIcon size={22} />, title: '작업', hint: '마감까지 해야 할 과제·보고서 · 시간은 제이가 배치' },
-  { id: 'repeat', icon: <RepeatIcon size={22} />, title: '반복 일정', hint: '수업·알바·루틴' },
+  { id: 'repeat', icon: <RepeatIcon size={22} />, title: '고정 일정', hint: '요일마다 반복하는 일정·루틴' },
 ];
 
 // 캘린더·일정 화면의 + 버튼이 여는 공통 선택창
