@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client.js';
 import { PlusIcon, MicIcon, ImageIcon } from '../components/common/Icons.jsx';
 import { getWeekDays, addDays, WEEKDAY_LABELS } from '../utils/calendar.js';
@@ -7,6 +7,7 @@ import { priorityOf, TASK_TYPE_LABEL, FIXED_KIND_LABEL, daysUntil, dDay } from '
 import { toIsoDate } from '../utils/parseTaskText.js';
 import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
 import useBlockDetails from '../hooks/useBlockDetails.js';
+import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 
 const SHORT_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 화면은 월요일부터, dayOfWeek는 0=일
@@ -182,6 +183,36 @@ function SetupView({ nav }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [day, setDay] = useState(() => new Date().getDay());
+  const photoInput = useRef(null);
+  const importing = useRef(false);
+  const [importStatus, setImportStatus] = useState('');
+
+  async function importPhoto(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || importing.current) return;
+    setError('');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      setError('10MB 이하의 PNG, JPG, WebP 사진을 선택해 주세요.');
+      return;
+    }
+    importing.current = true;
+    setImportStatus('시간표 분석 중…');
+    const photo = URL.createObjectURL(file);
+    try {
+      const result = await api.extractTimetable(photo);
+      if (!result.lessons?.length) throw new Error('수업을 찾지 못했어요. 요일과 시간이 잘 보이는 사진을 선택해 주세요.');
+      setImportStatus('시간표 저장 중…');
+      await api.saveTimetable(result.lessons, result.visibleDays ?? []);
+      scheduleChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      URL.revokeObjectURL(photo);
+      importing.current = false;
+      setImportStatus('');
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -225,7 +256,7 @@ function SetupView({ nav }) {
         </div>
         {error && (
           <p className="d-alert" role="alert">
-            시간표를 불러오지 못했어요. ({error})
+            {error}
           </p>
         )}
         {data && (
@@ -244,9 +275,10 @@ function SetupView({ nav }) {
         )}
         {!data && !error && <p className="d-empty">불러오는 중이에요…</p>}
         <div className="d-grid-2">
-          <button type="button" className="d-btn d-btn-line" onClick={() => nav.open('fixed')}>
+          <input ref={photoInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={importPhoto} />
+          <button type="button" className="d-btn d-btn-line" disabled={!!importStatus} aria-busy={!!importStatus} onClick={() => photoInput.current?.click()}>
             <ImageIcon size={18} />
-            캡처로 불러오기
+            {importStatus || '캡처로 불러오기'}
           </button>
           <button type="button" className="d-btn d-btn-line" onClick={() => nav.open('voice')}>
             <MicIcon size={18} />
