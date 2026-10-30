@@ -1,9 +1,9 @@
 ﻿export const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const COLORS = ['#e7edf8', '#f7e8e3', '#e8eee0', '#f4edd9', '#ece6f5', '#def0ef'];
-export default function WeekTimetable({ lessons, visibleDays = [], onSelect, onAdd, disabled = false, monochrome = false }) {
+export default function WeekTimetable({ lessons, visibleDays = [], onSelect, onAdd, disabled = false, monochrome = false, showDated = true }) {
   const days = [1, 2, 3, 4, 5, 6, 0];
   const minutes = (value) => { const [h, m] = value.split(':').map(Number); return h * 60 + m; };
-  const dated = lessons.filter((item) => item.date);
+  const dated = showDated ? lessons.filter((item) => item.date) : [];
   const valid = lessons.filter((item) => !item.date && item.start && item.end && item.start < item.end);
   const first = Math.min(9, ...valid.map((item) => Math.floor(minutes(item.start) / 60)));
   const last = Math.max(18, ...valid.map((item) => Math.ceil(minutes(item.end) / 60)));
@@ -21,7 +21,9 @@ export default function WeekTimetable({ lessons, visibleDays = [], onSelect, onA
         })}
         {valid.filter((item) => item.dayOfWeek.includes(day)).map((item) => {
           const Tag = onSelect ? 'button' : 'div';
-          return <Tag key={`${item.id}-${day}`} {...(onSelect ? { type: 'button', disabled, onClick: () => onSelect(item), 'aria-label': `${item.title} ${WEEKDAYS[day]}요일 ${item.start}–${item.end} 수정` } : {})} className={`timetable-class${onSelect ? ' is-editable' : ''}`} title={`${item.title} ${item.start}–${item.end} ${item.location || ''}`} style={{ top: (minutes(item.start) - first * 60) / 60 * scale, height: (minutes(item.end) - minutes(item.start)) / 60 * scale, background: monochrome ? '#e5e7eb' : COLORS[lessons.indexOf(item) % COLORS.length] }}><strong>{item.title}</strong><span>{item.start}–{item.end}</span><span>{item.location}</span></Tag>;
+          const routine = item.kind === 'routine';
+          const background = routine ? 'var(--routine)' : monochrome ? '#e5e7eb' : COLORS[lessons.indexOf(item) % COLORS.length];
+          return <Tag key={`${item.id}-${day}`} {...(onSelect ? { type: 'button', disabled, onClick: () => onSelect(item), 'aria-label': `${item.title} ${WEEKDAYS[day]}요일 ${item.start}–${item.end} 수정` } : {})} className={`timetable-class${routine ? ' tt-routine' : ''}${onSelect ? ' is-editable' : ''}`} title={`${item.title} ${item.start}–${item.end} ${item.location || ''}`} style={{ top: (minutes(item.start) - first * 60) / 60 * scale, height: (minutes(item.end) - minutes(item.start)) / 60 * scale, background }}><strong>{item.title}</strong><span>{item.start}–{item.end}</span><span>{item.location}</span></Tag>;
         })}
       </div>)}
     </div>
