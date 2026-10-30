@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { formatDuration } from '../../utils/time.js';
+import { formatDuration, distributeMinutes } from '../../utils/time.js';
 import SheetHandle from '../common/SheetHandle.jsx';
 
 const IMPORTANCE_LABEL = { 3: 'Must', 2: 'Should', 1: 'Could' };
@@ -33,6 +33,8 @@ export default function TaskDetailSheet({ task, blocks, onClose, periodLabel = '
   }, []);
   const subtasks = task.subtasks ?? [];
   const doneSubtasks = subtasks.filter((st) => st.done);
+  // 하위 작업 시간 합 = 보정된 총 시간 = 배치된 블록 시간의 합
+  const subtaskMinutes = distributeMinutes(task.estimatedMinutes ?? 0, subtasks);
   const percent = Math.round((task.progress ?? 0) * 100);
   const doneMinutes = Math.round((task.estimatedMinutes ?? 0) * (task.progress ?? 0));
 
@@ -110,12 +112,12 @@ export default function TaskDetailSheet({ task, blocks, onClose, periodLabel = '
               <i style={{ width: `${(doneSubtasks.length / subtasks.length) * 100}%` }} />
             </div>
             <ul className="subtask-list">
-              {subtasks.map((st) => (
+              {subtasks.map((st, i) => (
                 <li key={st.id}>
                   <label>
                     <input type="checkbox" checked={st.done} readOnly disabled />
                     <span className={st.done ? 'is-done' : ''}>{st.title}</span>
-                    <em>{formatDuration(st.estimatedMinutes)}</em>
+                    <em>{formatDuration(subtaskMinutes[i])}</em>
                   </label>
                 </li>
               ))}

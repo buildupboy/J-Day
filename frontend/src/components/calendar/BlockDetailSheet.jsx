@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../../api/client.js';
 import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
-import { toMinutes, formatDuration } from '../../utils/time.js';
+import { toMinutes, formatDuration, distributeMinutes } from '../../utils/time.js';
 import { getTaskById } from '../../data/sampleSchedule.js';
 import { useAppDialogs } from '../common/AppDialogs.jsx';
 import { TaskEditForm, FixedEditForm, FixedMemo, TaskMemo, PostponeForm, ReminderField, SubtaskRow, SubtaskAddForm } from './TaskEditParts.jsx';
@@ -62,16 +62,19 @@ export default function BlockDetailSheet({ block, details, onClose }) {
       setDeleting(false);
     }
   };
-  const slotMinutes = block.start && block.end ? toMinutes(block.end) - toMinutes(block.start) : 0;
+  // 캘린더는 이어지는 하위 작업 블록을 하나로 묶어 보여 주므로, 사이의 쉬는 시간을 뺀 실제 작업 시간으로 센다
+  const parts = block.parts ?? [block];
+  const partMinutes = (part) => (part.start && part.end ? toMinutes(part.end) - toMinutes(part.start) : 0);
+  const slotMinutes = block.start && block.end ? parts.reduce((sum, part) => sum + partMinutes(part), 0) : 0;
   const status = details.statusOf(block.id);
 
   const isDone = (st) => st.done !== details.toggled.has(st.id);
   const subtasks = task?.subtasks ?? [];
   const doneSubtasks = subtasks.filter(isDone);
-  // 총 시간은 하위 작업 합계에 유형별 개인 보정(지난 수행 기록 기준)을 적용한 값이다
-  const subtaskSum = subtasks.reduce((sum, st) => sum + st.estimatedMinutes, 0);
-  const correction = subtasks.length ? (task.estimatedMinutes ?? subtaskSum) - subtaskSum : 0;
-  const doneMinutes = doneSubtasks.reduce((sum, st) => sum + st.estimatedMinutes, 0);
+  // 총 시간은 유형별 개인 보정(지난 수행 기록 기준)을 적용한 전체 작업 시간이고,
+  // 하위 작업 시간은 이 총 시간을 나눈 값이라 합이 배치된 블록 시간의 합과 같다
+  const subtaskMinutes = task && subtasks.length ? distributeMinutes(task.estimatedMinutes, subtasks) : [];
+  const doneMinutes = subtasks.reduce((sum, st, i) => sum + (isDone(st) ? subtaskMinutes[i] : 0), 0);
 
   // 블록을 완료 처리하면 이 블록의 하위 작업도 함께 완료로 맞춘다 (완료 취소 시에는 체크를 건드리지 않는다)
   const markDone = () => {
@@ -149,11 +152,6 @@ export default function BlockDetailSheet({ block, details, onClose }) {
                 <dt>예상 소요 시간</dt>
                 <dd>
                   총 {formatDuration(task.estimatedMinutes)} · 완료 {formatDuration(doneMinutes)}
-                  {correction !== 0 && (
-                    <small className="estimate-note">
-                      하위 작업 합계 {formatDuration(subtaskSum)} {correction > 0 ? '+' : '−'} 내 작업 속도 보정 {formatDuration(Math.abs(correction))}
-                    </small>
-                  )}
                 </dd>
               </div>
               <div>
@@ -186,11 +184,12 @@ export default function BlockDetailSheet({ block, details, onClose }) {
                 <i style={{ width: `${subtasks.length ? (doneSubtasks.length / subtasks.length) * 100 : 0}%` }} />
               </div>
               <ul className="subtask-list">
-                {subtasks.map((st) => (
+                {subtasks.map((st, i) => (
                   <SubtaskRow
                     key={st.id}
                     task={task}
                     subtask={st}
+                    minutes={subtaskMinutes[i]}
                     done={isDone(st)}
                     highlighted={st.id === block.subtaskId}
                     onToggle={() => details.toggleSubtask(st.id)}

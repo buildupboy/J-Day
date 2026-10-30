@@ -194,7 +194,7 @@ export function ReminderField({ task }) {
 }
 
 // 하위 작업 한 줄 (시간 옆에 수정·삭제). 수정 중이면 입력칸으로 바뀐다.
-export function SubtaskRow({ task, subtask, done, highlighted, onToggle }) {
+export function SubtaskRow({ task, subtask, minutes: shownMinutes = subtask.estimatedMinutes, done, highlighted, onToggle }) {
   const { confirm } = useAppDialogs();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(subtask.title);
@@ -251,7 +251,7 @@ export function SubtaskRow({ task, subtask, done, highlighted, onToggle }) {
       <label>
         <input type="checkbox" checked={done} onChange={onToggle} />
         <span className={done ? 'is-done' : ''}>{subtask.title}</span>
-        <em>{formatDuration(subtask.estimatedMinutes)}</em>
+        <em>{formatDuration(shownMinutes)}</em>
         <button type="button" className="mini-button" onClick={(e) => { e.preventDefault(); setEditing(true); }}>
           수정
         </button>
