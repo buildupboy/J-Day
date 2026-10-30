@@ -1,29 +1,25 @@
 import { WEEKDAY_LABELS, getWeekDays, isSameDay } from '../../utils/calendar.js';
 
-// 요일·날짜 한 줄. 날짜 아래 점은 그날의 블록 수(최대 3개)
-export default function WeekStrip({ selected, onSelect, blocksForDate = () => [] }) {
+// 이번 주 월~일 한 줄. 선택한 날은 검은 칸으로 표시한다
+export default function WeekStrip({ selected, onSelect }) {
+  const today = new Date();
   return (
-    <div className="week-strip">
+    <nav className="week-strip" aria-label="이번 주">
       {getWeekDays(selected).map((day, i) => {
-        const dots = Math.min(blocksForDate(day).length, 3);
         const active = isSameDay(day, selected);
         return (
           <button
             key={day.toISOString()}
             type="button"
-            className={`week-day ${active ? 'is-active' : ''}`}
+            className={`week-day ${active ? 'is-active' : ''} ${isSameDay(day, today) ? 'is-today' : ''}`}
+            aria-current={active ? 'date' : undefined}
             onClick={() => onSelect(day)}
           >
             <span className="week-day-label">{WEEKDAY_LABELS[i]}</span>
             <span className="week-day-num">{day.getDate()}</span>
-            <span className="week-day-dots">
-              {Array.from({ length: dots }, (_, k) => (
-                <i key={k} />
-              ))}
-            </span>
           </button>
         );
       })}
-    </div>
+    </nav>
   );
 }
