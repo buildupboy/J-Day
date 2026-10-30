@@ -50,7 +50,7 @@ export default function useLiveSchedule(selected, view = 'week') {
       .filter(block => (includeReleased || !block.released) && !(block.taskId && isPending(`task:${block.taskId}`)))
       .sort((a, b) => a.start.localeCompare(b.start));
     return (grouped ? groupByTask(items) : items).map(block => ({
-      ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.source === 'rest' ? 'break' : block.kind === 'routine' ? 'routine' : block.kind === 'event' ? 'daily' : 'fixed',
+      ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.source === 'rest' ? 'break' : block.source === 'sleep' ? 'sleep' : block.kind === 'routine' ? 'routine' : block.kind === 'event' ? 'daily' : 'fixed',
       task: taskById(block.taskId), note: block.status === 'missed' ? '미수행' : block.source === 'scheduled' ? '자동 배치' : undefined,
       ...(grouped && block.source === 'scheduled' && taskById(block.taskId) ? { title: taskById(block.taskId).title } : {}),
       // 묶음은 모두 끝났을 때만 완료다. 아니면 아직 안 끝난 첫 블록의 상태를 쓴다

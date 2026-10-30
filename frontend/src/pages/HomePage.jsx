@@ -94,7 +94,7 @@ export default function HomePage({ nav }) {
   const todos = schedule
     .blocksForDate(now, { includeReleased: true })
     .sort(byTime)
-    .filter((b) => b.kind !== 'break' && !actions.isHidden(b.id))
+    .filter((b) => b.kind !== 'break' && b.kind !== 'sleep' && !actions.isHidden(b.id))
     .map((b) => ({ ...b, title: actions.metaOf(b.id).title ?? b.title }));
   // 실행 취소를 기다리는 완료도 체크된 것으로 보여 준다
   const isDone = (b) =>
@@ -105,7 +105,7 @@ export default function HomePage({ nav }) {
     (b.parts?.length > 0 && b.parts.every((part) => part.status === 'done' || isPending(`done:${part.id}`)));
   // '지금' 카드에도 하위작업 대신 상위 작업 이름을 쓴다
   const live = today
-    .filter((b) => b.kind !== 'break' && !actions.isHidden(b.id))
+    .filter((b) => b.kind !== 'break' && b.kind !== 'sleep' && !actions.isHidden(b.id))
     .map((b) => (b.kind === 'task' && b.task ? { ...b, title: b.task.title } : b));
   const doneIds = new Set([...todos, ...live].filter(isDone).map((b) => b.id));
 

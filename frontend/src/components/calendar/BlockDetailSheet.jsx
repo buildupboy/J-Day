@@ -15,6 +15,7 @@ const KIND_LABEL = {
   task: '작업',
   event: '일정',
   break: '휴식',
+  sleep: '수면',
 };
 const PRIORITY_LABEL = { must: 'Must', important: 'Should', optional: 'Could' };
 
@@ -148,7 +149,7 @@ export default function BlockDetailSheet({ block, details, onClose }) {
               </svg>
             </button>
           )}
-          {(task || block.source) && block.source !== 'rest' && (
+          {(task || block.source) && block.source !== 'rest' && block.source !== 'sleep' && (
           <button type="button" className="icon-button delete-calendar-button" onClick={remove} disabled={deleting} aria-label={task ? '작업 삭제' : '일정 삭제'} title={task ? '작업 삭제' : '일정 삭제'} aria-busy={deleting}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />

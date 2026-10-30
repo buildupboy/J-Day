@@ -17,7 +17,9 @@ export default function DayTimetable({ date, blocks = [], selectedId, onSelectBl
   // 오늘이면 현재 시각, 다른 날이면 첫 일정 시작 시각부터 보이도록 스크롤
   useLayoutEffect(() => {
     const now = new Date();
-    const first = blocks.length ? Math.min(...blocks.map((b) => toMinutes(b.start))) : 8 * 60;
+    // 수면 칸은 빼고 첫 일정을 찾는다 (00:00부터 잡혀 있어 늘 맨 위로 가 버리므로)
+    const awake = blocks.filter((b) => b.kind !== 'sleep');
+    const first = awake.length ? Math.min(...awake.map((b) => toMinutes(b.start))) : 8 * 60;
     const target = isSameDay(date, now) ? now.getHours() * 60 + now.getMinutes() - 60 : first;
     scrollRef.current.scrollTop = Math.max(top(target) - SCROLL_MARGIN, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps

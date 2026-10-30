@@ -20,6 +20,7 @@ const LEGEND = [
   ['routine', '루틴'],
   ['daily', '일정'],
   ['break', '휴식'],
+  ['sleep', '수면'],
 ];
 
 export default function CalendarPage({ nav }) {

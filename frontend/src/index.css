@@ -23,6 +23,9 @@
   --daily-ink: #0f684a; /* 일정 블록 글자 */
   --daily-dot: #1f9d6b; /* 범례 점 */
   --fixed: #e6e8ed;
+  --sleep: #ece9f8; /* 수면 블록 배경: 다른 파스텔 블록과 맞춘 연한 라벤더 */
+  --sleep-ink: #4b4790; /* 수면 블록 글자 */
+  --sleep-dot: #9b95d6; /* 범례 점 */
   --now: #e8590c;
   --danger: #e5484d;
   font-family: 'Noto Sans KR', 'Pretendard', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -6455,4 +6458,25 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+}
+
+/* 수면: 다른 블록보다 한 톤 물러나는 연한 라벤더 칸 */
+.tt-block.tt-sleep {
+  border: 0;
+  background: var(--sleep);
+  color: var(--sleep-ink);
+}
+
+.tt-block.tt-sleep span {
+  color: var(--sleep-ink);
+  opacity: 0.75;
+}
+
+.legend-swatch.is-sleep {
+  background: var(--sleep-dot);
+}
+
+.kind-chip.tt-sleep {
+  background: var(--sleep);
+  color: var(--sleep-ink);
 }
