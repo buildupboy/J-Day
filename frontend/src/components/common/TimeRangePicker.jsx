@@ -98,3 +98,28 @@ export function RestDurationPicker({ value, onChange, disabled }) {
     {open && <div className="pattern-time-editor pattern-duration-editor" id={id}><div className="pattern-time-wheels"><TimeColumn selectionRef={durationSelection} values={values} value={value} onChange={onChange} label="작업 사이 휴식 분" disabled={disabled} /><span className="pattern-duration-unit" aria-hidden="true">분</span></div><div className="pattern-time-actions"><button type="button" disabled={disabled} aria-label="휴식 길이 설정" onClick={() => { onChange(durationSelection.current?.() ?? value); setOpen(false); }}>설정</button></div></div>}
   </div>;
 }
+
+// 길이(분)를 시간·분 휠로 고른다. 분은 5분 단위이고, 저장된 값이 5분 단위가 아니어도 그대로 보여 준다.
+export function DurationPicker({ label, value, onChange, maxHours = 24, disabled }) {
+  const [open, setOpen] = useState(false);
+  const hourSelection = useRef(null), minuteSelection = useRef(null);
+  const id = useId();
+  const hour = Math.floor(value / 60), minute = value % 60;
+  const hours = Array.from({ length: maxHours + 1 }, (_, index) => index);
+  const minutes = hour === maxHours ? [0] : [...new Set([...Array.from({ length: 12 }, (_, index) => index * 5), minute])].sort((a, b) => a - b);
+  const text = [hour ? `${hour}시간` : '', minute || !hour ? `${minute}분` : ''].filter(Boolean).join(' ');
+  return <div className="pattern-time-card">
+    <div className="pattern-time-heading"><span>{label}</span><button type="button" className="pattern-time-pill" disabled={disabled} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>{text}</button></div>
+    {open && <div className="pattern-time-editor" id={id}>
+      <div className="pattern-time-wheels">
+        <div className="pattern-duration-col"><TimeColumn selectionRef={hourSelection} values={hours} value={hour} label={label + ' 시간'} disabled={disabled} onChange={next => onChange(next * 60 + (next === maxHours ? 0 : minute))} /><span className="pattern-duration-label" aria-hidden="true">시간</span></div>
+        <div className="pattern-duration-col"><TimeColumn selectionRef={minuteSelection} values={minutes} value={minute} label={label + ' 분'} disabled={disabled} onChange={next => onChange(hour * 60 + next)} /><span className="pattern-duration-label" aria-hidden="true">분</span></div>
+      </div>
+      <div className="pattern-time-actions"><button type="button" disabled={disabled} aria-label={label + ' 설정'} onClick={() => {
+        const nextHour = hourSelection.current?.() ?? hour;
+        onChange(nextHour * 60 + (nextHour === maxHours ? 0 : minuteSelection.current?.() ?? minute));
+        setOpen(false);
+      }}>설정</button></div>
+    </div>}
+  </div>;
+}

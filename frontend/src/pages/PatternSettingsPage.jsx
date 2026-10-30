@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client.js';
-import TimeRangePicker, { RestDurationPicker } from '../components/common/TimeRangePicker.jsx';
-import DailyWorkloadPicker, { dailyDuration } from '../components/common/DailyWorkloadPicker.jsx';
+import TimeRangePicker, { RestDurationPicker, DurationPicker } from '../components/common/TimeRangePicker.jsx';
+import { dailyDuration } from '../components/common/DailyWorkloadPicker.jsx';
 import { restConflictMessage } from '../../../shared/rest-conflicts.js';
 const titles = { break: '휴게 시간', sleep: '수면 시간', available: '작업 가능 시간', style: '나의 작업 스타일', preferred: '희망 작업 시간대' };
 const descriptions = { break: '작업 사이의 짧은 휴식과 매일 꼭 쉬고 싶은 시간대를 설정해 주세요.', sleep: '잠자는 시간을 설정하면 해당 시간에는 작업을 배치하지 않아요.', available: '하루 중 제이가 할 일을 배치할 수 있는 시간대를 설정해 주세요.', style: '제이가 나에게 맞는 방식으로 일정을 배치할 수 있도록 알려주세요.', preferred: '가장 편한 시간대를 선택해 주세요. 하루를 6시간씩 나누어 선택한 구간을 우선 사용해요.' };
@@ -17,24 +17,22 @@ export function patternSummary(id, snapshot) {
   if (id === 'preferred') return ({ morning: '아침 06~12시', daytime: '낮 12~18시', evening: '저녁 18~24시', dawn: '새벽 00~06시' })[settings.preferredPeriod] || '설정하기';
   if (id === 'sleep') return settings.sleep ? `${settings.sleep.start}~${settings.sleep.end}` : '설정하기';
   if (id === 'available') return fields.includes('dayStart') ? `${settings.dayStart}~${settings.dayEnd}` : '설정하기';
-  if (id === 'style') return fields.includes('maxBlockMinutes') ? `${settings.maxBlockMinutes}분씩 · 하루 최대 ${dailyDuration(settings.maxDailyMinutes)} · ${settings.distribution === 'balanced' ? '나누어 하기' : '미리 끝내기'}` : '설정하기';
+  if (id === 'style') return fields.includes('maxBlockMinutes') ? `${dailyDuration(settings.maxBlockMinutes)}씩 · 하루 최대 ${dailyDuration(settings.maxDailyMinutes)} · ${settings.distribution === 'balanced' ? '나누어 하기' : '미리 끝내기'}` : '설정하기';
   return '';
 }
 export default function PatternSettingsPage({ kind, onBack, onSaved }) {
   const root = useRef(null);
   const feedback = useRef(null);
-  const confirmation = useRef(null);
   const [snapshot, setSnapshot] = useState(null);
   const [fixedBlocks, setFixedBlocks] = useState([]);
   const [draft, setDraft] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let active = true;
     if (root.current?.parentElement) root.current.parentElement.scrollTop = 0;
-    setError(''); setDraft(null); setConfirmed(false);
+    setError(''); setDraft(null);
     Promise.all([api.getUserSettings(), kind === 'break' ? api.getTimetable() : Promise.resolve(null)]).then(([data, timetable]) => {
       if (!active) return;
       setSnapshot(data);
@@ -52,11 +50,6 @@ export default function PatternSettingsPage({ kind, onBack, onSaved }) {
     if (saving || !draft) return;
     if (invalid) { setError(invalidMessage); return; }
     if (restConflict) { setError(restConflict); return; }
-    if (!confirmed) {
-      setError('저장하려면 재배치 동의 항목을 체크해 주세요.');
-      confirmation.current?.focus();
-      return;
-    }
     const patch = kind === 'preferred' ? { preferredPeriod: draft.preferredPeriod } : kind === 'break' ? { breakMinutes: draft.breakMinutes, restPeriods: draft.restPeriods } : kind === 'sleep' ? { sleep: draft.sleep } : kind === 'available' ? { dayStart: draft.dayStart, dayEnd: draft.dayEnd } : { maxBlockMinutes: draft.maxBlockMinutes, maxDailyMinutes: draft.maxDailyMinutes, distribution: draft.distribution };
     setSaving(true); setError('');
     try { onSaved(await api.saveUserSettings(patch)); }
@@ -70,7 +63,7 @@ export default function PatternSettingsPage({ kind, onBack, onSaved }) {
     : kind === 'sleep' ? '취침과 기상 시각을 서로 다르게 선택해 주세요.'
     : kind === 'available' ? '작업 종료 시간은 시작 시간보다 늦어야 해요.'
     : invalidDaily ? '하루 작업량은 0시간 0분부터 24시간 0분 사이로 입력해 주세요.' : '연속 작업 시간은 최소 작업 단위 이상으로 선택해 주세요.';
-  const saveHint = invalid ? invalidMessage : !confirmed ? '저장하려면 위의 재배치 동의 항목을 체크해 주세요.' : '';
+  const saveHint = invalid ? invalidMessage : '';
   return <div className="pattern-page" ref={root}>
     <header className="pattern-header"><button type="button" disabled={saving} onClick={onBack} aria-label="마이로 돌아가기">‹</button><h1>{titles[kind]}</h1></header>
     <p className="pattern-description">{descriptions[kind]}</p>
@@ -104,14 +97,15 @@ export default function PatternSettingsPage({ kind, onBack, onSaved }) {
         {invalid && <p className="pattern-error">종료 시간은 시작 시간보다 늦어야 해요.</p>}
       </>}
       {kind === 'style' && <>
-        <section><h2>한 번에 얼마나 작업하고 싶나요?</h2><ChoiceGroup label="연속 작업 시간" options={[30,45,60,90].map((value) => ({ value, label: `${value}분` }))} value={draft.maxBlockMinutes} onChange={(maxBlockMinutes) => update({ maxBlockMinutes })} /><p className="pattern-help">긴 작업은 최대 {draft.maxBlockMinutes}분 단위로 나누어요. 현재 최소 작업 단위는 {draft.minSlotMinutes}분이에요.</p>{draft.maxBlockMinutes < draft.minSlotMinutes && <p className="pattern-error">최소 작업 단위 이상의 시간을 선택해 주세요.</p>}</section>
-        <section><h2>하루에 어느 정도 작업하고 싶나요?</h2><DailyWorkloadPicker value={draft.maxDailyMinutes} onChange={(maxDailyMinutes) => update({ maxDailyMinutes })} /><p className="pattern-help">고정 일정은 작업량 한도에 포함하지 않아요. 기존 진행·완료 기록은 보존해요.</p></section>
+        <section><h2>한 번에 얼마나 작업하고 싶나요?</h2><DurationPicker label="연속 작업 시간" maxHours={4} value={draft.maxBlockMinutes} disabled={saving} onChange={(maxBlockMinutes) => update({ maxBlockMinutes })} /><p className="pattern-help">긴 작업은 최대 {dailyDuration(draft.maxBlockMinutes)} 단위로 나누어요. 현재 최소 작업 단위는 {draft.minSlotMinutes}분이에요.</p>{draft.maxBlockMinutes < draft.minSlotMinutes && <p className="pattern-error">최소 작업 단위 이상의 시간을 선택해 주세요.</p>}</section>
+        <section><h2>하루에 어느 정도 작업하고 싶나요?</h2><DurationPicker label="하루 작업량" maxHours={24} value={draft.maxDailyMinutes} disabled={saving} onChange={(maxDailyMinutes) => update({ maxDailyMinutes })} /><p className="pattern-help">0분이면 새 작업을 배치하지 않아요.</p><p className="pattern-help">고정 일정은 작업량 한도에 포함하지 않아요. 기존 진행·완료 기록은 보존해요.</p></section>
         <section><h2>일정을 어떻게 배치할까요?</h2><ChoiceGroup label="배치 방식" vertical options={[{value:'early',label:'미리 끝내기',description:'가능한 빠른 빈 시간부터 배치해요.'},{value:'balanced',label:'나누어 하기',description:'마감 전까지 여러 날짜에 분산을 시도해요.'}]} value={draft.distribution} onChange={(distribution) => update({ distribution })} /><p className="pattern-help">나누어 하기는 마감과 빈 시간에 따라 균등하지 않을 수 있어요.</p></section>
-        <section className="pattern-summary"><h2>나의 작업 스타일</h2><strong>{draft.maxBlockMinutes}분씩 · 하루 최대 {dailyDuration(draft.maxDailyMinutes)}<br />{draft.distribution === 'early' ? '미리 끝내기' : '나누어 하기'}</strong></section>
+        <section className="pattern-summary"><h2>나의 작업 스타일</h2><strong>{dailyDuration(draft.maxBlockMinutes)}씩 · 하루 최대 {dailyDuration(draft.maxDailyMinutes)}<br />{draft.distribution === 'early' ? '미리 끝내기' : '나누어 하기'}</strong></section>
       </>}
-      <section className="pattern-confirm"><label><input ref={confirmation} type="checkbox" checked={confirmed} onChange={(event) => { setConfirmed(event.target.checked); setError(''); }} /><span>설정을 저장하고 새 조건으로 미래 예정 블록 {snapshot.futurePlannedBlocks}개의 AI 재배치를 시도하는 데 동의해요.</span></label><p>진행 중인 블록 {snapshot.ongoingBlocks}개와 지난 기록·완료 기록은 유지해요. 재배치에 실패해도 설정은 저장하고 기존 일정은 유지해요. 재배치가 완료되면 마감 전 배치하지 못한 작업을 안내해요.</p></section>
+      {/* 저장 버튼이 곧 재배치 확인이다. 따로 체크하지 않아도 저장하면 바로 다시 배치한다 */}
+      <section className="pattern-confirm"><p><strong>저장하면 새 조건으로 앞으로의 예정 블록 {snapshot.futurePlannedBlocks}개를 AI가 다시 배치해요.</strong> 진행 중인 블록 {snapshot.ongoingBlocks}개와 지난 기록·완료 기록은 유지해요. 재배치에 실패해도 설정은 저장하고 기존 일정은 유지해요. 재배치가 완료되면 마감 전 배치하지 못한 작업을 안내해요.</p></section>
       {error && <p className="pattern-error" ref={feedback} role="alert">{error}</p>}
-      <button type="submit" aria-describedby={saveHint && !error ? 'pattern-save-hint' : undefined} className="primary-button pattern-save" disabled={saving}>{saving ? '저장·재배치 중…' : '저장하기'}</button>
+      <button type="submit" aria-describedby={saveHint && !error ? 'pattern-save-hint' : undefined} className="primary-button pattern-save" disabled={saving}>{saving ? '저장하고 다시 배치하는 중…' : '저장하고 다시 배치하기'}</button>
       {saveHint && !error && <p id="pattern-save-hint" className="pattern-help">{saveHint}</p>}
     </fieldset></form>}
   </div>;

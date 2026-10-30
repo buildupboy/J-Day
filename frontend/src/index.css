@@ -6588,3 +6588,7 @@ button:disabled {
 .pattern-daily-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .pattern-daily-inputs label { display: grid; gap: 8px; min-width: 0; color: var(--muted); font-size: 13px; }
 .pattern-daily-inputs input { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--ink); font: inherit; font-size: 16px; }
+
+/* 시간·분 길이 휠: 각 열 옆에 단위를 붙인다 */
+.pattern-duration-col { position: relative; min-width: 0; }
+.pattern-duration-label { position: absolute; top: 50%; left: calc(50% + 22px); color: var(--muted); font-size: 14px; transform: translateY(-50%); pointer-events: none; }
