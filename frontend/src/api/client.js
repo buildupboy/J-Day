@@ -40,6 +40,14 @@ export const api = {
   createTask: (task) => request('/tasks', { method: 'POST', body: task }),
   reportProgress: (taskId, payload) => request(`/tasks/${taskId}/progress`, { method: 'PATCH', body: payload }),
 
+  updateTask: (taskId, patch) => request(`/tasks/${taskId}`, { method: 'PATCH', body: patch }),
+  deleteTask: (taskId) => request(`/tasks/${taskId}`, { method: 'DELETE' }),
+  addSubtask: (taskId, subtask) => request(`/tasks/${taskId}/subtasks`, { method: 'POST', body: subtask }),
+  updateSubtask: (taskId, subtaskId, patch) => request(`/tasks/${taskId}/subtasks/${subtaskId}`, { method: 'PATCH', body: patch }),
+  deleteSubtask: (taskId, subtaskId) => request(`/tasks/${taskId}/subtasks/${subtaskId}`, { method: 'DELETE' }),
+
+  updateFixedBlock: (id, patch) => request(`/schedule/fixed/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
+  postponeBlocks: (payload) => request('/schedule/blocks/postpone', { method: 'POST', body: payload }),
   deleteCalendarItem: (source, id, date) => request(`/schedule/items/${encodeURIComponent(source)}/${encodeURIComponent(id)}`, { method: 'DELETE', body: { date } }),
 
 

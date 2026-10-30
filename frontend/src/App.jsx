@@ -10,6 +10,7 @@ import NewEventPage from './pages/NewEventPage.jsx';
 import FixedSchedulePage from './pages/FixedSchedulePage.jsx';
 import FinishTaskPage from './pages/FinishTaskPage.jsx';
 import MyPage from './pages/MyPage.jsx';
+import useReminders from './hooks/useReminders.js';
 
 // 탭 4개(홈·캘린더·일정·마이) + 가운데 마이크. 추가 선택창·등록 화면·제이 대화는 탭 위에 겹쳐 연다.
 export default function App() {
@@ -18,6 +19,8 @@ export default function App() {
   const [overlay, setOverlay] = useState(null); // 'add' | 'newEvent' | 'addTask' | 'fixed' | 'voice' | 'finish'
   const [finishing, setFinishing] = useState(null); // 작업 종료 화면에 넘길 { block, blocks, taskById }
   const [failedImport, setFailedImport] = useState(null);
+
+  const reminderMessage = useReminders();
 
   const close = () => { setOverlay(null); setFailedImport(null); };
   const nav = {
@@ -70,6 +73,7 @@ export default function App() {
           <FinishTaskPage {...finishing} nav={nav} onClose={close} />
         </div>
       )}
+      {reminderMessage && <div className="toast" role="status">{reminderMessage}</div>}
       {overlay === 'voice' && <VoiceScreen nav={nav} onClose={close} />}
     </div>
   );

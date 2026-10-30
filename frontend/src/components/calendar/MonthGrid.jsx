@@ -12,7 +12,7 @@ export default function MonthGrid({ year, month, selected, onSelect, blocksForDa
       ))}
       {getMonthGrid(year, month).map((day) => {
         const inMonth = day.getMonth() === month;
-        const dots = Math.min(blocksForDate(day).length, 3);
+        const dots = Math.min(blocksForDate(day).filter((b) => b.kind === 'task').length, 3);
         const classes = [
           'month-cell',
           inMonth ? '' : 'is-out',

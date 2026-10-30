@@ -20,7 +20,7 @@ function monthOf(iso) {
 // 마감일·시각 선택: 날짜/시각 칩을 누르면 달력 또는 스크롤 휠이 펼쳐진다.
 // 달력 위의 "2026년 10월"을 누르면 년·월을 스크롤로 고르는 휠로 바뀐다.
 // date는 'YYYY-MM-DD'(아직 안 골랐으면 ''), time은 'HH:mm'
-export default function DeadlineInput({ date, time, onDateChange, onTimeChange }) {
+export default function DeadlineInput({ date, time, onDateChange, onTimeChange, showPreview = true }) {
   const todayIso = useMemo(() => toIsoDate(new Date()), []);
   const today = useMemo(() => monthOf(todayIso), [todayIso]);
 
@@ -191,9 +191,11 @@ export default function DeadlineInput({ date, time, onDateChange, onTimeChange }
         </div>
       )}
 
+      {showPreview && (
       <p className="deadline-preview">
         {date ? `${formatDeadline(date)} ${time}까지` : '마감 날짜를 골라 주세요. 시각은 기본 23:59예요.'}
       </p>
+      )}
     </div>
   );
 }

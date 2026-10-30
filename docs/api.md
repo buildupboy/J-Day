@@ -26,6 +26,7 @@
 | `dayOfWeek` | number[] | 반복 요일 (0=일 … 6=토) |
 | `start` | `HH:mm` | |
 | `end` | `HH:mm` | |
+| `memo` | string? | 메모 (1000자 이하). 없으면 생략 |
 
 ```json
 { "id": "fb-job", "kind": "job", "title": "편의점 알바", "dayOfWeek": [2, 4], "start": "19:00", "end": "23:00" }
@@ -48,6 +49,8 @@
 | `actualMinutes` | number? | 누적 수행시간 |
 | `progress` | number | 0 ~ 1 |
 | `status` | `'todo' \| 'in_progress' \| 'done'` | |
+| `memo` | string? | 메모 (1000자 이하). 없으면 생략 |
+| `reminders` | object[]? | 알림 목록(최대 4개). 항목은 `{ mode: 'beforeDeadline', minutes: 1440\|60\|30 }`(종류별 하나) 또는 `{ mode: 'at', at: ISO datetime }`(하나). 없으면 알림 없음 |
 | `createdAt` | ISO datetime | |
 
 `Subtask`: `{ id, title, estimatedMinutes, done: boolean }`
@@ -240,3 +243,29 @@ LLM의 자연어 해석·실제 모델 호출과 프런트엔드 화면 연결�
 
 
 DB에는 선택적 aiScheduling 상태를 저장한다. AI가 만든 ScheduledBlock은 source=ai와 선택적 placementReason을 포함한다. 기존 필드 이름은 유지하며, 조회 타임라인의 source=fixed/scheduled와 충돌하지 않도록 placementSource=ai를 별도로 반환한다.
+
+### 작업·하위작업 편집 (2026-10-30)
+
+배치는 AI가 정하므로 아래 호출은 데이터만 바꾸고 재배치를 요청하지 않는다. 하위작업이 바뀌면 `baseEstimatedMinutes`는 하위작업 합계로 다시 계산한다.
+
+| 메서드·경로 | 본문 | 설명 |
+|---|---|---|
+| `PATCH /api/tasks/:id` | `title`, `deadline`, `importance`, `reminders`(빈 배열이면 해제), `memo`(빈 문자열이면 삭제) 중 일부 | 상위 작업 수정. 다른 필드는 400 |
+| `DELETE /api/tasks/:id` | — | 상위 작업과 그 배치 블록, 딸린 복습 작업을 삭제. 수행 기록(history)은 보존 |
+| `POST /api/tasks/:id/subtasks` | `{ title, estimatedMinutes }` | 하위작업 추가 (201) |
+| `PATCH /api/tasks/:id/subtasks/:subtaskId` | `title`, `estimatedMinutes` 중 일부 | 하위작업 수정 |
+| `DELETE /api/tasks/:id/subtasks/:subtaskId` | — | 하위작업과 그 하위작업에 배치된 블록 삭제 |
+
+### 고정 일정 수정 (2026-10-30)
+
+| 메서드·경로 | 본문 | 설명 |
+|---|---|---|
+| `PATCH /api/schedule/fixed/:id` | `title`, `location`, `start`, `end`, `dayOfWeek`, `memo` 중 일부 | 수업·알바·루틴 수정. 반복 원본을 바꾸므로 모든 반복에 적용. 다른 고정 일정과 겹치면 409. 재배치는 요청하지 않음. 빈 `memo`는 메모 삭제 |
+
+`GET /api/schedule/week·today`의 고정 일정 항목에는 `dayOfWeek`와 `memo`(있을 때)가 함께 내려간다. 매일 쉬고 싶은 시간(`settings.restPeriods`)은 `source: 'rest'`, `kind: 'break'` 항목으로 내려가며 이 API로 수정하지 않는다(마이 설정에서 수정).
+
+### 작업 블록 미루기 (2026-10-30)
+
+| 메서드·경로 | 본문 | 설명 |
+|---|---|---|
+| `POST /api/schedule/blocks/postpone` | `{ blockIds: string[], date: 'YYYY-MM-DD', start: 'HH:mm' }` | 같은 작업의 배치 블록을 사용자가 고른 시각부터 같은 길이·간격으로 옮김. 이동한 블록은 `postponed: true`, `status: 'planned'`. 과거 시각, 완료 블록, 마감 초과, 고정 일정·수면·휴식 또는 다른 작업과 겹침(작업 사이 휴식 포함)은 400/409 |

@@ -6,7 +6,7 @@ import { acceptAiPlan } from '../src/scheduler/ai-plan.js';
 import { mergeSettings } from '../src/services/user-settings.js';
 const now = new Date('2026-10-31T09:00:00+09:00');
 function fixture() { return { user: { settings: { dayStart:'07:00',dayEnd:'24:00',minSlotMinutes:30,maxBlockMinutes:90,breakMinutes:10,maxDailyMinutes:240,bufferMinutes:30,distribution:'early',sleep:{start:'14:00',end:'15:00'},restPeriods:[{start:'12:00',end:'13:00'}],travelMinutes:20 } }, tasks:[{id:'t',title:'보고서',type:'report',estimatedMinutes:60,baseEstimatedMinutes:60,progress:0,status:'todo',deadline:'2026-10-31T22:00:00+09:00'}], fixedBlocks:[{id:'class',title:'수업',dayOfWeek:[6],start:'10:00',end:'11:00'}],scheduledBlocks:[],history:[] }; }
-const block = (extra={}) => ({taskId:'t',subtaskId:null,date:'2026-10-31',start:'11:20',end:'11:50',placementReason:'이동 이후 작업',...extra});
+const block = (extra={}) => ({taskId:'t',subtaskId:null,date:'2026-10-31',start:'11:30',end:'12:00',placementReason:'이동 이후 작업',...extra});
 function prepared(db) { const result=reschedule(db,{now,reason:'manual'}); return {...db,scheduledBlocks:result.scheduledBlocks,aiScheduling:{status:'pending',context:result.planningContext}}; }
 
 test('상대 contextId/taskId 계약으로 실제 AI 호출과 검증·적용 상태 연결',async()=>{
@@ -16,7 +16,7 @@ test('상대 contextId/taskId 계약으로 실제 AI 호출과 검증·적용 �
   assert.equal(request.schema.required.includes('contextId'),true);
   assert.equal(input.rankedTasks[0].taskId,'t');
   assert.equal(input.rankedTasks[0].subtasks[0].remainingMinutes,60);
-  assert.equal(input.blockedWindows.find(b=>b.kind==='fixed_and_travel').end,'11:20');
+  assert.equal(input.blockedWindows.find(b=>b.kind==='fixed_and_travel').end,'11:30');
   assert.equal(input.settings.restPeriods[0].start,'12:00');
   return JSON.stringify({contextId:input.contextId,blocks:[block({start:'15:00',end:'16:00'})]});
  }});
@@ -65,7 +65,7 @@ test('하위작업 선행 순서·미배치량·날짜 경계 이동과 휴식 �
  assert.equal(partial.unplaced[0].remainingMinutes,30);
  const next=fixture();next.fixedBlocks=[{id:'late',title:'야간',dayOfWeek:[5],start:'23:00',end:'24:00'}];
  const p=prepared(next);
- assert.ok(p.aiScheduling.context.blockedWindows.some(b=>b.date==='2026-10-31'&&b.start==='00:00'&&b.end==='00:20'));
+ assert.ok(p.aiScheduling.context.blockedWindows.some(b=>b.date==='2026-10-31'&&b.start==='00:00'&&b.end==='00:30'));
 });
 
 test('사용자 설정 API는 비동기 AI 결과를 저장하고 실패 시 원자적 취소',async t=>{

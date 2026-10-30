@@ -27,9 +27,22 @@ export default function useLiveSchedule(selected, view = 'week') {
     return () => { cancelled = true; };
   }, [from, to, revision]);
   const taskById = id => state.tasks.find(task => task.id === id) ?? null;
-  const blocksForDate = date => (state.days.find(day => day.date === dateKey(date))?.items ?? []).map(block => ({
-    ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.kind === 'routine' ? 'routine' : 'fixed',
+  // 같은 상위 작업의 하위작업 블록은 바로 이어지는 것끼리 하나로 묶어 상위 작업 이름으로 보여 준다
+  const groupByTask = items => items.reduce((out, block) => {
+    const prev = out.at(-1);
+    if (prev && block.source === 'scheduled' && prev.source === 'scheduled' && prev.taskId === block.taskId) {
+      prev.end = block.end;
+      prev.parts.push(block);
+      return out;
+    }
+    out.push({ ...block, parts: [block] });
+    return out;
+  }, []);
+  const blocksForDate = date => groupByTask([...(state.days.find(day => day.date === dateKey(date))?.items ?? [])].sort((a, b) => a.start.localeCompare(b.start))).map(block => ({
+    ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.source === 'rest' ? 'break' : block.kind === 'routine' ? 'routine' : 'fixed',
     task: taskById(block.taskId), note: block.status === 'missed' ? '미수행' : block.source === 'scheduled' ? '자동 배치' : undefined,
+    ...(block.source === 'scheduled' && taskById(block.taskId) ? { title: taskById(block.taskId).title } : {}),
+    ...(block.parts.length > 1 && block.parts.every(part => part.status === 'done') ? { status: 'done' } : {}),
   }));
   return { ...state, taskById, blocksForDate };
 }

@@ -19,6 +19,9 @@
   --accent-ink: #2440c7;
   --routine: #dce3ff;
   --routine-ink: #1f37a8;
+  --daily: #dcf5ea; /* 일정 블록 배경 */
+  --daily-ink: #0f684a; /* 일정 블록 글자 */
+  --daily-dot: #1f9d6b; /* 범례 점 */
   --fixed: #e6e8ed;
   --now: #e8590c;
   --danger: #e5484d;
@@ -232,6 +235,8 @@ body {
 
 /* 하단 탭 */
 .bottom-nav {
+  position: relative;
+  z-index: 20; /* 마이크 버튼이 타임테이블 위에 보이도록 */
   display: flex;
   align-items: center;
   justify-content: space-around;
@@ -283,7 +288,7 @@ body {
   display: flex;
   align-items: flex-end;
   background: rgba(17, 19, 24, 0.45);
-  z-index: 10;
+  z-index: 25; /* 하단 탭(20)보다 위 */
 }
 
 .sheet {
@@ -517,6 +522,15 @@ body {
 }
 
 /* 작업: AI가 배치 */
+.tt-daily {
+  background: var(--daily);
+  color: var(--daily-ink);
+}
+
+.tt-daily span {
+  color: var(--daily-ink);
+}
+
 .tt-task {
   background: var(--accent);
   color: #fff;
@@ -3060,6 +3074,12 @@ button:disabled {
   justify-content: center;
 }
 
+/* 캘린더 상세 시트는 하단 탭(84px)을 가리지 않고 그 위에 올린다 */
+.sheet-backdrop.is-above-nav {
+  bottom: 84px;
+  z-index: 15;
+}
+
 /* 겹쳐 여는 전체 화면 */
 .screen-overlay {
   position: absolute;
@@ -3395,6 +3415,10 @@ button:disabled {
   background: var(--routine);
 }
 
+.legend-swatch.is-daily {
+  background: var(--daily-dot);
+}
+
 .legend-swatch.is-break {
   border: 1px dashed var(--faint);
 }
@@ -3461,6 +3485,16 @@ button:disabled {
 
 .tt-routine span {
   color: var(--routine-ink);
+}
+
+.tt-block.tt-break {
+  border: 1px dashed var(--faint);
+  background: transparent;
+  color: var(--muted);
+}
+
+.tt-block.tt-break span {
+  color: var(--muted);
 }
 
 .tt-task {
@@ -4668,6 +4702,7 @@ button:disabled {
 }
 
 .calendar-page .tt-block {
+  right: 8px; /* 선택 테두리가 잘리지 않도록 안쪽으로 */
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
@@ -5296,3 +5331,470 @@ button:disabled {
 .pattern-rest-remove { display: block; margin: 8px 0 0 auto; padding: 4px 0; border: 0; background: transparent; color: #777; font: inherit; font-size: 12px; cursor: pointer; }
 .pattern-rest-add { width: 100%; margin-top: 14px; padding: 13px; border: 1px solid #ddd; border-radius: 12px; background: #fff; color: #111; font: inherit; font-size: 13px; cursor: pointer; }
 .pattern-rest-add:disabled { opacity: .4; cursor: default; }
+
+/* 작업 상세: 수정 폼·알림·하위 작업 편집 */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.edit-form input,
+.edit-form select,
+.subtask-edit input {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-actions .action-button {
+  flex: 1;
+}
+
+.detail-list > .detail-stack {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-stack dd {
+  width: 100%;
+  font-weight: 400;
+}
+
+.reminder-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reminder-box .switch-row {
+  padding: 4px 4px 4px 14px;
+}
+
+.reminder-box .switch-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.reminder-box .d-meta {
+  margin: 0;
+}
+
+.subtask-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-subtask-button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.add-subtask-button[aria-expanded='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.mini-button {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.mini-button.is-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.mini-button.is-danger {
+  color: var(--danger);
+}
+
+.subtask-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.subtask-edit > input[type='text'] {
+  flex: 1 1 140px;
+}
+
+.subtask-edit .minutes-input {
+  width: 64px;
+  flex: none;
+}
+
+.subtask-edit small {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.subtask-add {
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+
+.subtask-list .field-error {
+  margin: 2px 0 0 28px;
+  color: var(--danger);
+}
+
+.estimate-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* 알림 설정은 작게: 스위치·휠·달력을 상세 시트 안에 맞게 줄인다 */
+.reminder-box {
+  gap: 6px;
+}
+
+.reminder-box .switch-row {
+  min-height: 0;
+  padding: 2px 2px 2px 12px;
+  border-radius: 10px;
+}
+
+.reminder-box .switch-title {
+  font-size: 13px;
+}
+
+.reminder-box .d-meta {
+  font-size: 11px;
+}
+
+.reminder-box .d-switch {
+  width: 48px;
+  height: 32px;
+}
+
+.reminder-box .d-switch span {
+  width: 38px;
+  height: 22px;
+}
+
+.reminder-box .d-switch span::after {
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+}
+
+.reminder-box .d-switch[aria-checked='true'] span::after {
+  transform: translateX(16px);
+}
+
+.reminder-box .deadline-pills {
+  gap: 6px;
+}
+
+.reminder-box .pill {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.reminder-box .picker-panel {
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+.reminder-box .wheel {
+  height: 120px;
+}
+
+.reminder-box .wheel-band {
+  top: 40px;
+}
+
+.reminder-box .wheel ul {
+  padding: 40px 0;
+}
+
+.reminder-box .cal-head {
+  margin-bottom: 4px;
+}
+
+.reminder-box .cal-title {
+  font-size: 14px;
+}
+
+.reminder-box .cal-weekday {
+  padding: 2px 0;
+  font-size: 11px;
+}
+
+.reminder-box .cal-grid {
+  row-gap: 0;
+}
+
+.reminder-box .cal-day {
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+}
+
+/* 알림 토글 한 줄: 다른 상세 항목처럼 이름은 왼쪽, 스위치는 오른쪽 */
+.reminder-box {
+  margin: -8px 0 16px;
+}
+
+.reminder-master {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.reminder-box .reminder-master .d-switch {
+  width: 48px;
+  height: 36px;
+}
+
+.reminder-fold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reminder-fold small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.reminder-fold span {
+  display: inline-flex;
+  transition: transform 0.15s;
+}
+
+.reminder-fold span.is-open {
+  transform: rotate(90deg);
+}
+
+/* 고정 일정 수정 폼 */
+.edit-time-row {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-time-row label {
+  flex: 1;
+}
+
+.edit-form input[type='time'] {
+  width: 100%;
+}
+
+.day-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.day-chips button {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.day-chips button[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+/* 메모: 저장된 내용 보기 + 수정 */
+.memo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.memo-head h3 {
+  margin: 0;
+}
+
+.memo-text {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.memo-text.is-empty {
+  color: var(--subtle);
+}
+
+.memo-actions {
+  margin-top: 8px;
+}
+
+/* 직접 고른 일정 카드: 위로 스크롤해도 하단 탭 위에 고정 */
+.calendar-page {
+  height: auto;
+  min-height: 100%;
+}
+
+.picked.is-pinned {
+  position: sticky;
+  bottom: 12px;
+  z-index: 6;
+  box-shadow: 0 6px 24px rgba(17, 19, 24, 0.18);
+}
+
+.picked-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.picked-close {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* 저장·취소 버튼은 작게 */
+.edit-actions {
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.edit-actions .action-button {
+  flex: none;
+  min-height: 0;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* 미루기 */
+.postpone-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel); /* 알약(날짜·시간)이 회색 바탕 위에 보이도록 */
+}
+
+.postpone-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.postpone-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.postpone-form .deadline-pills .pill {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.postpone-form .picker-panel {
+  margin-top: 6px;
+  padding: 8px;
+}
+
+.postpone-form .wheel {
+  height: 120px;
+}
+
+.postpone-form .wheel-band {
+  top: 40px;
+}
+
+.postpone-form .wheel ul {
+  padding: 40px 0;
+}
+
+.postpone-form .cal-day {
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+}
+
+.postpone-form .cal-weekday {
+  padding: 2px 0;
+}
+
+.postpone-form .cal-grid {
+  row-gap: 0;
+}

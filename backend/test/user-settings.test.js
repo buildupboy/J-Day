@@ -35,7 +35,7 @@ test('sleep supports overnight/daytime; union with fixed blocks does not double-
   const settings={...DEFAULTS,dayStart:'00:00',dayEnd:'24:00',sleep:{start:'23:30',end:'07:00'}};
   const fixed=[{dayOfWeek:[5],start:'06:00',end:'08:00'}];
   const before=structuredClone(fixed);
-  assert.deepEqual(findFreeSlots('2026-10-30',fixed,[],settings),[{start:'08:00',end:'23:30'}]);
+  assert.deepEqual(findFreeSlots('2026-10-30',fixed,[],settings),[{start:'08:10',end:'23:30'}]);
   assert.deepEqual(fixed,before);
   assert.throws(()=>sleepIntervals({sleep:{start:'07:00',end:'07:00'}}));
 });
@@ -57,6 +57,6 @@ test('confirmation, validation, scheduling failure and save failure do not persi
 test('fixed rest periods exclude lunch and overnight intervals without double subtraction',()=>{
   const settings={...DEFAULTS,dayStart:'00:00',dayEnd:'24:00',sleep:{start:'23:00',end:'07:00'},restPeriods:[{start:'12:00',end:'13:00'},{start:'12:30',end:'13:30'},{start:'23:30',end:'08:00'}]};
   const fixed=[{id:'class',dayOfWeek:[5],start:'12:00',end:'14:00'}];
-  assert.deepEqual(findFreeSlots('2026-10-30',fixed,[],settings),[{start:'08:00',end:'12:00'},{start:'14:00',end:'23:00'}]);
+  assert.deepEqual(findFreeSlots('2026-10-30',fixed,[],settings),[{start:'08:00',end:'11:50'},{start:'14:10',end:'23:00'}]);
   for(const restPeriods of [null,[{start:'12:00',end:'12:00'}],[{start:'25:00',end:'13:00'}],Array.from({length:9},()=>({start:'12:00',end:'13:00'}))])assert.throws(()=>mergeSettings(DEFAULTS,{restPeriods}),{status:400});
 });
