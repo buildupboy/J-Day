@@ -38,11 +38,16 @@ export default function useLiveSchedule(selected, view = 'week') {
     out.push({ ...block, parts: [block] });
     return out;
   }, []);
-  const blocksForDate = date => groupByTask([...(state.days.find(day => day.date === dateKey(date))?.items ?? [])].sort((a, b) => a.start.localeCompare(b.start))).map(block => ({
-    ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.source === 'rest' ? 'break' : block.kind === 'routine' ? 'routine' : 'fixed',
-    task: taskById(block.taskId), note: block.status === 'missed' ? '미수행' : block.source === 'scheduled' ? '자동 배치' : undefined,
-    ...(block.source === 'scheduled' && taskById(block.taskId) ? { title: taskById(block.taskId).title } : {}),
-    ...(block.parts.length > 1 && block.parts.every(part => part.status === 'done') ? { status: 'done' } : {}),
-  }));
+  // grouped: true면 같은 상위 작업의 이어지는 하위작업을 하나로 묶어 상위 작업 이름으로 보여 준다(캘린더).
+  // false면 하위작업 블록을 그대로 둔다(홈의 오늘 할 일).
+  const blocksForDate = (date, { grouped = true } = {}) => {
+    const items = [...(state.days.find(day => day.date === dateKey(date))?.items ?? [])].sort((a, b) => a.start.localeCompare(b.start));
+    return (grouped ? groupByTask(items) : items).map(block => ({
+      ...block, date: dateKey(date), fixedKind: block.kind, kind: block.source === 'scheduled' ? 'task' : block.source === 'rest' ? 'break' : block.kind === 'routine' ? 'routine' : 'fixed',
+      task: taskById(block.taskId), note: block.status === 'missed' ? '미수행' : block.source === 'scheduled' ? '자동 배치' : undefined,
+      ...(grouped && block.source === 'scheduled' && taskById(block.taskId) ? { title: taskById(block.taskId).title } : {}),
+      ...(grouped && block.parts.length > 1 && block.parts.every(part => part.status === 'done') ? { status: 'done' } : {}),
+    }));
+  };
   return { ...state, taskById, blocksForDate };
 }

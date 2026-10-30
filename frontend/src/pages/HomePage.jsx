@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import TodoActionSheet from '../components/home/TodoActionSheet.jsx';
+import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
 import DeadlineSheet from '../components/home/DeadlineSheet.jsx';
 import FreeTimeSheet from '../components/home/FreeTimeSheet.jsx';
 import useTodoActions from '../hooks/useTodoActions.js';
+import useBlockDetails from '../hooks/useBlockDetails.js';
 import { BellIcon, SpeakerIcon, MicIcon, StopIcon, CalendarIcon, ClockIcon, ChevronIcon } from '../components/common/Icons.jsx';
 import useLiveSchedule, { scheduleChanged, dateKey } from '../hooks/useLiveSchedule.js';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis.js';
@@ -52,7 +53,8 @@ export default function HomePage({ nav }) {
   const { speak, speaking, cancel } = useSpeechSynthesis();
 
   const actions = useTodoActions();
-  const [openTodo, setOpenTodo] = useState(null);
+  const details = useBlockDetails();
+  const [openTodoId, setOpenTodoId] = useState(null);
   const [toast, setToast] = useState('');
   const [confirmed, setConfirmed] = useState(readConfirmed);
   const [sheet, setSheet] = useState(null); // 'deadline' | 'free'
@@ -82,7 +84,7 @@ export default function HomePage({ nav }) {
   };
 
   // 오늘 할 일: 휴식을 뺀 오늘 블록을 시간순으로
-  const today = schedule.blocksForDate(now).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+  const today = schedule.blocksForDate(now, { grouped: false }).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
   const todos = today
     .filter((b) => b.kind !== 'break' && !actions.isHidden(b.id))
     .map((b) => ({ ...b, title: actions.metaOf(b.id).title ?? b.title }));
@@ -141,11 +143,9 @@ export default function HomePage({ nav }) {
     });
   };
 
-  const moveTodo = (id, message) => {
-    actions.hide(id, message);
-    setOpenTodo(null);
-    showToast(message);
-  };
+  // 하위작업을 눌러도 상세는 상위 작업 기준으로 보여 준다 (이 하위작업은 '이 시간에 할 일'로 표시됨)
+  const openBlock = today.find((b) => b.id === openTodoId);
+  const openTodo = openBlock && (openBlock.task ? { ...openBlock, title: openBlock.task.title } : openBlock);
 
   const briefing = briefingText(today);
 
@@ -353,12 +353,13 @@ export default function HomePage({ nav }) {
                     onChange={() => toggleDone(b)}
                     aria-label={`${b.title} ${done ? '완료 취소' : '완료'}`}
                   />
-                  <button type="button" className="todo-text" onClick={() => setOpenTodo(b)}>
+                  <button type="button" className="todo-text" onClick={() => setOpenTodoId(b.id)}>
                     <span className={`todo-title ${done ? 'is-done' : ''}`}>{b.title}</span>
                     <span className="todo-meta">{metaOf(b)}</span>
-                    {actions.metaOf(b.id).memo && <span className="todo-meta">메모 · {actions.metaOf(b.id).memo}</span>}
+                    {(b.memo ?? b.task?.memo) && <span className="todo-meta">메모 · {b.memo ?? b.task.memo}</span>}
                   </button>
                   {priority && <span className={`d-chip is-${priority.tone}`}>{priority.label}</span>}
+                  {b.kind === 'routine' && <span className="d-chip is-routine">Routine</span>}
                 </li>
               );
             })}
@@ -380,15 +381,8 @@ export default function HomePage({ nav }) {
           onClose={() => setSheet(null)}
         />
       )}
-      {openTodo && (
-        <TodoActionSheet
-          todo={openTodo}
-          meta={actions.metaOf(openTodo.id)}
-          onPatch={(fields) => actions.patch(openTodo.id, fields)}
-          onMove={(message) => moveTodo(openTodo.id, message)}
-          onClose={() => setOpenTodo(null)}
-        />
-      )}
+      {/* 캘린더와 같은 일정 상세. 최신 일정에서 다시 찾아 수정·삭제가 바로 반영된다 */}
+      {openTodo && <BlockDetailSheet block={openTodo} details={details} onClose={() => setOpenTodoId(null)} />}
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
