@@ -1,17 +1,36 @@
 import { Router } from 'express';
+import { updateDb as updateStoredDb } from '../store/index.js';
+import { reschedule } from '../scheduler/rescheduler.js';
 
-const router = Router();
+const reasons = new Set(['new_task', 'missed', 'progress', 'manual']);
 
-// GET /api/schedule/today : 오늘 타임라인 (고정 일정 + 배치된 작업 블록)
-router.get('/today', async (req, res) => {
-  // TODO: 오늘 요일의 fixedBlocks + 오늘 날짜의 scheduledBlocks 합쳐 시간순 정렬 후 반환
-  res.status(501).json({ error: 'Not implemented' });
-});
+// 저장소와 시계는 테스트에서 교체한다. 실제 요청의 now는 서버 시계를 사용한다.
+export function createScheduleRouter({ updateDb = updateStoredDb, now = () => new Date() } = {}) {
+  const router = Router();
 
-// POST /api/schedule/reschedule : 재스케줄링
-router.post('/reschedule', async (req, res) => {
-  // TODO: scheduler/rescheduler.reschedule 호출 → 결과 저장 → 변경 내역 반환
-  res.status(501).json({ error: 'Not implemented' });
-});
+  router.get('/today', async (req, res) => {
+    // TODO: 고정 일정과 배치된 작업의 오늘 타임라인 조회
+    res.status(501).json({ error: 'Not implemented' });
+  });
 
-export default router;
+  router.post('/reschedule', async (req, res, next) => {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body) || !reasons.has(req.body.reason)) {
+      return res.status(400).json({ error: 'reason은 new_task, missed, progress, manual 중 하나여야 합니다.' });
+    }
+    try {
+      let result;
+      await updateDb(db => {
+        // DB 갱신 차례가 왔을 때 현재 시각을 잡아 오래 기다린 요청도 과거에 배치하지 않는다.
+        result = reschedule(db, { now: now(), reason: req.body.reason });
+        return { ...db, scheduledBlocks: result.scheduledBlocks };
+      });
+      return res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+export default createScheduleRouter();

@@ -86,7 +86,7 @@
 | TODO | GET | `/api/schedule/today` | 오늘 타임라인 조회 |
 | TODO | POST | `/api/tasks` | 작업 등록 |
 | TODO | PATCH | `/api/tasks/:id/progress` | 진행 보고 |
-| TODO | POST | `/api/schedule/reschedule` | 재스케줄링 |
+| ✅ | POST | `/api/schedule/reschedule` | 재스케줄링·결과 저장 |
 
 ### POST /api/chat/interpret — 음성 텍스트 해석
 
@@ -135,7 +135,7 @@
 ## 스케줄러 allocator (내부 함수)
 
 `backend/src/scheduler/allocator.js`는 DB나 LLM 호출 없이 입력을 변경하지 않고 계산한다.
-기존 HTTP 응답 및 데이터 필드 규약은 유지한다. 재배치 API 연결은 별도 작업이다.
+기존 HTTP 응답 및 데이터 필드 규약은 유지한다. POST /api/schedule/reschedule에서 계산과 결과 저장을 연결한다.
 
 ```js
 findFreeSlots(date, fixedBlocks, scheduledBlocks, settings)
@@ -224,3 +224,24 @@ explanations.js의 explainSchedule(tasks, result, { settings, now })는 { blocks
 - 한국어 설명은 규칙 기반이며 LLM 호출이 없다. API 응답/화면 연결 시 호출자가 이 자료를 활용한다.
 
 검증: 저장소 루트에서 node --test backend/test/*.test.js 실행.
+
+
+### 재배치 API 실행·저장 규칙
+
+- POST /api/schedule/reschedule은 JSON 객체의 reason을 필수로 받는다. 허용값은 new_task, missed, progress, manual이다. 누락·잘못된 값·잘못된 JSON은 HTTP 400과 { error }를 반환하고 저장하지 않는다.
+- 서버의 현재 시각으로 계산한다. 클라이언트가 전달한 now는 사용하지 않는다. 요청이 대기하면 실제 갱신 차례가 시작될 때 시각을 잡는다.
+- updateDb 안에서 최신 DB를 읽고 reschedule을 실행하여 scheduledBlocks만 교체한다. tasks, fixedBlocks, user, history와 기타 필드는 보존한다.
+- 저장 완료 후 HTTP 200으로 { scheduledBlocks, changes, unplaced }를 반환한다. 마감 초과나 공간 부족으로 남은 작업이 있어도 정상 처리이며 unplaced에 표시한다.
+- 계산·DB 읽기·저장 실패는 공통 에러 처리로 HTTP 500과 { error }를 반환한다. 실패한 계산의 결과를 저장하거나 성공으로 응답하지 않는다.
+- JSON 저장소는 단일 서버 프로세스 안에서 writeDb/updateDb/resetDb를 직렬화한다. 임시 파일을 완성한 뒤 rename으로 교체해 기존 DB의 부분 덮어쓰기를 피한다. 외부 프로세스나 직접 파일 편집과의 동시 갱신은 이 큐로 조정되지 않는다.
+- readDb는 앞선 쓰기를 기다린다. updateDb 콜백에서는 전달받은 db를 사용하고 같은 저장소의 readDb/updateDb를 중첩 호출하지 않는다.
+- 이 API를 연결한 것으로 자동 주기 실행이 시작되지는 않는다. 과제 등록·진행 보고·미수행 확인에서 API 또는 공통 스케줄러를 호출하는 연결은 별도 작업이다.
+- GET /api/schedule/today는 아직 501이다.
+
+수동 확인(실행 중인 백엔드가 필요하며 실제 DB의 scheduledBlocks가 저장된다):
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:3001/api/schedule/reschedule -ContentType application/json -Body '{"reason":"manual"}'
+```
+
+자동 테스트는 임시 폴더의 DB와 별도 포트를 사용한다. 실제 backend/data/db.json을 변경하지 않는다.
