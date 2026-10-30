@@ -6,6 +6,7 @@ import tasksRouter from './routes/tasks.js';
 import scheduleRouter from './routes/schedule.js';
 import chatRouter from './routes/chat.js';
 import { initStore } from './store/index.js';
+import { createMissedMonitor } from './scheduler/missed-monitor.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -29,6 +30,11 @@ app.use((err, req, res, next) => {
 
 await initStore();
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`[j-day] backend listening on http://localhost:${PORT}`);
 });
+
+// 주기 확인은 서버 프로세스에만 연결한다. 테스트의 router import로는 시작하지 않는다.
+const monitor = createMissedMonitor();
+if (process.env.AUTO_RESCHEDULE_ENABLED !== 'false') monitor.start();
+server.on('close', () => monitor.stop());
