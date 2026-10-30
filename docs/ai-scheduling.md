@@ -70,8 +70,8 @@ GET /api/schedule/context는 최근 준비한 planningContext, schedulingStatus,
 |---|---|
 | contextId | 요청 식별자. 결과 적용 시 그대로 전달 |
 | sourceRevision | 작업·설정·고정 일정·저장된 블록의 스냅샷 |
-| rankedTasks | 미완료 작업과 하위작업별 남은 분량, priorityRank |
-| priorityPolicy | 마감 빠른 순 → 중요도 높은 순 → 남은 시간 짧은 순 → 입력 순서 |
+| rankedTasks | 미완료 작업과 하위작업별 남은 분량, priorityScore(0~100), priorityRank |
+| priorityPolicy | priorityScore 높은 순 → (동점) 마감 빠른 순 → 중요도 높은 순 → 남은 시간 짧은 순 → 입력 순서 |
 | priorityIsAdvisory | true. AI의 참고 순서이며 해당 순서로 시각을 강제하지 않음 |
 | recommendedSlotMinutes | 기존 minSlotMinutes를 AI의 권장 작업 단위로 전달. 결과 검증의 최소 블록 길이로 강제하지 않음 |
 | fixedBlocks | 요일별 반복 고정 일정. AI가 수정할 수 없음 |
@@ -84,6 +84,8 @@ GET /api/schedule/context는 최근 준비한 planningContext, schedulingStatus,
 | days[].requiredBufferMinutes | 확보 가능한 빈 시간 범위에서 유지할 여유 시간 |
 | settings | 하루 시간 범위, 최대 블록, 휴식, 하루 한도, 여유 시간 등 |
 | planningInstructions | 빈 시간을 전부 채우지 말고 식사·개인 시간·선호를 고려하라는 안내 |
+
+priorityScore는 `backend/src/scheduler/weight.js`의 `schedulingWeight`로 계산한다. 마감 임박도 0.4 + 작업량 압박(남은 분 ÷ 마감까지 쓸 수 있는 시간, 하루 480분 가정) 0.2 + 중요도 0.3 + 짧은 작업 0.1 가중합이며, 마감이 지난 작업은 100이다. 마감이 하루 늦더라도 훨씬 중요하거나 작업량이 큰 작업이 앞설 수 있다.
 
 rankedTasks의 remainingMinutes는 보정된 작업량, progress, Subtask.done, 진행 중인 보존 예약의 현재 이후 분량을 반영한다. 교체할 미래 planned는 남은 작업량에서 빼지 않는다. 하위작업별 reservedUntil은 이미 예약된 선행 작업의 종료 시각이며 예약이 없으면 null이다.
 

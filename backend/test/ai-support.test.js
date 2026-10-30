@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { allocate, findFreeSlots } from '../src/scheduler/allocator.js';
 import { rankTasks, preparePlanningContext, schedulingRevision } from '../src/scheduler/planning-context.js';
+import { schedulingWeight } from '../src/scheduler/weight.js';
 import { reschedule, detectMissedBlocks } from '../src/scheduler/rescheduler.js';
 import { acceptAiPlan } from '../src/scheduler/ai-plan.js';
 
@@ -18,11 +19,30 @@ test('기존 allocate는 시각을 만들지 않고 명시적으로 비활성화
  assert.throws(()=>allocate([],[],{}),error=>error.code==='RULE_BASED_ALLOCATION_DISABLED');
  assert.deepEqual(findFreeSlots('2026-10-30',[],[],data().user.settings),[{start:'09:00',end:'18:00'}]);
 });
-test('참고 우선순위는 마감·중요도·짧은 잔여량·입력순이며 완료 제외',()=>{
+test('참고 우선순위는 점수순(마감 임박·작업량·중요도·짧은 잔여량)이며 동점은 입력순, 완료 제외',()=>{
  const base=data().tasks[0],make=(id,estimatedMinutes,extra={})=>({...base,id,title:id,subtasks:[],estimatedMinutes,...extra});
  const result=rankTasks([make('long',90),make('short',30),make('same',30),make('important',120,{importance:3}),make('urgent',120,{deadline:'2026-10-31T18:00:00+09:00'}),make('done',60,{status:'done'})],{now});
- assert.deepEqual(result.map(t=>t.taskId),['urgent','important','short','same','long']);
+ assert.deepEqual(result.map(t=>t.taskId),['important','urgent','short','same','long']);
  assert.ok(result.every(t=>!Object.hasOwn(t,'start')&&!Object.hasOwn(t,'end')));
+});
+test('마감이 하루 늦어도 훨씬 중요한 작업이 먼저, 같은 조건이면 마감·중요도·짧은 순',()=>{
+ const base=data().tasks[0],make=(id,extra={})=>({...base,id,title:id,subtasks:[],estimatedMinutes:60,importance:2,...extra});
+ const a=make('a',{importance:1,deadline:'2026-10-31T18:00:00+09:00'}),b=make('b',{importance:3,deadline:'2026-11-01T18:00:00+09:00'});
+ assert.deepEqual(rankTasks([a,b],{now}).map(t=>t.taskId),['b','a']);
+ // 작업량이 큰 쪽(마감이 더 멀어도 시간이 빠듯함)이 앞선다
+ const big=make('big',{estimatedMinutes:900,deadline:'2026-11-02T18:00:00+09:00'}),small=make('small',{estimatedMinutes:30,deadline:'2026-11-01T18:00:00+09:00'});
+ assert.deepEqual(rankTasks([small,big],{now}).map(t=>t.taskId),['big','small']);
+ // 마감이 지난 작업은 항상 맨 앞
+ assert.equal(rankTasks([make('late',{deadline:'2026-10-29T18:00:00+09:00'}),make('hot',{importance:3,deadline:'2026-10-30T10:00:00+09:00'})],{now})[0].taskId,'late');
+ // 점수 동점이면 입력 순서를 유지
+ assert.deepEqual(rankTasks([make('x'),make('y')],{now}).map(t=>t.taskId),['x','y']);
+});
+test('schedulingWeight는 잘못된 입력을 거부하고 now에 의존하지 않는 순수 함수',()=>{
+ const input={importance:2,deadline:'2026-11-01T18:00:00+09:00',remainingMinutes:60,now};
+ assert.equal(schedulingWeight(input),schedulingWeight({...input}));
+ assert.throws(()=>schedulingWeight({...input,remainingMinutes:0}),RangeError);
+ assert.throws(()=>schedulingWeight({...input,importance:4}),RangeError);
+ assert.throws(()=>schedulingWeight({...input,deadline:'x'}),RangeError);
 });
 test('하위작업·진행률·진행 중 예약량을 반영하되 새 블록은 만들지 않음',()=>{
  const db=data();db.tasks[0].progress=0.5;db.tasks[0].subtasks[0].done=true;
