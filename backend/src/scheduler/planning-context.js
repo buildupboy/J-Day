@@ -46,6 +46,7 @@ export function rankTasks(tasks, { existingBlocks = [], now } = {}) {
       remainingMinutes: units.reduce((sum, unit) => sum + unit.remaining, 0),
       subtasks: units.map(unit => ({ ...(unit.subtaskId === undefined ? {} : { subtaskId: unit.subtaskId }),
         title: task.subtasks?.find(subtask => subtask.id === unit.subtaskId)?.title ?? task.title,
+        ...(task.subtasks?.find(subtask => subtask.id === unit.subtaskId)?.notBefore ? { notBefore: task.subtasks.find(subtask => subtask.id === unit.subtaskId).notBefore } : {}),
         remainingMinutes: unit.remaining, reservedUntil: Number.isFinite(unit.reservedUntil) ? new Date(unit.reservedUntil).toISOString() : null })) };
   }).filter(task => task.remainingMinutes > 0)
     .sort((a, b) => datetime(a.deadline) - datetime(b.deadline) || b.importance - a.importance || a.remainingMinutes - b.remainingMinutes)

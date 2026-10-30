@@ -6,6 +6,7 @@ import { explainSchedule } from '../scheduler/explanations.js';
 import { instant } from '../scheduler/time.js';
 import { fail, object, integer, text, iso, memo } from './validation.js';
 import { continueTask } from './continue-task.js';
+import { syncGroupedTask } from './grouped-task.js';
 
 const types = new Set(['report','coding','exam','presentation','reading','etc']);
 const kst = date => new Date(date.getTime() + 9 * 3600000).toISOString().replace('Z', '+09:00');
@@ -92,6 +93,7 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
   object(input);
   const task = taskById(db, id);
   const previousBlocks = structuredClone(db.scheduledBlocks ?? []);
+  const previousActual = task.actualMinutes ?? 0;
   const has = key => Object.hasOwn(input, key);
   if (has('continueBlockId') && (input.blockStatus !== 'done' || input.reschedule === false)) fail('이어서 진행하려면 작업 완료와 재배치가 필요합니다.');
   if (has('continueBlockId') && previousBlocks.find(block => block.id === input.blockId)?.status === 'done') fail('이미 완료한 작업의 이어서 진행 요청입니다.', 409);
@@ -108,6 +110,7 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
     if (!subtask || typeof input.subtaskDone !== 'boolean') fail('subtaskId와 boolean subtaskDone이 필요합니다.');
     if (subtask.done && !input.subtaskDone) fail('완료한 하위작업을 되돌릴 수 없습니다.', 409);
     subtask.done = input.subtaskDone;
+    if (task.sourceTasks && has('actualMinutes')) subtask.actualMinutes = (subtask.actualMinutes ?? 0) + Math.max(0, task.actualMinutes - previousActual);
   }
   if (has('blockId') || has('blockStatus')) {
     const block = db.scheduledBlocks?.find(block => block.id === input.blockId && block.taskId === id);
@@ -135,9 +138,10 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
     if (block.taskId === id && block.status === 'planned' && instant(block, 'start') < now.getTime()
       && (progress === 1 || task.subtasks?.some(subtask => subtask.id === block.subtaskId && subtask.done))) block.status = 'done';
   }
+  syncGroupedTask(db, task, now);
   const continuation = has('continueBlockId') ? continueTask(db, task, input, now) : null;
   let historyRecorded = false;
-  if (progress === 1 && !task.reviewOf) {
+  if (progress === 1 && !task.reviewOf && !task.sourceTasks?.length) {
     db.history ??= [];
     const historyId = `history-${id}`;
     let history = db.history.find(record => record.id === historyId);

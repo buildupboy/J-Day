@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 import { CheckIcon, ChevronLeftIcon, MicIcon } from '../components/common/Icons.jsx';
@@ -34,13 +34,23 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
     .filter((b) => b.id !== block.id && toMinutes(b.start) >= Math.min(end, nowMin))
     .sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
   const nextFixed = later.find((b) => b.kind !== 'task' && b.kind !== 'break');
-  const nextTask = later.find((b) => b.kind === 'task' && b.status === 'planned' && toMinutes(b.start) >= nowMin);
+  const nextTask = later.find((b) => b.kind === 'task' && b.status === 'planned' && toMinutes(b.start) >= nowMin && toMinutes(b.end) - toMinutes(b.start) > 0 && toMinutes(b.end) - toMinutes(b.start) < 30);
   const currentTask = block.task ?? taskById?.(block.taskId);
   const followingTask = nextTask && (nextTask.task ?? taskById?.(nextTask.taskId));
-  const canContinue = planned > 0 && planned < 30 && nowMin >= start && nextTask && followingTask
+  let chainFirst = block;
+  const chainSeen = new Set([block.id]);
+  while (chainFirst.continuationOf) {
+    const previous = blocks.find(item => item.id === chainFirst.continuationOf);
+    if (!previous || chainSeen.has(previous.id)) break;
+    chainSeen.add(previous.id); chainFirst = previous;
+  }
+  const [maxContinuous, setMaxContinuous] = useState(null);
+  useEffect(() => { let active = true; api.getUserSettings().then(data => { if (active) setMaxContinuous(data.settings.maxBlockMinutes); }).catch(() => {}); return () => { active = false; }; }, []);
+  const canContinue = planned > 0 && planned < 30 && nowMin > start && block.status !== 'done' && maxContinuous !== null && nowMin - toMinutes(chainFirst.start) + toMinutes(nextTask?.end ?? '00:00') - toMinutes(nextTask?.start ?? '00:00') <= maxContinuous && nextTask && followingTask
+    && (block.subtaskId ? !later.some(item => item.taskId === block.taskId && item.subtaskId === block.subtaskId && item.status === 'planned') : currentTask?.estimatedMinutes < 30)
     && currentTask?.type !== 'exam' && followingTask.type !== 'exam'
     && !currentTask?.reviewOf && !followingTask.reviewOf
-    && (followingTask.id === currentTask?.id || (!followingTask.progress && !followingTask.actualMinutes));
+    && (followingTask.id === currentTask?.id || (!followingTask.sourceTasks?.length && !followingTask.progress && !followingTask.actualMinutes));
   const restUntil = nextFixed ? Math.max(toMinutes(nextFixed.start), end) : end;
 
   const finish = async (choice) => {
@@ -51,14 +61,14 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
       const res = await api.reportProgress(block.taskId, {
         blockId: block.id,
         blockStatus: 'done',
-        actualMinutes: (block.task?.actualMinutes ?? 0) + actual,
-        ...(block.subtaskId ? { subtaskId: block.subtaskId, subtaskDone: true } : {}),
+        actualMinutes: (currentTask?.actualMinutes ?? 0) + actual,
+        ...(block.subtaskId ? { subtaskId: block.subtaskId, subtaskDone: !later.some(item => item.taskId === block.taskId && item.subtaskId === block.subtaskId && item.status === 'planned') } : {}),
         ...(!block.subtaskId && currentTask?.estimatedMinutes < 30 && !later.some(item => item.taskId === block.taskId && item.status === 'planned') ? { progress: 1 } : {}),
         ...(choice === 'continue' ? { continueBlockId: nextTask.id } : {}),
       });
       scheduleChanged();
       const moved = (res.changes ?? []).filter((c) => c.type !== 'removed' && c.after && c.after.status === 'planned');
-      setResult({ choice, moved, unplaced: res.unplaced ?? [] });
+      setResult({ choice, moved, task: res.task, unplaced: res.unplaced ?? [] });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -116,7 +126,7 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
         {canContinue && (
           <section className="d-card">
             <h2>짧은 작업을 마쳤어요. 이어서 하시겠어요?</h2>
-            <p className="d-meta">수락하면 이번 휴게 시간을 건너뛰고 {nextTask.title}을 바로 시작해요. 작업들은 ‘기타 작업’의 하위 작업으로 묶어요.</p>
+            <p className="d-meta">수락하면 이번 휴게 시간을 건너뛰고 {nextTask.title}을 바로 시작해요. 작업들은 ‘기타 작업’ 아래에 묶고, 원래 분류·마감·완료 기록은 각각 유지해요.</p>
             <button type="button" className="d-btn d-btn-dark" disabled={saving} onClick={() => finish('continue')}>네, 이어서 할게요</button>
             <button type="button" className="d-btn" disabled={saving} onClick={() => finish('rest')}>아니요, 쉬고 할게요</button>
           </section>
@@ -182,7 +192,7 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
 // 종료 후: 기록 결과와 다시 배치된 블록
 function FinishResult({ block, result, taskById, onDone }) {
   const titleOf = (b) => {
-    const task = taskById?.(b.taskId);
+    const task = result.task?.id === b.taskId ? result.task : taskById?.(b.taskId);
     return task?.subtasks?.find((s) => s.id === b.subtaskId)?.title ?? task?.title ?? '작업';
   };
   const title = { continue: '휴게를 생략하고 기타 작업의 하위 작업으로 묶어 바로 배치했어요', rest: '남은 시간은 쉬는 시간으로 두었어요', push: '뒤 작업을 다시 배치했어요', done: '완료로 기록했어요' }[result.choice];

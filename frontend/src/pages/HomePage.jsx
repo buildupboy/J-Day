@@ -124,6 +124,11 @@ export default function HomePage({ nav }) {
         showToast('완료 취소는 아직 지원하지 않아요.');
         return;
       }
+      const length = toMinutes(block.end) - toMinutes(block.start);
+      if (length > 0 && length < 30 && toMinutes(block.start) < nowMin) {
+        nav.finish({ block, blocks: today, taskById: schedule.taskById });
+        return;
+      }
       // 시작 전 블록도 미리 완료할 수 있다. 기록만 바로 저장하고, 비는 시간의 재배치는 10초 뒤에 한 번만 한다
       setDoneIds((prev) => new Set(prev).add(block.id));
       try {

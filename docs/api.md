@@ -319,3 +319,11 @@ incompleteTasks는 선택 기간에 마감하는 status가 done이 아닌 작업
 작업 ID 중복을 제거한 뒤 집계하며, 같은 작업에 여러 missed 블록이 있어도 작업 수는 늘지 않는다.
 이 두 필드의 유형별 합은 dueTasks.completed와 dueTasks.total - dueTasks.completed에 각각 일치한다.
 기존 completedTasks(기간 내 완료 이력 수)와 missedBlocks는 유지한다. 작업 속도 계산도 완료 이력 기준을 유지한다.
+
+### 짧은 작업 이어서 진행
+
+- 작업 종료 화면에서 완료한 블록과 다음 블록이 각각 30분 미만일 때 이어서 진행을 제안한다. 홈의 시작한 짧은 작업 완료 버튼도 종료 화면으로 연결한다.
+- 수락: PATCH /api/tasks/:id/progress에 기존 완료 입력과 continueBlockId를 함께 보낸다. 거절: continueBlockId를 보내지 않는다. 수락한 연결만 휴게를 생략하고, 다음 작업 이후에는 기존 휴게 규칙을 적용한다.
+- 상위 Task는 type=etc, title=기타 작업으로 묶는다. sourceTasks에 원래 작업을 보존하고, 하위작업에는 sourceTaskId/type/deadline 및 해당 시 notBefore/sourceSubtaskId를 보존한다. 분석과 history는 원래 작업별 분류·마감·완료·실제시간으로 집계한다. 묶음 자체의 중복 완료 기록을 만들지 않는다.
+- 여러 번 연결해도 연속 작업 합계는 maxBlockMinutes를 넘지 않는다. 0분 경과, 30분 이상 블록, 미완료 단위, 고정 일정·지정 휴식·휴무일·마감·시작 가능 시각 충돌은 거절한다. 이미 진행한 다른 작업 및 시험·복습은 새 묶음으로 옮기지 않는다.
+- 원래 휴게 설정은 변경하지 않는다. continuationOf는 수락한 다음 블록의 연결을 가리키며 AI가 새로 만들 수 없다.
