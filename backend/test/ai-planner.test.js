@@ -68,7 +68,7 @@ test('하위작업 선행 순서·미배치량·날짜 경계 이동과 휴식 �
  assert.ok(p.aiScheduling.context.blockedWindows.some(b=>b.date==='2026-10-31'&&b.start==='00:00'&&b.end==='00:20'));
 });
 
-test('사용자 설정 API는 비동기 AI 결과를 저장하고 실패 시 원자적 취소',async t=>{
+test('사용자 설정 API는 AI 결과를 저장하고 AI 실패 시 설정만 저장',async t=>{
  const {mkdtemp,writeFile,rm}=await import('node:fs/promises');const os=await import('node:os');const path=await import('node:path');
  const express=(await import('express')).default;const {once}=await import('node:events');
  const {createJsonStore}=await import('../src/store/index.js');const {createUserSettingsRouter}=await import('../src/routes/user-settings.js');
@@ -85,7 +85,11 @@ test('사용자 설정 API는 비동기 AI 결과를 저장하고 실패 시 원
  const response=await save({travelMinutes:25,breakMinutes:15});assert.equal(response.status,200);
  const result=await response.json();assert.equal(result.schedulingStatus,'applied');assert.equal(result.settings.travelMinutes,25);
  assert.equal((await store.readDb()).aiScheduling.status,'applied');
- const before=await store.readDb();fail=true;assert.equal((await save({breakMinutes:20})).status,500);assert.deepEqual(await store.readDb(),before);
+ const before=await store.readDb();fail=true;
+ const failed=await save({breakMinutes:20});assert.equal(failed.status,200);
+ const warning=await failed.json();assert.equal(warning.settingsSaved,true);assert.equal(warning.schedulingStatus,'failed');
+ const expected=structuredClone(before);expected.user.settings.breakMinutes=20;expected.aiScheduling=null;
+ assert.deepEqual(await store.readDb(),expected);
 });
 
 test('수면/휴식 설정 변경 후에도 준비 문맥을 보관',async t=>{

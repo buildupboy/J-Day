@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   UserIcon,
   CalendarIcon,
@@ -17,7 +17,7 @@ import { api } from '../api/client.js';
 import PatternSettingsPage, { patternSummary } from './PatternSettingsPage.jsx';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 
-const DEMO_USER = { name: '민지', email: 'demo@jday.com', password: '1234' };
+const DEMO_USER = { email: 'demo@jday.com', password: '1234' };
 const SESSION_KEY = 'jday-demo-login';
 
 function readStorage(key, fallback) {
@@ -143,8 +143,9 @@ export default function MyPage({ nav }) {
   if (['break', 'sleep', 'available', 'style', 'preferred'].includes(panel)) return <PatternSettingsPage kind={panel} onBack={() => setPanel(null)} onSaved={result => {
     setSettingsSnapshot(result); setSaveResult(result); setPanel(null); setReload(value => value + 1); scheduleChanged();
   }} />;
-  if (panel === 'report') return <AnalyticsPage onBack={() => setPanel(null)} onOpenSettings={() => setPanel(null)} />;
+  if (panel === 'report') return <AnalyticsPage onBack={() => setPanel(null)} />;
 
+  const userName = report?.profile?.name || '사용자';
   const settings = settingsSnapshot?.settings ?? report?.profile?.settings;
   const rows = settingRows(settings, timetable);
   const selected = [...rows.day, ...rows.ai].find((item) => item.id === panel);
@@ -209,7 +210,7 @@ export default function MyPage({ nav }) {
           <UserIcon size={26} />
         </span>
         <span>
-          <strong>{report?.profile?.name || (loggedIn ? DEMO_USER.name : '사용자')} 님</strong>
+          <strong>{userName} 님</strong>
           <small>제이가 나에게 맞는 하루를 만들어 드려요</small>
         </span>
       </button>
@@ -219,7 +220,7 @@ export default function MyPage({ nav }) {
           <h2>나의 주간 리포트</h2>
           {report && (
             <span className="d-meta">
-              {shortDate(report.from)} – {Number(report.to.slice(8, 10))}일
+              {shortDate(report.from)} – {shortDate(report.to)}
             </span>
           )}
         </div>
@@ -256,7 +257,7 @@ export default function MyPage({ nav }) {
       {menu('내 하루 설정', rows.day)}
       {menu('AI 맞춤 설정', rows.ai)}
       {settingsError && <p className="d-error" role="alert">{settingsError} <button type="button" className="d-link" onClick={() => setReload(value => value + 1)}>다시 시도</button></p>}
-      {saveResult && <section className="d-card" role="status"><p>설정을 저장하고 남은 작업을 재배치했어요.</p>{saveResult.unplaced?.length > 0 && <><p>마감 전에 배치하지 못한 작업이 있어요.</p><ul>{saveResult.unplaced.map(item => <li key={item.taskId}>{item.title}: {item.remainingMinutes}분 미배치</li>)}</ul></>}</section>}
+      {saveResult && <section className="d-card" role="status"><p>{saveResult.schedulingStatus === 'applied' ? '설정을 저장하고 남은 작업을 재배치했어요.' : saveResult.schedulingStatus === 'failed' ? saveResult.schedulingError : '설정을 저장했어요. AI 재배치는 아직 대기 중이에요.'}</p>{saveResult.unplaced?.length > 0 && <><p>마감 전에 배치하지 못한 작업이 있어요.</p><ul>{saveResult.unplaced.map(item => <li key={item.taskId}>{item.title}: {item.remainingMinutes}분 미배치</li>)}</ul></>}</section>}
 
       {panel === 'account' && (
         <Modal title="계정 설정" onClose={() => setPanel(null)}>
@@ -264,7 +265,7 @@ export default function MyPage({ nav }) {
             <p className="my-dialog-description">체험용 계정</p>
             {loggedIn ? (
               <>
-                <h3>{DEMO_USER.name} 님</h3>
+                <h3>{userName} 님</h3>
                 <p>{DEMO_USER.email}</p>
                 <button type="button" className="d-btn d-btn-dark d-btn-lg" onClick={logout}>
                   로그아웃
