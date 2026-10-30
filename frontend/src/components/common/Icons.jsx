@@ -116,9 +116,3 @@ export const RepeatIcon = (p) => (
   </Svg>
 );
 
-export const ArchiveIcon = (p) => (
-  <Svg {...p}>
-    <rect x="4" y="4" width="16" height="5" rx="1" />
-    <path d="M6 9v10h12V9M10 13h4" />
-  </Svg>
-);

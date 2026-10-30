@@ -7,7 +7,6 @@ import {
   ArrowRightIcon,
   RepeatIcon,
   CheckIcon,
-  ArchiveIcon,
 } from '../common/Icons.jsx';
 
 function formatTimer(sec) {
@@ -16,7 +15,7 @@ function formatTimer(sec) {
   return `${m}:${s}`;
 }
 
-// 오늘 할 일을 누르면 올라오는 액션 시트: 수정·삭제, 메모, 알림, 타이머, 날짜 이동, 루틴, 보관
+// 오늘 할 일을 누르면 올라오는 액션 시트: 수정·삭제, 메모, 알림, 타이머, 날짜 이동, 루틴
 export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.title);
@@ -160,13 +159,6 @@ export default function TodoActionSheet({ todo, meta, onPatch, onMove, onClose }
           </span>
           루틴 등록하기
           {meta.routine && <em>등록됨</em>}
-        </button>
-
-        <button type="button" className="sheet-row" onClick={() => onMove('보관함으로 옮겼어요')}>
-          <span className="row-icon" style={{ background: '#6a6cf0' }}>
-            <ArchiveIcon size={20} />
-          </span>
-          보관함으로 이동
         </button>
       </section>
 
