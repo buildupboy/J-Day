@@ -7,12 +7,14 @@ function distribute(total, subtasks) {
     if (total > 0) throw new RangeError('하위작업 추정시간 합계가 0입니다.');
     return subtasks.map(() => 0);
   }
-  const values = subtasks.map(subtask => Math.floor(total * subtask.estimatedMinutes / sum));
-  let extra = total - values.reduce((a, b) => a + b, 0);
+  // 총량이 5분 단위면 하위작업 몫도 5분 단위로 나눠 6분·57분 같은 조각을 만들지 않는다.
+  const step = total % 5 === 0 ? 5 : 1, units = total / step;
+  const values = subtasks.map(subtask => Math.floor(units * subtask.estimatedMinutes / sum));
+  let extra = units - values.reduce((a, b) => a + b, 0);
   for (let i = 0; i < values.length && extra > 0; i++) {
     if (subtasks[i].estimatedMinutes > 0) { values[i]++; extra--; }
   }
-  return values;
+  return values.map(value => value * step);
 }
 
 function consume(units, amount) {

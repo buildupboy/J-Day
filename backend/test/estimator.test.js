@@ -13,7 +13,7 @@ const db = (tasks,scheduledBlocks=[],update={}) => ({user:{settings:{...settings
 test('유형별 합계 보정, 잘못된 기록 제외, 기록 없으면 1배',()=>{
  const factors=computeCorrectionFactors([{type:'coding',estimatedMinutes:100,actualMinutes:200},{type:'coding',estimatedMinutes:300,actualMinutes:300},{type:'coding',estimatedMinutes:0,actualMinutes:100},null]);
  assert.deepEqual(factors,{coding:1.25});
- assert.equal(applyCorrection(61,'coding',factors),77);
+ assert.equal(applyCorrection(61,'coding',factors),80);
  assert.equal(applyCorrection(61,'exam',factors),61);
  assert.equal(applyCorrection(0,'coding',factors),0);
  assert.deepEqual(computeCorrectionFactors([]),{});

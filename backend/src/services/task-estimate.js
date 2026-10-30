@@ -2,6 +2,7 @@ import { MAX_TASK_STEPS } from '../prompts/task-granularity.js';
 import { createHash } from 'node:crypto';
 import { complete } from './llm.js';
 import { ESTIMATE_SCHEMA, ESTIMATE_SYSTEM_PROMPT } from '../prompts/estimate.js';
+import { normalizeBreakdown } from './estimate-rounding.js';
 import { assertSchema, fail, validText, integer } from './voice-validation.js';
 
 export function createTaskEstimator({ completeFn = complete, clock = Date.now } = {}) {
@@ -29,7 +30,7 @@ export function createTaskEstimator({ completeFn = complete, clock = Date.now } 
       result.subtasks.forEach(item => { item.title=validText(item.title,'하위작업',120); integer(item.estimatedMinutes,'하위작업 시간',1); });
       if (result.subtasks.reduce((sum,item)=>sum+item.estimatedMinutes,0)!==result.baseEstimatedMinutes) fail('AI 추정시간 합계가 일치하지 않아요. 다시 시도해 주세요.',502);
       if (result.rangeMinutes.length!==2 || !result.rangeMinutes.every(n=>Number.isSafeInteger(n)&&n>0&&n<=1000000) || result.rangeMinutes[0]>result.baseEstimatedMinutes || result.rangeMinutes[1]<result.baseEstimatedMinutes) fail('AI 추정 범위가 올바르지 않아요.',502);
-      const value={...result,source:'ai'};
+      const value={...normalizeBreakdown(result),source:'ai'};
       for (const [id,item] of cache) if(item.expires<=clock()) cache.delete(id);
       if(cache.size>=32)cache.delete(cache.keys().next().value);
       cache.set(key,{value:structuredClone(value),expires:clock()+5*60000});
