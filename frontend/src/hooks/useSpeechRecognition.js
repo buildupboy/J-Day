@@ -72,7 +72,10 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
       if (interim) lastInterimRef.current = interim;
       setInterimTranscript(interim);
     };
-    recognition.onerror = (event) => setError(event.error);
+    // 우리가 abort()한 경우의 'aborted'는 오류로 보지 않는다
+    recognition.onerror = (event) => {
+      if (event.error !== 'aborted') setError(event.error);
+    };
     recognition.onend = finish;
 
     recognitionRef.current = recognition;
@@ -84,14 +87,25 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     setError(null);
     lastInterimRef.current = '';
     deliveredRef.current = false;
-    try {
-      recognitionRef.current.start();
-      endedRef.current = false;
-      setListening(true);
-    } catch {
-      // 이미 듣는 중이면 InvalidStateError가 나므로 무시한다
-    }
-  }, []);
+    clearTimeout(forceTimerRef.current);
+    // 화면은 바로 듣기 상태로 바꾸고, 직전 인식이 아직 정리 중이라 start()가 실패하면 잠시 뒤 다시 시도한다
+    endedRef.current = false;
+    setListening(true);
+    const attempt = (retriesLeft) => {
+      try {
+        recognitionRef.current.start();
+      } catch {
+        if (retriesLeft > 0) {
+          recognitionRef.current.abort();
+          setTimeout(() => attempt(retriesLeft - 1), 300);
+        } else {
+          setError('start-failed');
+          finish();
+        }
+      }
+    };
+    attempt(3);
+  }, [finish]);
 
   const stop = useCallback(() => {
     if (endedRef.current) return;

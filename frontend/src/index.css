@@ -1467,10 +1467,18 @@ body {
   display: grid;
   place-items: center;
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid var(--border);
   border-radius: 50%;
-  background: var(--bg);
+  background: #fff;
+}
+
+.assistant-avatar img {
+  width: 165%;
+  max-width: none;
+  height: auto;
 }
 
 .assistant-col {

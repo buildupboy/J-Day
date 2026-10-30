@@ -4,7 +4,7 @@ import { mockInterpret } from '../../data/mockInterpret.js';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
 import { useAudioLevel } from '../../hooks/useAudioLevel.js';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis.js';
-import { MicIcon, SparkIcon, ArrowRightIcon, KeyboardIcon } from '../common/Icons.jsx';
+import { MicIcon, ArrowRightIcon, KeyboardIcon } from '../common/Icons.jsx';
 import TaskProposalCard from './TaskProposalCard.jsx';
 import jayImage from '../../assets/jay.webp';
 
@@ -14,7 +14,8 @@ const SILENCE_LIMIT_MS = 5000; // 이 시간 동안 말이 없으면 듣기를 �
 
 const ERROR_TEXT = {
   'not-allowed': '마이크 권한이 필요해요. 브라우저 설정에서 허용해 주세요.',
-  'no-speech': '말소리가 들리지 않았어요. 다시 말해 주세요.',
+  'start-failed': '마이크를 시작하지 못했어요. 다시 눌러 주세요.',
+  'no-speech':'말소리가 들리지 않았어요. 다시 말해 주세요.',
 };
 
 // 마이크 탭을 누르면 뜨는 제이 화면: 말하는 중 / 대화 / 직접 입력
@@ -202,7 +203,7 @@ export default function VoiceScreen({ onClose }) {
               ) : (
                 <li key={m.id} className="assistant-row">
                   <span className="assistant-avatar">
-                    <SparkIcon size={18} />
+                    <img src={jayImage} alt="제이" />
                   </span>
                   <div className="assistant-col">
                     <p className="bubble-assistant">{m.text}</p>
@@ -221,7 +222,7 @@ export default function VoiceScreen({ onClose }) {
             {(thinking || stopping) && (
               <li className="assistant-row">
                 <span className="assistant-avatar">
-                  <SparkIcon size={18} />
+                  <img src={jayImage} alt="제이" />
                 </span>
                 <p className="bubble-assistant typing">
                   <i />
