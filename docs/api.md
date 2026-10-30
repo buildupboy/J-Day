@@ -340,3 +340,5 @@ incompleteTasks는 선택 기간에 마감하는 status가 done이 아닌 작업
 
 - `GET /api/chat/scheduler/status` → `{ running, error, pending }`
 - `POST /api/chat/scheduler/run` → `{ started }` 배치 재시도
+
+`POST /api/tasks`(직접 작업 추가)도 같은 방식이다. 저장 후 `201`과 함께 `schedulingInBackground: true`, `rescheduled: false`를 돌려주고, 배치는 채팅 등록과 공유하는 담당이 뒤에서 처리한다. 진행 상태는 `GET /api/chat/scheduler/status`로 확인한다.

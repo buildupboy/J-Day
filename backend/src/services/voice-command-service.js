@@ -5,7 +5,7 @@ import * as llm from './llm.js';
 import { INTERPRET_SCHEMA, BREAKDOWN_SCHEMA, TASK_TYPES, MAX_UTTERANCE_TASKS } from '../prompts/schemas.js';
 import { computeCorrectionFactors, applyCorrection } from '../scheduler/estimator.js';
 import { normalizeBreakdown } from './estimate-rounding.js';
-import { schedulingRevision } from '../scheduler/planning-context.js';
+import { createBackgroundScheduler } from './background-scheduler.js';
 import { enqueueSchedule, dispatchPending } from './scheduler-gateway.js';
 import { occursOn } from '../scheduler/time.js';
 import { assertSchema, fail, validText, integer, date, deadline } from './voice-validation.js';
@@ -145,49 +145,11 @@ function updateTask(db, slots, now) {
 }
 
 export function createVoiceService({ readDb, updateDb, interpreter = llm.interpretUtterance,
-  breakdownTask = llm.breakdownTask, scheduler = null, progressReporter = null, now = () => new Date(), backgroundScheduling = false }) {
+  breakdownTask = llm.breakdownTask, scheduler = null, progressReporter = null, now = () => new Date(), backgroundScheduling = false, backgroundScheduler = null }) {
   // 같은 requestId의 병렬 요청은 모델을 한 번만 호출한다. 저장 직전에도 중복을 검사한다.
   const inFlight = new Map();
-  // 배치(AI 호출)는 오래 걸리므로 저장을 먼저 끝내고 뒤에서 한 번에 하나씩 실행한다.
-  // 저장소 잠금 밖에서 사본으로 계획한 뒤, 그동안 일정이 바뀌지 않았을 때만 짧게 반영한다.
-  let scheduleRun = null, scheduleError = null, rerun = false;
-  async function scheduleOnce() {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const snapshot = await readDb();
-      if (!(snapshot.schedulerRequests ?? []).some(item => item.status === 'pending')) return;
-      const draft = structuredClone(snapshot);
-      await dispatchPending(draft, { scheduler, now: now() });
-      let applied = false;
-      await updateDb(async db => {
-        if (schedulingRevision(db) !== schedulingRevision(snapshot)) return db;
-        db.scheduledBlocks = draft.scheduledBlocks;
-        if (draft.aiScheduling) db.aiScheduling = draft.aiScheduling;
-        const processed = new Map((draft.schedulerRequests ?? []).filter(item => item.status === 'processed').map(item => [item.id, item]));
-        db.schedulerRequests = (db.schedulerRequests ?? []).map(item => processed.get(item.id) ?? item);
-        applied = true;
-        return db;
-      });
-      if (applied) return;
-    }
-    throw new Error('배치하는 동안 일정이 계속 바뀌었어요. 잠시 후 다시 시도해 주세요.');
-  }
-  function startScheduling() {
-    if (typeof scheduler !== 'function') return null;
-    if (scheduleRun) { rerun = true; return scheduleRun; }
-    scheduleError = null;
-    scheduleRun = (async () => {
-      try {
-        do { rerun = false; await scheduleOnce(); } while (rerun);
-      } catch (error) {
-        scheduleError = error.message || '일정을 배치하지 못했어요.';
-      } finally { scheduleRun = null; }
-    })();
-    return scheduleRun;
-  }
-  async function schedulingStatus() {
-    const db = await readDb();
-    return { running: Boolean(scheduleRun), error: scheduleError, pending: (db.schedulerRequests ?? []).filter(item => item.status === 'pending').length };
-  }
+  // 저장 뒤 뒤에서 도는 배치. 여러 라우터가 공유하도록 밖에서 주입할 수 있다.
+  const background = backgroundScheduler ?? (backgroundScheduling && typeof scheduler === 'function' ? createBackgroundScheduler({ readDb, updateDb, scheduler, now }) : null);
   async function estimate(input, request) {
     const { estimateByAi, ...task } = input;
     const breakdown = await breakdownTask({ ...task, utterance: request.text, conversation: request.conversation });
@@ -312,7 +274,7 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
         } : null) : null;
       const reason = intent === 'add_task' ? 'new_task' : intent === 'report_progress' ? 'progress' : intent === 'update_task' ? 'manual' : 'manual';
       const schedulerRequest = enqueueSchedule(db, { commandId: request.requestId, taskId: task?.id, reason, now: committedAt });
-      const defer = backgroundScheduling && typeof scheduler === 'function' && ['add_task', 'update_task'].includes(intent);
+      const defer = Boolean(background) && ['add_task', 'update_task'].includes(intent);
       const scheduling = defer ? { rescheduled: false, deferred: true } : scheduler ? await dispatchPending(db, { scheduler: progressResult ? () => progressResult : scheduler, now: committedAt }) : { rescheduled: false };
       const count = created.length > 1 ? `${created.length}개 작업을 ` : '';
       const duplicateNote = skipped.length ? ` ${skipped.map(item => `‘${item.title}’`).join(', ')}은(는) 이미 등록된 과제라 건너뛰었어요. 새로운 다른 과제라면 알려 주세요.` : '';
@@ -324,7 +286,7 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
       (db.voiceCommands ??= []).push({ id: request.requestId, hash: request.hash, createdAt: committedAt.toISOString(), response });
       return db;
     });
-    if (response?.schedulingInBackground && !response.replayed) startScheduling();
+    if (response?.schedulingInBackground && !response.replayed) background?.start();
     return response;
   }
   async function interpret(body) {
@@ -340,5 +302,7 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
     await updateDb(async db => { result = await dispatchPending(db, { scheduler, now: now() }); return db; });
     return result;
   }
-  return { interpret, dispatch, schedulingStatus, startScheduling };
+  return { interpret, dispatch,
+    schedulingStatus: () => background ? background.status() : Promise.resolve({ running: false, error: null, pending: 0 }),
+    startScheduling: () => background?.start() ?? null };
 }

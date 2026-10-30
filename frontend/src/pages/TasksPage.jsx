@@ -70,8 +70,20 @@ export default function TasksPage({ onClose }) {
     try {
       const result = await api.createTask(task);
       scheduleChanged();
-      setToast(result.unplaced?.length ? `'${task.title}' 저장됨 · 배치하지 못한 시간이 있어요` : `'${task.title}' 저장·배치 완료`);
-      setTimeout(() => setToast(''), 2200);
+      if (result.schedulingInBackground) {
+        // 저장은 끝났고 서버가 뒤에서 일정을 배치한다. 끝나면 화면을 새로 고치고 결과를 알린다.
+        setToast(`'${task.title}' 저장됨 · 일정을 배치하는 중이에요`);
+        api.waitForScheduling()
+          .then((status) => {
+            scheduleChanged();
+            setToast(status.error ? `'${task.title}' 저장됨 · 일정 배치에 실패했어요. 잠시 후 다시 시도해 주세요` : `'${task.title}' 저장·배치 완료`);
+          })
+          .catch(() => setToast(`'${task.title}' 저장됨 · 배치 상태를 확인하지 못했어요`))
+          .finally(() => setTimeout(() => setToast(''), 3500));
+      } else {
+        setToast(result.unplaced?.length ? `'${task.title}' 저장됨 · 배치하지 못한 시간이 있어요` : `'${task.title}' 저장·배치 완료`);
+        setTimeout(() => setToast(''), 2200);
+      }
       setTitle('');
       setHours('');
       setMinutes('');
