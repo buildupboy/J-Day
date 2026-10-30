@@ -98,3 +98,23 @@ test('speed uses latest whole-task records within period and excludes invalid ti
   const empty=analyze(data,analysisPeriod('2026-12-10'),now).patterns.find(p=>p.type==='report');
   assert.equal(empty.correctionFactor,null);assert.equal(empty.differencePercent,null);
 });
+
+
+test('type completion summary counts due tasks, not missed blocks or completion history', () => {
+  const data=db();data.tasks=[
+    {id:'coding-todo',type:'coding',status:'todo',deadline:'2026-11-01T23:00:00+09:00'},
+    {id:'coding-progress',type:'coding',status:'in_progress',deadline:'2026-10-30T23:00:00+09:00'},
+    {id:'coding-done',type:'coding',status:'done',deadline:'2026-10-29T23:00:00+09:00'},
+    {id:'coding-outside',type:'coding',status:'todo',deadline:'2026-11-06T23:00:00+09:00'},
+    {id:'reading-done',type:'reading',status:'done',deadline:'2026-10-30T23:00:00+09:00'},
+  ];
+  data.tasks.push({...data.tasks[0]});
+  data.scheduledBlocks=[1,2].map(i=>({id:'missed-'+i,taskId:'coding-todo',date:'2026-10-29',start:'09:00',end:'10:00',status:'missed'}));
+  data.history=[{id:'earlier',taskId:'different-task',type:'coding',estimatedMinutes:60,actualMinutes:60,completedAt:'2026-10-30T12:00:00+09:00'}];
+  const result=analyze(data,period,now),coding=result.patterns.find(p=>p.type==='coding'),reading=result.patterns.find(p=>p.type==='reading');
+  assert.equal(coding.incompleteTasks,2);assert.equal(coding.dueCompletedTasks,1);assert.equal(coding.missedBlocks,2);
+  assert.equal(reading.dueCompletedTasks,1);assert.equal(reading.incompleteTasks,0);
+  assert.equal(result.patterns.reduce((sum,p)=>sum+p.dueCompletedTasks,0),result.dueTasks.completed);
+  assert.equal(result.patterns.reduce((sum,p)=>sum+p.incompleteTasks,0),result.dueTasks.total-result.dueTasks.completed);
+  const empty=analyze({},period,now);assert.ok(empty.patterns.every(p=>p.dueCompletedTasks===0&&p.incompleteTasks===0));
+});
