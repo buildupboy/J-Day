@@ -1758,9 +1758,10 @@ body {
   height: 8px;
   border-radius: 2px;
   background: #111;
+  transition: height 60ms linear;
 }
 
-/* 인식기가 소리를 감지하는 동안만 물결이 움직인다 */
+/* 마이크 레벨을 못 읽을 때는 인식기가 소리를 감지하는 동안만 물결이 움직인다 */
 .waveform.is-live i {
   animation: wave 0.9s ease-in-out infinite;
 }

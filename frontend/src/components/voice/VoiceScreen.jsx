@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client.js';
 import { mockInterpret } from '../../data/mockInterpret.js';
+import { useAudioLevel } from '../../hooks/useAudioLevel.js';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis.js';
 import { MicIcon, ArrowRightIcon, KeyboardIcon } from '../common/Icons.jsx';
@@ -50,7 +51,7 @@ export default function VoiceScreen({ onClose }) {
     if (viaVoice) speak(res.reply.replace(/\n/g, ' '));
   };
 
-  const { supported, listening, hearing, interimTranscript, error, start, stop } = useSpeechRecognition({
+  const { supported, listening, hearing, audioStarted, interimTranscript, error, start, stop } = useSpeechRecognition({
     onFinalResult: (t) => send(t, true),
   });
 
@@ -67,6 +68,15 @@ export default function VoiceScreen({ onClose }) {
     setStopping(true);
     stop();
   };
+
+  // 파형용 마이크 레벨. 인식기가 마이크를 먼저 잡은 뒤에 읽기 시작해서 서로 방해하지 않게 한다
+  const { levels, ready: meterReady } = useAudioLevel(
+    audioStarted && listening && !typing && !stopping,
+    BAR_COUNT,
+    (level) => {
+      if (level > 0) lastActivityRef.current = Date.now();
+    }
+  );
 
   // 소리가 들리거나 인식된 글자가 바뀌면 말하는 중으로 본다
   useEffect(() => {
@@ -143,10 +153,12 @@ export default function VoiceScreen({ onClose }) {
         </div>
 
         <div className="listen-foot">
-          <div className={`waveform ${hearing ? 'is-live' : ''}`} aria-hidden="true">
-            {Array.from({ length: BAR_COUNT }, (_, i) => (
-              <i key={i} style={{ animationDelay: `${(i % 9) * 0.09}s` }} />
-            ))}
+          <div className={`waveform ${!meterReady && hearing ? 'is-live' : ''}`} aria-hidden="true">
+            {meterReady
+              ? levels.map((lv, i) => <i key={i} style={{ height: 4 + lv * 44 }} />)
+              : Array.from({ length: BAR_COUNT }, (_, i) => (
+                  <i key={i} style={{ animationDelay: `${(i % 9) * 0.09}s` }} />
+                ))}
           </div>
           <div className="mic-row">
             <button

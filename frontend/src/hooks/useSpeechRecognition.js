@@ -5,7 +5,8 @@ const getSpeechRecognition = () =>
   typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : undefined;
 
 // stop() 뒤 이 시간 안에 onend가 안 오면 직접 끝낸다
-const FORCE_END_MS = 1200;
+// 말을 마친 뒤 서버가 최종 결과를 돌려주기까지 걸리는 시간을 넉넉히 기다린다 (너무 짧으면 결과가 버려진다)
+const FORCE_END_MS = 5000;
 
 /**
  * Web Speech API 음성 인식 훅 (크롬 기준, ko-KR).
@@ -23,6 +24,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [hearing, setHearing] = useState(false); // 인식기가 소리·말을 감지하는 중
+  const [audioStarted, setAudioStarted] = useState(false); // 인식기가 마이크를 잡은 뒤
   const [error, setError] = useState(null);
 
   // 콜백이 바뀌어도 세션을 다시 만들지 않도록 ref로 보관
@@ -47,6 +49,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     lastInterimRef.current = '';
     setListening(false);
     setHearing(false);
+    setAudioStarted(false);
     setInterimTranscript('');
   }, []);
 
@@ -95,6 +98,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
       if (event.error !== 'aborted') setError(event.error);
     };
     // 파형 표시용: 인식기 스스로 소리를 감지한 구간만 true (별도 마이크 스트림을 열지 않는다)
+    rec.onaudiostart = () => rec === recRef.current && setAudioStarted(true);
     rec.onsoundstart = () => rec === recRef.current && setHearing(true);
     rec.onspeechstart = () => rec === recRef.current && setHearing(true);
     rec.onsoundend = () => rec === recRef.current && setHearing(false);
@@ -149,5 +153,5 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     []
   );
 
-  return { supported: Boolean(getSpeechRecognition()), listening, hearing, interimTranscript, error, start, stop };
+  return { supported: Boolean(getSpeechRecognition()), listening, hearing, audioStarted, interimTranscript, error, start, stop };
 }
