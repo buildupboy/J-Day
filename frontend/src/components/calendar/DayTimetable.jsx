@@ -4,7 +4,7 @@ import { isSameDay } from '../../utils/calendar.js';
 
 const START_HOUR = 0;
 const END_HOUR = 24;
-const HOUR_HEIGHT = 26; // px (디자인: 1시간 26px)
+const HOUR_HEIGHT = 48; // px (1시간 48px)
 
 const top = (minutes) => ((minutes - START_HOUR * 60) / 60) * HOUR_HEIGHT + 8;
 const SCROLL_MARGIN = 20; // 기준 시각 위로 남겨 둘 여백(px)
