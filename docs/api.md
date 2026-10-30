@@ -215,3 +215,13 @@ reviews.js의 createExamReviewTasks(examTask, { daysBefore: [7, 3, 1], minutes: 
 - 복습 시간은 원본 시험 공부 시간과 별도로 추가된다. 사용자가 설정한 복습 시간을 개인 보정으로 다시 늘리지 않는다.
 - ID는 원본 시험 ID와 간격으로 결정된다. 저장 시 ID 기준으로 중복 추가를 막아야 한다. 시험 날짜 변경 시 호출자가 기존 복습을 갱신해야 한다.
 - 지난 복습 날짜나 빈 시간이 없는 날짜는 unplaced로 반환하며 다른 날짜로 임의 이동하지 않는다.
+
+
+### 배치 설명
+
+explanations.js의 explainSchedule(tasks, result, { settings, now })는 { blocks, unplaced } 형태의 설명 자료를 반환한다. result는 allocate 또는 reschedule 반환값이다. 원래 반환 규약과 ScheduledBlock은 변경하지 않는다.
+
+- blocks에는 blockId, taskId, title, estimatedMinutes(해당 블록 길이), deadline, importance, reasons, message가 포함된다.
+- reasons는 적용하는 배치 규칙 설명이다. 특정 시간 선택의 유일한 원인을 역추정하지 않는다.
+- unplaced는 deadline_passed 또는 constraints_prevent_placement와 설명을 제공한다. 후자는 여러 제약 중 하나가 원인이라고 임의로 단정하지 않는다.
+- 한국어 설명은 규칙 기반이며 LLM 호출이 없다. API 응답/화면 연결 시 호출자가 이 자료를 활용한다.
