@@ -1,3 +1,4 @@
+import { updateAvailability } from '../services/scheduling-constraints.js';
 import { Router } from 'express';
 import { readDb as storedRead, updateDb as storedUpdate } from '../store/index.js';
 import { reschedule } from '../scheduler/rescheduler.js';
@@ -62,6 +63,7 @@ export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpd
       let result;
       await updateDb(async db => {
         const current = now();
+        updateAvailability(db, req.body, current);
         result = await planner(db, { now: current, reason: req.body.reason, horizonDays: req.body.horizonDays });
         if (explain) result.explanations = explainSchedule(db.tasks, result, { settings: db.user.settings, now: current });
         return { ...db, scheduledBlocks: result.scheduledBlocks, ...(result.planningContext && !result.rescheduled ? { aiScheduling: { status:'pending', context: result.planningContext } } : {}) };

@@ -9,6 +9,8 @@ export const INTERPRET_SCHEMA = object({
     deadline: nullable('string'), baseEstimatedMinutes: nullable('integer'), importance: nullable('integer'),
     taskId: nullable('string'), progress: nullable('number'), actualMinutes: nullable('integer'),
     actualMinutesMode: { type: ['string', 'null'], enum: ['cumulative', 'increment', null] }, date: nullable('string'),
+    unavailableDates: { type: ['array', 'null'], items: { type: 'string' } },
+    availabilityAction: { type: ['string', 'null'], enum: ['block', 'unblock', null] },
   }),
   reply: { type: 'string' }, assumptions: { type: 'array', items: { type: 'string' } },
 });

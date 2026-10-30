@@ -35,6 +35,7 @@ export function acceptAiPlan(db, input, { now }) {
     if (value.date < context.window.from || value.date > context.window.to || start >= end || start < minute(context.settings.dayStart) || end > minute(context.settings.dayEnd)) fail('배치 범위 또는 하루 운영 시간을 벗어났습니다.');
     if (value.status !== undefined && value.status !== 'planned') fail('AI는 planned 블록만 제안할 수 있습니다.');
     const block = { id, taskId: value.taskId, date: value.date, start: value.start, end: value.end, status: 'planned', source: 'ai' };
+    if ((context.unavailableDates ?? context.settings.unavailableDates ?? []).includes(value.date)) fail('사용자가 쉬기로 한 날짜에는 새 작업을 배치할 수 없습니다.');
     const length = end - start;
     if (instant(block, 'start') < current || instant(block, 'end') > datetime(task.deadline) || (task.notBefore && instant(block, 'start') < datetime(task.notBefore))) fail('현재 시각·시작 가능 시각·마감 조건을 벗어났습니다.');
     if (length > context.settings.maxBlockMinutes) fail('최대 작업 블록 길이를 초과했습니다.');
