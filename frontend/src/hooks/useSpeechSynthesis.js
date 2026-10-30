@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
-
+  
 function pickVoice(voices, lang) {
   const normalizedLang = lang.toLowerCase().replace(/_/g, '-');
   const language = normalizedLang.split('-')[0];

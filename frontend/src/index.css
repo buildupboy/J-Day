@@ -2512,6 +2512,20 @@ body {
 .my-dialog::backdrop { background: #0006; }
 .routine-edit-dialog { margin: auto; padding: 0; max-width: 430px; background: var(--bg); }
 .routine-edit-dialog .edit-form { margin-top: 16px; }
+.calendar-edit-dialog {
+  width: min(100%, 480px);
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  color: var(--text);
+  overflow-y: auto;
+}
+.calendar-edit-dialog::backdrop { background: #0006; }
+.calendar-edit-dialog .d-form-page { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
 .routine-edit-trigger { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .routine-edit-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
 .timetable-import-dialog { margin: auto; max-width: 560px; }

@@ -59,13 +59,13 @@ export function acceptAiPlan(db, input, { now }) {
       if (other.date !== block.date) {
         const earlier = instant(block, 'start') < instant(other, 'start') ? block : other;
         const later = earlier === block ? other : block;
-        const rest = db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? context.settings.breakMinutes;
+        const rest = earlier.breakAfterMinutes ?? db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? context.settings.breakMinutes;
         if (instant(later, 'start') - instant(earlier, 'end') < rest * 60000) fail('날짜 경계의 작업 간 휴식이 부족합니다.');
         continue;
       }
       const gap = Math.max(minute(other.start) - end, start - minute(other.end));
       const earlier = start >= minute(other.end) ? other : block;
-      const rest = db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? context.settings.breakMinutes;
+      const rest = earlier.breakAfterMinutes ?? db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? context.settings.breakMinutes;
       if (gap < rest) fail('다른 블록과 겹치거나 휴식 시간이 부족합니다.');
       if (start < minute(other.end) && minute(other.start) < end) fail('다른 블록과 겹칩니다.');
     }

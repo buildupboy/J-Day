@@ -5,6 +5,7 @@ import { reschedule, diffScheduledBlocks } from '../scheduler/rescheduler.js';
 import { explainSchedule } from '../scheduler/explanations.js';
 import { instant } from '../scheduler/time.js';
 import { fail, object, integer, text, iso, memo } from './validation.js';
+import { continueTask } from './continue-task.js';
 
 const types = new Set(['report','coding','exam','presentation','reading','etc']);
 const kst = date => new Date(date.getTime() + 9 * 3600000).toISOString().replace('Z', '+09:00');
@@ -92,6 +93,8 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
   const task = taskById(db, id);
   const previousBlocks = structuredClone(db.scheduledBlocks ?? []);
   const has = key => Object.hasOwn(input, key);
+  if (has('continueBlockId') && (input.blockStatus !== 'done' || input.reschedule === false)) fail('이어서 진행하려면 작업 완료와 재배치가 필요합니다.');
+  if (has('continueBlockId') && previousBlocks.find(block => block.id === input.blockId)?.status === 'done') fail('이미 완료한 작업의 이어서 진행 요청입니다.', 409);
   if (!['progress','actualMinutes','subtaskDone','blockStatus'].some(has)) fail('갱신할 진행 데이터가 필요합니다.');
   if (has('progress') && (!Number.isFinite(input.progress) || input.progress < 0 || input.progress > 1)) fail('progress는 0~1이어야 합니다.');
   if (has('progress') && input.progress < task.progress) fail('진행률을 낮출 수 없습니다.', 409);
@@ -132,6 +135,7 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
     if (block.taskId === id && block.status === 'planned' && instant(block, 'start') < now.getTime()
       && (progress === 1 || task.subtasks?.some(subtask => subtask.id === block.subtaskId && subtask.done))) block.status = 'done';
   }
+  const continuation = has('continueBlockId') ? continueTask(db, task, input, now) : null;
   let historyRecorded = false;
   if (progress === 1 && !task.reviewOf) {
     db.history ??= [];
@@ -150,5 +154,5 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
     return { task, historyRecorded, rescheduled: false, deferred: true, scheduledBlocks: db.scheduledBlocks ?? [],
       changes: diffScheduledBlocks(previousBlocks, db.scheduledBlocks ?? [], 'progress'), unplaced: [] };
   }
-  return { task, historyRecorded, ...await schedule(db, now, 'progress', previousBlocks, explain, planner) };
+  return { task, historyRecorded, ...(continuation ? { continuation } : {}), ...await schedule(db, now, 'progress', previousBlocks, explain, planner) };
 }

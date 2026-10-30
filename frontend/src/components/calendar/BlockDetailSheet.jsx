@@ -4,8 +4,9 @@ import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
 import { toMinutes, formatDuration } from '../../utils/time.js';
 import { getTaskById } from '../../data/sampleSchedule.js';
 import { useAppDialogs } from '../common/AppDialogs.jsx';
-import { TaskEditForm, FixedEditForm, FixedMemo, TaskMemo, PostponeForm, ReminderField, SubtaskRow, SubtaskAddForm } from './TaskEditParts.jsx';
+import { FixedMemo, TaskMemo, PostponeForm, ReminderField, SubtaskRow, SubtaskAddForm } from './TaskEditParts.jsx';
 import SheetHandle from '../common/SheetHandle.jsx';
+import CalendarEditDialog from './CalendarEditDialog.jsx';
 
 const KIND_LABEL = {
   fixed: '고정 시간',
@@ -110,8 +111,7 @@ export default function BlockDetailSheet({ block, details, onClose }) {
           </div>
         </div>
 
-        {editing && task && <TaskEditForm task={task} onDone={() => setEditing(false)} />}
-        {editing && isFixed && <FixedEditForm block={block} onDone={() => setEditing(false)} />}
+        {editing && (task || isFixed) && <CalendarEditDialog block={block} task={task} onClose={() => setEditing(false)} />}
 
         {deleteError && <p className="field-error" role="alert">{deleteError}</p>}
         {deleting && <p role="status">삭제 중이에요.</p>}

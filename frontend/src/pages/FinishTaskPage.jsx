@@ -33,8 +33,14 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
   const later = blocks
     .filter((b) => b.id !== block.id && toMinutes(b.start) >= Math.min(end, nowMin))
     .sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-  const nextFixed = later.find((b) => b.kind !== 'task');
-  const nextTask = later.find((b) => b.kind === 'task');
+  const nextFixed = later.find((b) => b.kind !== 'task' && b.kind !== 'break');
+  const nextTask = later.find((b) => b.kind === 'task' && b.status === 'planned' && toMinutes(b.start) >= nowMin);
+  const currentTask = block.task ?? taskById?.(block.taskId);
+  const followingTask = nextTask && (nextTask.task ?? taskById?.(nextTask.taskId));
+  const canContinue = planned > 0 && planned < 30 && nowMin >= start && nextTask && followingTask
+    && currentTask?.type !== 'exam' && followingTask.type !== 'exam'
+    && !currentTask?.reviewOf && !followingTask.reviewOf
+    && (followingTask.id === currentTask?.id || (!followingTask.progress && !followingTask.actualMinutes));
   const restUntil = nextFixed ? Math.max(toMinutes(nextFixed.start), end) : end;
 
   const finish = async (choice) => {
@@ -47,6 +53,8 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
         blockStatus: 'done',
         actualMinutes: (block.task?.actualMinutes ?? 0) + actual,
         ...(block.subtaskId ? { subtaskId: block.subtaskId, subtaskDone: true } : {}),
+        ...(!block.subtaskId && currentTask?.estimatedMinutes < 30 && !later.some(item => item.taskId === block.taskId && item.status === 'planned') ? { progress: 1 } : {}),
+        ...(choice === 'continue' ? { continueBlockId: nextTask.id } : {}),
       });
       scheduleChanged();
       const moved = (res.changes ?? []).filter((c) => c.type !== 'removed' && c.after && c.after.status === 'planned');
@@ -105,7 +113,15 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
       )}
 
       <div className="finish-options">
-        {mode === 'early' && (
+        {canContinue && (
+          <section className="d-card">
+            <h2>짧은 작업을 마쳤어요. 이어서 하시겠어요?</h2>
+            <p className="d-meta">수락하면 이번 휴게 시간을 건너뛰고 {nextTask.title}을 바로 시작해요. 작업들은 ‘기타 작업’의 하위 작업으로 묶어요.</p>
+            <button type="button" className="d-btn d-btn-dark" disabled={saving} onClick={() => finish('continue')}>네, 이어서 할게요</button>
+            <button type="button" className="d-btn" disabled={saving} onClick={() => finish('rest')}>아니요, 쉬고 할게요</button>
+          </section>
+        )}
+        {mode === 'early' && !canContinue && (
           <>
             <button type="button" className="d-card finish-option" disabled={saving} onClick={() => finish('rest')}>
               <span className="finish-option-head">
@@ -129,7 +145,7 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
             </button>
           </>
         )}
-        {mode === 'late' && (
+        {mode === 'late' && !canContinue && (
           <button type="button" className="d-card finish-option" disabled={saving} onClick={() => finish('push')}>
             <span className="finish-option-head">
               <strong>뒤 작업 다시 배치해 줘</strong>
@@ -142,7 +158,7 @@ export default function FinishTaskPage({ block, blocks, taskById, nav, onClose }
             </span>
           </button>
         )}
-        {mode === 'onTime' && (
+        {mode === 'onTime' && !canContinue && (
           <button type="button" className="d-btn d-btn-dark d-btn-lg" disabled={saving} onClick={() => finish('done')}>
             완료로 기록하기
           </button>
@@ -169,7 +185,7 @@ function FinishResult({ block, result, taskById, onDone }) {
     const task = taskById?.(b.taskId);
     return task?.subtasks?.find((s) => s.id === b.subtaskId)?.title ?? task?.title ?? '작업';
   };
-  const title = { rest: '남은 시간은 쉬는 시간으로 두었어요', push: '뒤 작업을 다시 배치했어요', done: '완료로 기록했어요' }[result.choice];
+  const title = { continue: '휴게를 생략하고 기타 작업의 하위 작업으로 묶어 바로 배치했어요', rest: '남은 시간은 쉬는 시간으로 두었어요', push: '뒤 작업을 다시 배치했어요', done: '완료로 기록했어요' }[result.choice];
   const moved = result.moved.slice(0, 6);
   return (
     <div className="d-form-page finish">

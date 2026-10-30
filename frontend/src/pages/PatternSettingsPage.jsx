@@ -6,8 +6,7 @@ const titles = { break: '휴게 시간', sleep: '수면 시간', available: '작
 const descriptions = { break: '작업 사이의 짧은 휴식과 매일 꼭 쉬고 싶은 시간대를 설정해 주세요.', sleep: '잠자는 시간을 설정하면 해당 시간에는 작업을 배치하지 않아요.', available: '하루 중 제이가 할 일을 배치할 수 있는 시간대를 설정해 주세요.', style: '제이가 나에게 맞는 방식으로 일정을 배치할 수 있도록 알려주세요.', preferred: '가장 편한 시간대를 선택해 주세요. 하루를 6시간씩 나누어 선택한 구간을 우선 사용해요.' };
 function at(minutes) { return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`; }
 function ChoiceGroup({ label, options, value, onChange, vertical = false }) {
-  const values = options.some((option) => option.value === value) ? options : [...options, { value, label: `기존 설정 ${value}분` }];
-  return <div className={`pattern-choices${vertical ? ' is-vertical' : ''}`} role="group" aria-label={label}>{values.map((option) => <button type="button" key={option.value} aria-pressed={value === option.value} onClick={() => onChange(option.value)}><strong>{option.label}</strong>{option.description && <small>{option.description}</small>}</button>)}</div>;
+  return <div className={`pattern-choices${vertical ? ' is-vertical' : ''}`} role="group" aria-label={label}>{options.map((option) => <button type="button" key={option.value} aria-pressed={value === option.value} onClick={() => onChange(option.value)}><strong>{option.label}</strong>{option.description && <small>{option.description}</small>}</button>)}</div>;
 }
 export function patternSummary(id, snapshot) {
   const settings = snapshot?.settings, fields = snapshot?.configuredFields || [];

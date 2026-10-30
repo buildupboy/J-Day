@@ -25,7 +25,8 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
   const editing = Boolean(editingBlock);
   const dated = Boolean(editingBlock?.date);
   const [date, setDate] = useState(editingBlock?.date ?? '');
-  const [kind, setKind] = useState(editingBlock?.kind === 'routine' ? 'routine' : 'fixed');
+  const [kind, setKind] = useState(editingBlock?.kind === 'event' ? 'event' : editingBlock?.kind === 'routine' ? 'routine' : 'fixed');
+  const kinds = kind === 'event' ? [['event', '일정', '예: 정기 모임']] : KINDS;
   const [title, setTitle] = useState(editingBlock?.title ?? '');
   const [days, setDays] = useState(() => editingBlock?.dayOfWeek ?? [new Date().getDay()]);
   const [start, setStart] = useState(editingBlock?.start ?? '09:00');
@@ -48,8 +49,8 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
   };
 
   const timeError = end <= start ? '종료 시간은 시작 시간보다 늦어야 해요.' : '';
-  const canSubmit = Boolean(title.trim() && days.length && !timeError && !saving && !saved);
-  const kindLabel = KINDS.find(([id]) => id === kind)[1];
+  const canSubmit = Boolean(title.trim() && (dated ? date : days.length) && !timeError && !saving && !saved);
+  const kindLabel = kinds.find(([id]) => id === kind)[1];
 
   const submit = async (e) => {
     e.preventDefault();
@@ -103,7 +104,7 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
       <div className="d-field" role="group" aria-label="종류">
         <p className="d-label">종류</p>
         <div className="d-grid-2">
-          {KINDS.map(([id, label]) => (
+          {kinds.map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -124,7 +125,7 @@ export default function RepeatEventPage({ nav, onClose, editingBlock = null }) {
           id="repeat-title"
           className="d-input d-input-lg"
           value={title}
-          placeholder={KINDS.find(([id]) => id === kind)[2]}
+          placeholder={kinds.find(([id]) => id === kind)[2]}
           onChange={(e) => setTitle(e.target.value)}
         />
       </div>
