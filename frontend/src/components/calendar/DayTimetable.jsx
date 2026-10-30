@@ -11,7 +11,7 @@ const top = (minutes) => ((minutes - START_HOUR * 60) / 60) * HOUR_HEIGHT + 12;
 const SCROLL_MARGIN = 20; // 기준 시각 위로 남겨 둘 여백(px)
 
 // 하루 타임테이블. 블록은 시작·종료 시각으로 절대 위치를 잡는다
-export default function DayTimetable({ date, onSelectBlock }) {
+export default function DayTimetable({ date, onSelectBlock, statusOf }) {
   const scrollRef = useRef(null);
   const blocks = getBlocksForDate(date);
   const dayKey = date.toDateString();
@@ -43,6 +43,7 @@ export default function DayTimetable({ date, onSelectBlock }) {
       {blocks.map((b) => {
         const s = toMinutes(b.start);
         const e = toMinutes(b.end);
+        const status = statusOf?.(b.id);
         return (
           <div
             key={b.id}
@@ -50,13 +51,15 @@ export default function DayTimetable({ date, onSelectBlock }) {
             tabIndex={0}
             onClick={() => onSelectBlock?.(b)}
             onKeyDown={(e) => e.key === 'Enter' && onSelectBlock?.(b)}
-            className={`tt-block tt-${b.kind} ${e - s <= 30 ? 'is-compact' : ''}`}
+            className={`tt-block tt-${b.kind} ${e - s <= 30 ? 'is-compact' : ''} ${status ? `is-${status}` : ''}`}
             style={{ top: top(s), height: Math.max(top(e) - top(s) - 2, 14) }}
           >
             <strong>{b.title}</strong>
             <span>
               {b.start}–{b.end}
               {b.note ? ` · ${b.note}` : ''}
+              {status === 'done' && ' · 완료'}
+              {status === 'postponed' && ' · 미룸'}
             </span>
           </div>
         );

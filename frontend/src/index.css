@@ -635,10 +635,6 @@ body {
   border-radius: 10px;
 }
 
-.subtask-list li.is-current {
-  background: var(--bg);
-}
-
 .subtask-list label {
   display: flex;
   align-items: center;
@@ -676,4 +672,111 @@ body {
 
 .tt-block {
   cursor: pointer;
+}
+
+.tt-block.is-done {
+  opacity: 0.55;
+}
+
+.tt-block.is-done strong {
+  text-decoration: line-through;
+}
+
+.tt-block.is-postponed {
+  opacity: 0.4;
+}
+
+.detail-section {
+  margin-top: 16px;
+}
+
+.detail-section h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.memo-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.file-list {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.file-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.file-list li span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-list em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.file-list button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.file-add {
+  display: block;
+  padding: 10px;
+  border: 1px dashed var(--muted);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.detail-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+  padding-bottom: 4px;
+}
+
+.action-button {
+  padding: 14px;
+  border: 1px solid #111;
+  border-radius: 14px;
+  background: var(--panel);
+  color: #111;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action-primary {
+  background: #111;
+  color: #fff;
+}
+
+.action-button.is-on {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--muted);
 }

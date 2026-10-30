@@ -4,6 +4,7 @@ import WeekStrip from '../components/calendar/WeekStrip.jsx';
 import DayTimetable from '../components/calendar/DayTimetable.jsx';
 import MonthGrid from '../components/calendar/MonthGrid.jsx';
 import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
+import useBlockDetails from '../hooks/useBlockDetails.js';
 import { addDays } from '../utils/calendar.js';
 
 const SWIPE_MIN_PX = 60;
@@ -14,14 +15,7 @@ export default function CalendarPage({ onOpenMy }) {
 
   const swipeStart = useRef(null);
   const [openBlock, setOpenBlock] = useState(null);
-  const [toggled, setToggled] = useState(() => new Set()); // 샘플 기본값에서 완료 상태를 뒤집은 하위 작업 id
-
-  const toggleSubtask = (id) =>
-    setToggled((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+  const details = useBlockDetails();
 
   // 왼쪽으로 밀면 이전 주, 오른쪽으로 밀면 다음 주 (같은 요일 유지)
   const onSwipeEnd = (e) => {
@@ -74,7 +68,7 @@ export default function CalendarPage({ onOpenMy }) {
             }}
           >
             <WeekStrip selected={selected} onSelect={setSelected} />
-            <DayTimetable date={selected} onSelectBlock={setOpenBlock} />
+            <DayTimetable date={selected} onSelectBlock={setOpenBlock} statusOf={details.statusOf} />
           </div>
         ) : (
           <MonthGrid
@@ -88,8 +82,7 @@ export default function CalendarPage({ onOpenMy }) {
       {openBlock && (
         <BlockDetailSheet
           block={openBlock}
-          toggled={toggled}
-          onToggle={toggleSubtask}
+          details={details}
           onClose={() => setOpenBlock(null)}
         />
       )}

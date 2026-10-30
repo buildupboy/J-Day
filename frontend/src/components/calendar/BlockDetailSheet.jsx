@@ -20,16 +20,30 @@ function deadlineText(iso) {
   return `${label} · ${dday}`;
 }
 
+function formatSize(bytes) {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)}MB`
+    : `${Math.max(1, Math.round(bytes / 1024))}KB`;
+}
+
 // 타임테이블 블록을 누르면 올라오는 상세 시트.
-// task 블록은 상위 작업의 마감일·예상 시간과 하위 작업 체크리스트를 보여준다.
-// toggled: 샘플 기본 완료 상태에서 뒤집힌 하위 작업 id 집합
-export default function BlockDetailSheet({ block, toggled, onToggle, onClose }) {
+// task 블록은 상위 작업의 마감일·예상 시간, 하위 작업 체크리스트, 메모·첨부, 완료/미루기를 보여준다.
+// details: hooks/useBlockDetails.js 의 반환값
+export default function BlockDetailSheet({ block, details, onClose }) {
   const task = block.taskId ? getTaskById(block.taskId) : null;
   const slotMinutes = toMinutes(block.end) - toMinutes(block.start);
+  const status = details.statusOf(block.id);
 
-  const isDone = (st) => st.done !== toggled.has(st.id);
+  const isDone = (st) => st.done !== details.toggled.has(st.id);
   const doneSubtasks = task ? task.subtasks.filter(isDone) : [];
   const doneMinutes = doneSubtasks.reduce((sum, st) => sum + st.estimatedMinutes, 0);
+
+  // 블록을 완료 처리하면 이 블록의 하위 작업도 함께 완료로 맞춘다 (완료 취소 시에는 체크를 건드리지 않는다)
+  const markDone = () => {
+    const sub = task?.subtasks.find((st) => st.id === block.subtaskId);
+    if (sub && status !== 'done' && !isDone(sub)) details.toggleSubtask(sub.id);
+    details.setStatus(block.id, 'done');
+  };
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -82,29 +96,91 @@ export default function BlockDetailSheet({ block, toggled, onToggle, onClose }) 
         </dl>
 
         {task && (
-          <div className="subtask-box">
-            <div className="subtask-head">
-              <h3>하위 작업</h3>
-              <span>
-                {doneSubtasks.length} / {task.subtasks.length} 완료
-              </span>
+          <>
+            <div className="subtask-box">
+              <div className="subtask-head">
+                <h3>하위 작업</h3>
+                <span>
+                  {doneSubtasks.length} / {task.subtasks.length} 완료
+                </span>
+              </div>
+              <div className="progress">
+                <i style={{ width: `${(doneSubtasks.length / task.subtasks.length) * 100}%` }} />
+              </div>
+              <ul className="subtask-list">
+                {task.subtasks.map((st) => (
+                  <li key={st.id}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={isDone(st)}
+                        onChange={() => details.toggleSubtask(st.id)}
+                      />
+                      <span className={isDone(st) ? 'is-done' : ''}>{st.title}</span>
+                      <em>{formatDuration(st.estimatedMinutes)}</em>
+                    </label>
+                    {st.id === block.subtaskId && <small>이 시간에 할 일</small>}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="progress">
-              <i style={{ width: `${(doneSubtasks.length / task.subtasks.length) * 100}%` }} />
+
+            <div className="detail-section">
+              <h3>작업 메모</h3>
+              <textarea
+                className="memo-input"
+                rows={3}
+                placeholder="이 작업에 대한 메모를 남겨 보세요"
+                value={details.memoOf(task.id)}
+                onChange={(e) => details.setMemo(task.id, e.target.value)}
+              />
             </div>
-            <ul className="subtask-list">
-              {task.subtasks.map((st) => (
-                <li key={st.id} className={st.id === block.subtaskId ? 'is-current' : ''}>
-                  <label>
-                    <input type="checkbox" checked={isDone(st)} onChange={() => onToggle(st.id)} />
-                    <span className={isDone(st) ? 'is-done' : ''}>{st.title}</span>
-                    <em>{formatDuration(st.estimatedMinutes)}</em>
-                  </label>
-                  {st.id === block.subtaskId && <small>이 시간에 할 일</small>}
-                </li>
-              ))}
-            </ul>
-          </div>
+
+            <div className="detail-section">
+              <h3>첨부</h3>
+              <ul className="file-list">
+                {details.filesOf(task.id).map((f) => (
+                  <li key={f.id}>
+                    <span>📎 {f.name}</span>
+                    <em>{formatSize(f.size)}</em>
+                    <button type="button" onClick={() => details.removeFile(task.id, f.id)} aria-label="첨부 삭제">
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <label className="file-add">
+                + 과제 PDF · txt 추가
+                <input
+                  type="file"
+                  accept=".pdf,.txt,application/pdf,text/plain"
+                  multiple
+                  hidden
+                  onChange={(e) => {
+                    details.addFiles(task.id, e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="detail-actions">
+              <button
+                type="button"
+                className={`action-button ${status === 'postponed' ? 'is-on' : ''}`}
+                onClick={() => details.setStatus(block.id, 'postponed')}
+              >
+                {status === 'postponed' ? '미루기 취소' : '미루기'}
+              </button>
+              <button
+                type="button"
+                className={`action-button action-primary ${status === 'done' ? 'is-on' : ''}`}
+                onClick={markDone}
+              >
+                {status === 'done' ? '완료 취소' : '완료'}
+              </button>
+            </div>
+          </>
         )}
       </section>
     </div>
