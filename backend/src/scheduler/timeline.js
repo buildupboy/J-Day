@@ -15,7 +15,7 @@ export function timeline(db, date, { explain = false, now } = {}) {
       const task = tasks.get(block.taskId), subtask = task?.subtasks?.find(subtask => subtask.id === block.subtaskId);
       return { source: 'scheduled', ...block, title: subtask?.title ?? task?.title ?? block.taskId };
     }),
-  ].sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.source.localeCompare(b.source));
+  ].filter(item => !(db.deletedCalendarItems ?? []).some(deleted => deleted.source === item.source && deleted.id === item.id && deleted.date === date)).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.source.localeCompare(b.source));
   const result = { date, items };
   if (explain) result.explanations = explainSchedule(db.tasks, { scheduledBlocks: scheduled }, { settings: db.user.settings, now });
   return result;

@@ -2690,3 +2690,8 @@ body {
   .timetable-class strong { font-size: 7px; }
   .timetable-class span { font-size: 6px; }
 }
+
+.sheet-head-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.delete-calendar-button { color: #d14343; }
+.delete-calendar-button:hover { background: #fff0f0; }
+.delete-calendar-button:disabled { opacity: .45; cursor: wait; }

@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { api } from '../../api/client.js';
+import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
 import { toMinutes, formatDuration } from '../../utils/time.js';
 import { getTaskById } from '../../data/sampleSchedule.js';
 
@@ -30,6 +33,22 @@ function formatSize(bytes) {
 // task 블록은 상위 작업의 마감일·예상 시간, 하위 작업 체크리스트, 메모·첨부, 완료/미루기를 보여준다.
 // details: hooks/useBlockDetails.js 의 반환값
 export default function BlockDetailSheet({ block, details, onClose }) {
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const remove = async () => {
+    const message = `‘${block.title}’ 일정을 캘린더에서 삭제할까요?`;
+    if (!window.confirm(message)) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await api.deleteCalendarItem(block.source, block.id, block.date);
+      scheduleChanged();
+      onClose();
+    } catch (error) {
+      setDeleteError(`삭제하지 못했어요. ${error.message}`);
+      setDeleting(false);
+    }
+  };
   const task = block.task ?? (block.taskId ? getTaskById(block.taskId) : null);
   const slotMinutes = toMinutes(block.end) - toMinutes(block.start);
   const status = details.statusOf(block.id);
@@ -53,11 +72,20 @@ export default function BlockDetailSheet({ block, details, onClose }) {
             <span className={`kind-chip tt-${block.kind}`}>{KIND_LABEL[block.kind]}</span>
             <h2>{block.title}</h2>
           </div>
+          <div className="sheet-head-actions">
+          <button type="button" className="icon-button delete-calendar-button" onClick={remove} disabled={deleting} aria-label="일정 삭제" title="일정 삭제" aria-busy={deleting}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+            </svg>
+          </button>
           <button type="button" className="icon-button" onClick={onClose} aria-label="닫기">
             ✕
           </button>
+          </div>
         </div>
 
+        {deleteError && <p className="field-error" role="alert">{deleteError}</p>}
+        {deleting && <p role="status">삭제 중이에요.</p>}
         <dl className="detail-list">
           <div>
             <dt>시간</dt>

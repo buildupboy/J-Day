@@ -1,3 +1,4 @@
+import { planSchedule } from '../services/ai-planner.js';
 import { Router } from 'express';
 import multer from 'multer';
 import { readDb, updateDb } from '../store/index.js';
@@ -26,10 +27,12 @@ router.put('/', async (req, res, next) => {
   try { lessons = validateLessons(req.body?.lessons); } catch (error) { return res.status(400).json({ error: error.message }); }
   try {
     // 사용자가 확인한 수업만 교체하고 알바·루틴은 보존한다.
-    await updateDb((db) => {
+    await updateDb(async (db) => {
       const otherBlocks = (db.fixedBlocks || []).filter((block) => block.kind !== 'class');
       assertNoTimetableConflicts(lessons, otherBlocks);
       db.fixedBlocks = [...otherBlocks, ...lessons];
+      const result = await planSchedule(db, { now: new Date(), reason: 'manual' });
+      db.scheduledBlocks = result.scheduledBlocks;
       db.timetableVisibleDays = [...new Set([...(Array.isArray(req.body.visibleDays) ? req.body.visibleDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6) : []), ...lessons.flatMap((lesson) => lesson.dayOfWeek)])];
     });
     res.json({ lessons });

@@ -2,7 +2,7 @@ const nullable = type => ({ type: [type, 'null'] });
 const object = properties => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false });
 export const TASK_TYPES = ['report', 'coding', 'exam', 'presentation', 'reading', 'etc'];
 export const INTERPRET_SCHEMA = object({
-  intent: { type: 'string', enum: ['add_task', 'report_progress', 'query_schedule', 'reschedule', 'clarify', 'unsupported'] },
+  intent: { type: 'string', enum: ['add_task', 'update_task', 'report_progress', 'query_schedule', 'reschedule', 'clarify', 'unsupported'] },
   slots: object({
     title: nullable('string'), type: { type: ['string', 'null'], enum: [...TASK_TYPES, null] },
     deadline: nullable('string'), baseEstimatedMinutes: nullable('integer'), importance: nullable('integer'),

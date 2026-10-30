@@ -36,6 +36,11 @@ export const api = {
   createTask: (task) => request('/tasks', { method: 'POST', body: task }),
   reportProgress: (taskId, payload) => request(`/tasks/${taskId}/progress`, { method: 'PATCH', body: payload }),
 
+  deleteCalendarItem: (source, id, date) => request(`/schedule/items/${encodeURIComponent(source)}/${encodeURIComponent(id)}`, { method: 'DELETE', body: { date } }),
+
+  getScheduleSettings: () => request('/schedule/settings'),
+  saveScheduleSettings: settings => request('/schedule/settings', { method: 'PUT', body: settings }),
+
   // 일정
   getTodaySchedule: () => request('/schedule/today'),
   getWeekSchedule: (from) => request(`/schedule/week?from=${encodeURIComponent(from)}`),

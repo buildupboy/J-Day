@@ -169,7 +169,8 @@ test('서로 다른 동시 등록 요청도 파일 갱신 유실 없음', async 
   const h = await setup(t);
   const results = await Promise.all(['a', 'b', 'c', 'd'].map(requestId => h.request(input(requestId))));
   assert.ok(results.every(result => result.status === 200));
-  const saved = await h.readDb(); assert.equal(saved.tasks.length, 4); assert.equal(saved.schedulerRequests.length, 4);
+  const saved = await h.readDb(); assert.equal(saved.tasks.length, 1); assert.equal(saved.schedulerRequests.length, 1);
+  assert.equal(results.filter(result => result.body.status === 'needs_clarification').length, 3);
 });
 
 test('잘못된 요청은 LLM 호출 전 400', async t => {
@@ -178,4 +179,45 @@ test('잘못된 요청은 LLM 호출 전 400', async t => {
     assert.equal((await h.request(body)).status, 400);
   }
   assert.equal(h.calls(), 0);
+});
+
+
+test('기존 일정 재등록은 변경 질문, 동의 후 같은 ID 수정·재시도 멱등성', async t => {
+  const h = await setup(t);
+  const task = (await h.request()).body.result.task;
+  const before = await h.readDb();
+  h.setInterpret(extracted('add_task', { deadline: '2026-11-06T23:59:00+09:00' }));
+  const question = await h.request(input('duplicate'));
+  assert.equal(question.body.status, 'needs_clarification');
+  assert.match(question.body.reply, /변경할까요/);
+  assert.deepEqual((await h.readDb()).tasks, before.tasks);
+  assert.equal(h.breakdownCalls(), 1);
+  h.setInterpret(extracted('update_task', { taskId: task.id, title: null, type: null,
+    deadline: '2026-11-06T23:59:00+09:00', baseEstimatedMinutes: null }));
+  const response = await h.request(input('confirm', { text: '응 변경해', conversation: [
+    { role: 'user', content: '보고서 마감을 11월 6일로 등록해' },
+    { role: 'assistant', content: question.body.reply },
+  ] }));
+  assert.equal(response.status, 200);
+  assert.equal(response.body.result.task.id, task.id);
+  assert.equal(response.body.result.task.deadline, '2026-11-06T23:59:00+09:00');
+  assert.deepEqual(response.body.result.task.subtasks, task.subtasks);
+  assert.equal((await h.readDb()).tasks.length, 1);
+});
+
+test('완료 작업도 일정 변경 가능하며 완료 기록과 진행 상태 유지', async t => {
+  const h = await setup(t);
+  const task = (await h.request()).body.result.task;
+  h.setInterpret(extracted('report_progress', { taskId: task.id, progress: 1 }));
+  await h.request(input('finish'));
+  const before = await h.readDb();
+  h.setInterpret(extracted('update_task', { taskId: task.id, title: null, type: null,
+    deadline: '2026-11-07T23:59:00+09:00', baseEstimatedMinutes: null }));
+  const result = await h.request(input('edit-done', { text: '완료한 보고서 마감을 11월 7일로 변경해' }));
+  assert.equal(result.status, 200);
+  assert.equal(result.body.result.task.status, 'done');
+  assert.equal(result.body.result.task.progress, 1);
+  assert.deepEqual((await h.readDb()).history, before.history);
+  const again = await h.request(input('edit-done', { text: '완료한 보고서 마감을 11월 7일로 변경해' }));
+  assert.equal(again.body.replayed, true);
 });

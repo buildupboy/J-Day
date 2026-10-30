@@ -3,7 +3,7 @@ import { readDb as storedRead, updateDb as storedUpdate } from '../store/index.j
 import { registerTask, reportProgress, registerReviews } from '../services/task-service.js';
 import { explainRequested } from '../services/validation.js';
 
-export function createTasksRouter({ readDb = storedRead, updateDb = storedUpdate, now = () => new Date() } = {}) {
+export function createTasksRouter({ readDb = storedRead, updateDb = storedUpdate, now = () => new Date(), planner } = {}) {
   const router = Router();
   router.get('/', async (req, res, next) => {
     try { res.json((await readDb()).tasks); } catch (err) { next(err); }
@@ -13,8 +13,8 @@ export function createTasksRouter({ readDb = storedRead, updateDb = storedUpdate
       try {
         const explain = explainRequested(req.query);
         let result;
-        await updateDb(db => {
-          result = handler(db, req, { now: now(), explain });
+        await updateDb(async db => {
+          result = await handler(db, req, { now: now(), explain, planner });
           return db;
         });
         res.status(status).json(result);

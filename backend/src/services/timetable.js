@@ -49,7 +49,8 @@ export function validateLessons(lessons) {
     if (!lesson || typeof lesson.title !== 'string' || !lesson.title.trim() || lesson.title.length > 100 || !Array.isArray(lesson.dayOfWeek) || !lesson.dayOfWeek.length || lesson.dayOfWeek.some((day) => !Number.isInteger(day) || day < 0 || day > 6) || !time.test(lesson.start) || !(time.test(lesson.end) || lesson.end === '24:00') || lesson.start >= lesson.end || (lesson.location != null && (typeof lesson.location !== 'string' || lesson.location.length > 150))) {
       throw new Error(`${index + 1}번째 수업의 이름·요일·시작/종료 시간을 확인해 주세요.`);
     }
-    return { id: randomUUID(), kind: 'class', source: 'timetable', title: lesson.title.trim(), location: (lesson.location || '').trim(), dayOfWeek: [...new Set(lesson.dayOfWeek)], start: lesson.start, end: lesson.end };
+    if (lesson.travelMinutes !== undefined && (!Number.isInteger(lesson.travelMinutes) || lesson.travelMinutes < 0 || lesson.travelMinutes > 1440)) throw new Error('이동시간은 0~1440분이어야 합니다.');
+    return { ...(lesson.travelMinutes === undefined ? {} : { travelMinutes: lesson.travelMinutes }), id: randomUUID(), kind: 'class', source: 'timetable', title: lesson.title.trim(), location: (lesson.location || '').trim(), dayOfWeek: [...new Set(lesson.dayOfWeek)], start: lesson.start, end: lesson.end };
   });
 }
 

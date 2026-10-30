@@ -14,8 +14,8 @@ function taskById(db, id) {
   if (!task) fail('작업을 찾을 수 없습니다.', 404);
   return task;
 }
-function schedule(db, now, reason, previousBlocks, explain) {
-  const result = reschedule(db, { now, reason });
+async function schedule(db, now, reason, previousBlocks, explain, planner) {
+  const result = await planner(db, { now, reason });
   if (previousBlocks) result.changes = diffScheduledBlocks(previousBlocks, result.scheduledBlocks, reason);
   db.scheduledBlocks = result.scheduledBlocks;
   if (explain) result.explanations = explainSchedule(db.tasks, result, { settings: db.user.settings, now });
@@ -42,7 +42,7 @@ function addReviews(db, task, options) {
 }
 
 /** 구조화된 LLM/UI 입력을 검증하여 저장 가능한 Task와 배치 결과를 만든다. */
-export function registerTask(db, input, { now, explain = false }) {
+export async function registerTask(db, input, { now, explain = false, planner = reschedule }) {
   object(input);
   const title = text(input.title, 'title');
   if (!types.has(input.type)) fail('지원하지 않는 과제 유형입니다.');
@@ -70,20 +70,21 @@ export function registerTask(db, input, { now, explain = false }) {
     baseEstimatedMinutes: base, estimatedMinutes: applyCorrection(base, input.type, computeCorrectionFactors(db.history ?? [])),
     actualMinutes: 0, progress: 0, status: 'todo', createdAt: kst(now) };
   if (input.notBefore !== undefined) task.notBefore = input.notBefore;
+  if (input.breakAfterMinutes !== undefined) task.breakAfterMinutes = integer(input.breakAfterMinutes, 'breakAfterMinutes', 0, 1440);
   db.tasks.push(task);
   const reviewTasks = input.review === undefined || input.review === false ? [] : addReviews(db, task, input.review);
-  const result = schedule(db, now, 'new_task', undefined, explain);
+  const result = await schedule(db, now, 'new_task', undefined, explain, planner);
   return { task, reviewTasks, rescheduled: true, ...result };
 }
 
-export function registerReviews(db, id, options, { now, explain = false }) {
+export async function registerReviews(db, id, options, { now, explain = false, planner = reschedule }) {
   const task = taskById(db, id);
   const reviewTasks = addReviews(db, task, options);
-  return { task, reviewTasks, rescheduled: true, ...schedule(db, now, 'new_task', undefined, explain) };
+  return { task, reviewTasks, rescheduled: true, ...await schedule(db, now, 'new_task', undefined, explain, planner) };
 }
 
 /** actualMinutesは累計。繰り返した同じ報告で時間を二重加算しない。 */
-export function reportProgress(db, id, input, { now, explain = false }) {
+export async function reportProgress(db, id, input, { now, explain = false, planner = reschedule }) {
   object(input);
   const task = taskById(db, id);
   const previousBlocks = structuredClone(db.scheduledBlocks ?? []);
@@ -137,5 +138,5 @@ export function reportProgress(db, id, input, { now, explain = false }) {
     } else if (has('actualMinutes')) history.actualMinutes = task.actualMinutes;
     historyRecorded = true;
   }
-  return { task, historyRecorded, rescheduled: true, ...schedule(db, now, 'progress', previousBlocks, explain) };
+  return { task, historyRecorded, rescheduled: true, ...await schedule(db, now, 'progress', previousBlocks, explain, planner) };
 }

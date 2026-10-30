@@ -2,8 +2,9 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 
-import tasksRouter from './routes/tasks.js';
-import scheduleRouter from './routes/schedule.js';
+import { createTasksRouter } from './routes/tasks.js';
+import { planSchedule } from './services/ai-planner.js';
+import { createScheduleRouter } from './routes/schedule.js';
 import { createChatRouter } from './routes/chat.js';
 import timetableRouter from './routes/timetable.js';
 import analyticsRouter from './routes/analytics.js';
@@ -22,12 +23,11 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, service: 'j-day-backend', time: new Date().toISOString() });
 });
 
-app.use('/api/tasks', tasksRouter);
-app.use('/api/schedule', scheduleRouter);
-// 기본값은 미연결. 친구의 스케줄러 구현을 병합한 후에만 활성화한다.
-const scheduler = process.env.VOICE_SCHEDULER_ENABLED === 'true'
-  ? (await import('./scheduler/rescheduler.js')).reschedule : null;
-app.use('/api/chat', createChatRouter({ scheduler, progressReporter: reportProgress }));
+app.use('/api/tasks', createTasksRouter({ planner: planSchedule }));
+app.use('/api/schedule', createScheduleRouter({ planner: planSchedule }));
+// 실제 배치는 AI, 우선순위/잔량 계산과 결과 검증만 코드에서 담당한다.
+app.use('/api/chat', createChatRouter({ scheduler: planSchedule,
+  progressReporter: (db, id, input, options) => reportProgress(db, id, input, { ...options, planner: planSchedule }) }));
 app.use('/api/analytics', analyticsRouter);
 
 // 공통 에러 핸들러
@@ -45,6 +45,6 @@ const server = app.listen(PORT, () => {
 });
 
 // 주기 확인은 서버 프로세스에만 연결한다. 테스트의 router import로는 시작하지 않는다.
-const monitor = createMissedMonitor();
+const monitor = createMissedMonitor({ planner: planSchedule });
 if (process.env.AUTO_RESCHEDULE_ENABLED !== 'false') monitor.start();
 server.on('close', () => monitor.stop());
