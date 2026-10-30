@@ -7,6 +7,8 @@ import { explainSchedule } from '../scheduler/explanations.js';
 import { timeline, weekTimeline, todayKst, mondayKst } from '../scheduler/timeline.js';
 import { day, instant } from '../scheduler/time.js';
 import { fail, explainRequested } from '../services/validation.js';
+import { updateFixedBlock } from '../services/fixed-edit.js';
+import { postponeBlocks } from '../services/postpone.js';
 
 const reasons = new Set(['new_task','missed','progress','manual']);
 export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpdate, now = () => new Date(), planner = reschedule } = {}) {
@@ -52,6 +54,21 @@ export function createScheduleRouter({ readDb = storedRead, updateDb = storedUpd
         return db;
       });
       res.json({ deleted: true });
+    } catch (err) { next(err); }
+  });
+  // 사용자가 고른 날짜·시각으로 작업 블록 미루기
+  router.post('/blocks/postpone', async (req, res, next) => {
+    try {
+      let result;
+      await updateDb(async db => { result = postponeBlocks(db, req.body, { now: now() }); return db; });
+      res.json(result);
+    } catch (err) { next(err); }
+  });
+  router.patch('/fixed/:id', async (req, res, next) => {
+    try {
+      let result;
+      await updateDb(async db => { result = updateFixedBlock(db, req.params.id, req.body); return db; });
+      res.json(result);
     } catch (err) { next(err); }
   });
   router.post('/reschedule', async (req, res, next) => {

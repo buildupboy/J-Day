@@ -56,8 +56,8 @@ test('음성 작업 저장 → AI 입력 준비 → 검증·적용 → 조회·�
   assert.deepEqual(created.result.scheduledBlocks, []);
   const aiResponse = await fetch(`${base}/schedule/apply`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
     contextId:created.result.planningContext.contextId, blocks:[
-      {taskId,subtaskId:created.result.task.subtasks[0].id,date:'2026-10-30',start:'10:30',end:'11:30'},
-      {taskId,subtaskId:created.result.task.subtasks[1].id,date:'2026-10-30',start:'11:40',end:'13:10'},
+      {taskId,subtaskId:created.result.task.subtasks[0].id,date:'2026-10-30',start:'10:40',end:'11:40'},
+      {taskId,subtaskId:created.result.task.subtasks[1].id,date:'2026-10-30',start:'11:50',end:'13:20'},
     ] }) });
   assert.equal(aiResponse.status,200);
   const applied=await aiResponse.json();

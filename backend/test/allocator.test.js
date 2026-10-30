@@ -15,6 +15,6 @@ test('요일, 중첩, 인접, 하루 경계 및 짧은 구간 처리', () => {
     { dayOfWeek: [4], start: '10:30', end: '12:00' },
   ];
   const existing = [{ date: '2026-10-30', start: '11:00', end: '11:45' }, { date: '2026-10-31', start: '10:30', end: '11:00' }];
-  assert.deepEqual(findFreeSlots('2026-10-30', fixed, existing, settings), [{ start: '10:30', end: '11:00' }]);
+  assert.deepEqual(findFreeSlots('2026-10-30', fixed, existing, settings), []); // 고정 일정·기존 작업 앞뒤 휴식(10분)을 비우면 남는 10:40~10:50 틈은 최소 작업 단위보다 짧아 사라진다
   assert.deepEqual(findFreeSlots('2026-10-30', [], [], { ...settings, dayStart: '23:00', dayEnd: '24:00' }), [{ start: '23:00', end: '24:00' }]);
 });
