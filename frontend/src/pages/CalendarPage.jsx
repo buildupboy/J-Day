@@ -19,7 +19,7 @@ export default function CalendarPage({ onOpenMy }) {
   const [openBlock, setOpenBlock] = useState(null);
   const details = useBlockDetails();
 
-  // 왼쪽으로 밀면 이전 주, 오른쪽으로 밀면 다음 주 (같은 요일 유지)
+  // 왼쪽으로 밀면 다음 주, 오른쪽으로 밀면 이전 주 (같은 요일 유지)
   const onSwipeEnd = (e) => {
     const start = swipeStart.current;
     swipeStart.current = null;
@@ -27,7 +27,7 @@ export default function CalendarPage({ onOpenMy }) {
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
     if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    setSelected((d) => addDays(d, dx < 0 ? -7 : 7));
+    setSelected((d) => addDays(d, dx < 0 ? 7 : -7));
   };
 
   const pickFromMonth = (day) => {
