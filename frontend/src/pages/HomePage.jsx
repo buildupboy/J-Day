@@ -64,10 +64,10 @@ export default function HomePage({ onOpenMy, onNavigate }) {
       <header className="home-top">
         <span className="home-date">{formatKoreanDate(now)}</span>
         <div className="page-header-actions">
-          <button type="button" className="round-button" aria-label="알림">
+          <button type="button" className="icon-button" aria-label="알림">
             <BellIcon />
           </button>
-          <button type="button" className="round-button" onClick={onOpenMy} aria-label="마이">
+          <button type="button" className="icon-button" onClick={onOpenMy} aria-label="마이">
             <UserIcon />
           </button>
         </div>
