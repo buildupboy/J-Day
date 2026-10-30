@@ -11,7 +11,7 @@ export function explainSchedule(tasks, result, { settings, now } = {}) {
       const subtask = task?.subtasks?.find(subtask => subtask.id === block.subtaskId);
       const minutes = minute(block.end) - minute(block.start);
       const reasons = block.status === 'planned'
-        ? ['마감 시각 → 중요도 → 남은 작업량 순서로 우선순위를 정합니다.', '고정 일정·기존 블록·휴식 시간을 피해서 배치합니다.']
+        ? ['마감 시각이 빠른 순 → 중요도가 높은 순 → 남은 작업시간이 짧은 순으로 우선순위를 정합니다.', '고정 일정·기존 블록·휴식 시간을 피해서 배치합니다.']
         : [`${block.status === 'done' ? '완료' : '미수행'} 기록을 보존합니다.`];
       if (subtask) reasons.push('하위작업의 완료 여부와 입력 순서를 반영합니다.');
       if (task?.reviewOf) reasons.push('시험 전 지정된 복습 날짜에 배치합니다.');
