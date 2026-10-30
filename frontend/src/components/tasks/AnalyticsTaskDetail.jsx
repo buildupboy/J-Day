@@ -14,10 +14,12 @@ export default function AnalyticsTaskDetail({ taskId, from, to, onClose }) {
     Promise.all([api.getTasks(), ...starts.map(start => api.getWeekSchedule(start))])
       .then(([tasks, ...weeks]) => {
         if (!active) return;
-        const task = tasks.find(item => item.id === taskId);
+        const group = tasks.find(item => item.sourceTasks?.some(source => source.id === taskId));
+        const task = group?.sourceTasks.find(source => source.id === taskId) ?? tasks.find(item => item.id === taskId);
+        const unitIds = new Set(group?.subtasks?.filter(unit => unit.sourceTaskId === taskId).map(unit => unit.id) ?? []);
         if (!task) throw new Error('이 작업을 찾을 수 없어요. 삭제되었거나 변경되었을 수 있어요.');
         const blocks = [...new Map(weeks.flatMap(week => week.days.flatMap(day => day.items
-          .filter(item => item.source === 'scheduled' && item.taskId === taskId && day.date >= from && day.date <= to)
+          .filter(item => item.source === 'scheduled' && (group ? item.taskId === group.id && unitIds.has(item.subtaskId) : item.taskId === taskId) && day.date >= from && day.date <= to)
           .map(item => ({ ...item, date: day.date })))).map(block => [block.id, block])).values()]
           .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
         setState({ loading: false, task, blocks, error: '' });

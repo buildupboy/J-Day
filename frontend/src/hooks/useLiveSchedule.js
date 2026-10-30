@@ -34,7 +34,7 @@ export default function useLiveSchedule(selected, view = 'week') {
   // 같은 상위 작업의 하위작업 블록은 바로 이어지는 것끼리 하나로 묶어 상위 작업 이름으로 보여 준다
   const groupByTask = items => items.reduce((out, block) => {
     const prev = out.at(-1);
-    if (prev && block.source === 'scheduled' && prev.source === 'scheduled' && prev.taskId === block.taskId) {
+    if (prev && block.source === 'scheduled' && prev.source === 'scheduled' && prev.taskId === block.taskId && prev.end === block.start && prev.status === block.status && !taskById(block.taskId)?.sourceTasks?.length) {
       prev.end = block.end;
       prev.parts.push(block);
       return out;

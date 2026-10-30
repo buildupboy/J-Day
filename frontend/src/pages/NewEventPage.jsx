@@ -14,15 +14,16 @@ const REPEATS = [
 
 // 02-2 일정 등록: 시간이 정해진 약속·예약·시험을 넣는다. 저장은 고정 블록(kind: event)이라 그 시간엔 작업을 배치하지 않는다 (POST /api/fixed-blocks).
 // 항상 '일정'(event)으로 저장한다. 반복 '안 함'은 그날 하루만, '매주'·'매일'은 해당 요일마다 반복한다.
-export default function NewEventPage({ nav, onClose }) {
-  const [title, setTitle] = useState('');
-  const [startDate, setStartDate] = useState(() => toIsoDate(new Date()));
-  const [start, setStart] = useState('14:00');
-  const [endDate, setEndDate] = useState(() => toIsoDate(new Date()));
-  const [end, setEnd] = useState('15:00');
+export default function NewEventPage({ nav, onClose, editingBlock = null }) {
+  const editing = Boolean(editingBlock);
+  const [title, setTitle] = useState(editingBlock?.title ?? '');
+  const [startDate, setStartDate] = useState(() => editingBlock?.date ?? toIsoDate(new Date()));
+  const [start, setStart] = useState(editingBlock?.start ?? '14:00');
+  const [endDate, setEndDate] = useState(() => editingBlock?.date ?? toIsoDate(new Date()));
+  const [end, setEnd] = useState(editingBlock?.end ?? '15:00');
   const [openEnd, setOpenEnd] = useState(false);
   const [repeat, setRepeat] = useState('none');
-  const [memo, setMemo] = useState('');
+  const [memo, setMemo] = useState(editingBlock?.memo ?? editingBlock?.location ?? '');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -75,6 +76,12 @@ export default function NewEventPage({ nav, onClose }) {
         ...(openEnd ? { openEnd: true } : {}),
         ...(memo.trim() ? { memo: memo.trim() } : {}),
       };
+      if (editing) {
+        await api.updateFixedBlock(editingBlock.id, { title: block.title, date: startDate, start, end: block.end, memo: memo.trim(), ...(editingBlock.location !== undefined ? { location: '' } : {}) });
+        scheduleChanged();
+        onClose();
+        return;
+      }
       const result = await api.createFixedBlock(block);
       scheduleChanged();
       setSaved(true);
@@ -96,11 +103,11 @@ export default function NewEventPage({ nav, onClose }) {
         <button type="button" className="d-icon-btn" onClick={onClose} aria-label="닫기">
           <CloseIcon size={20} />
         </button>
-        <h1>일정 추가</h1>
-        <button type="button" className="d-pill-btn" onClick={() => nav.open('voice')}>
+        <h1>{editing ? '일정 수정' : '일정 추가'}</h1>
+        {nav ? <button type="button" className="d-pill-btn" onClick={() => nav.open('voice')}>
           <MicIcon size={16} />
           말로 하기
-        </button>
+        </button> : <span style={{ width: 44 }} aria-hidden="true" />}
       </header>
 
       <div className="d-field">
@@ -140,7 +147,7 @@ export default function NewEventPage({ nav, onClose }) {
         {timeError && <p className="d-error">{timeError}</p>}
       </div>
 
-      <div className="switch-row">
+      {!editing && <div className="switch-row">
         <div>
           <p className="switch-title">끝나는 시간 정하지 않기</p>
           <p className="d-meta">노는 시간처럼 끝을 정하기 어려울 때</p>
@@ -156,9 +163,9 @@ export default function NewEventPage({ nav, onClose }) {
         >
           <span />
         </button>
-      </div>
+      </div>}
 
-      <div className="d-field" role="group" aria-label="반복">
+      {!editing && <div className="d-field" role="group" aria-label="반복">
         <p className="d-label">반복</p>
         <div className="d-grid-3">
           {REPEATS.map(([id, label]) => (
@@ -173,7 +180,7 @@ export default function NewEventPage({ nav, onClose }) {
             </button>
           ))}
         </div>
-      </div>
+      </div>}
 
       <MemoField id="event-memo" value={memo} onChange={setMemo} placeholder="예: 신분증 챙기기, 2층 진료실" />
 
@@ -182,8 +189,9 @@ export default function NewEventPage({ nav, onClose }) {
           J
         </span>
         <p>
-          {repeat === 'none' ? '' : `${repeat === 'daily' ? '매일' : '매주'} 반복돼요. `}
+          {editing ? '지정한 날짜의 일정에만 적용돼요.' : <>{repeat === 'none' ? '' : `${repeat === 'daily' ? '매일' : '매주'} 반복돼요. `}
           이 시간엔 작업을 넣지 않고, 겹치는 작업이 있으면 제이가 다른 시간으로 옮겨 드려요.
+          </>}
         </p>
       </div>
 
@@ -205,7 +213,7 @@ export default function NewEventPage({ nav, onClose }) {
           </button>
         ) : (
           <button type="submit" className="d-btn d-btn-dark d-btn-lg" disabled={!canSubmit}>
-            {saving ? '저장하고 다시 배치하는 중…' : '일정 추가'}
+            {saving ? editing ? '저장 중…' : '저장하고 다시 배치하는 중…' : editing ? '수정 내용 저장' : '일정 추가'}
           </button>
         )}
       </div>

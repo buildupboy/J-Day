@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client.js';
 import TimeRangePicker, { RestDurationPicker } from '../components/common/TimeRangePicker.jsx';
+import DailyWorkloadPicker, { dailyDuration } from '../components/common/DailyWorkloadPicker.jsx';
 import { restConflictMessage } from '../../../shared/rest-conflicts.js';
 const titles = { break: '휴게 시간', sleep: '수면 시간', available: '작업 가능 시간', style: '나의 작업 스타일', preferred: '희망 작업 시간대' };
 const descriptions = { break: '작업 사이의 짧은 휴식과 매일 꼭 쉬고 싶은 시간대를 설정해 주세요.', sleep: '잠자는 시간을 설정하면 해당 시간에는 작업을 배치하지 않아요.', available: '하루 중 제이가 할 일을 배치할 수 있는 시간대를 설정해 주세요.', style: '제이가 나에게 맞는 방식으로 일정을 배치할 수 있도록 알려주세요.', preferred: '가장 편한 시간대를 선택해 주세요. 하루를 6시간씩 나누어 선택한 구간을 우선 사용해요.' };
 function at(minutes) { return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`; }
 function ChoiceGroup({ label, options, value, onChange, vertical = false }) {
-  const values = options.some((option) => option.value === value) ? options : [...options, { value, label: `기존 설정 ${value}분` }];
-  return <div className={`pattern-choices${vertical ? ' is-vertical' : ''}`} role="group" aria-label={label}>{values.map((option) => <button type="button" key={option.value} aria-pressed={value === option.value} onClick={() => onChange(option.value)}><strong>{option.label}</strong>{option.description && <small>{option.description}</small>}</button>)}</div>;
+  return <div className={`pattern-choices${vertical ? ' is-vertical' : ''}`} role="group" aria-label={label}>{options.map((option) => <button type="button" key={option.value} aria-pressed={value === option.value} onClick={() => onChange(option.value)}><strong>{option.label}</strong>{option.description && <small>{option.description}</small>}</button>)}</div>;
 }
 export function patternSummary(id, snapshot) {
   const settings = snapshot?.settings, fields = snapshot?.configuredFields || [];
@@ -17,7 +17,7 @@ export function patternSummary(id, snapshot) {
   if (id === 'preferred') return ({ morning: '아침 06~12시', daytime: '낮 12~18시', evening: '저녁 18~24시', dawn: '새벽 00~06시' })[settings.preferredPeriod] || '설정하기';
   if (id === 'sleep') return settings.sleep ? `${settings.sleep.start}~${settings.sleep.end}` : '설정하기';
   if (id === 'available') return fields.includes('dayStart') ? `${settings.dayStart}~${settings.dayEnd}` : '설정하기';
-  if (id === 'style') return fields.includes('maxBlockMinutes') ? `${settings.maxBlockMinutes}분씩 · 하루 최대 ${Number((settings.maxDailyMinutes / 60).toFixed(1))}시간 · ${settings.distribution === 'balanced' ? '나누어 하기' : '미리 끝내기'}` : '설정하기';
+  if (id === 'style') return fields.includes('maxBlockMinutes') ? `${settings.maxBlockMinutes}분씩 · 하루 최대 ${dailyDuration(settings.maxDailyMinutes)} · ${settings.distribution === 'balanced' ? '나누어 하기' : '미리 끝내기'}` : '설정하기';
   return '';
 }
 export default function PatternSettingsPage({ kind, onBack, onSaved }) {
@@ -63,12 +63,13 @@ export default function PatternSettingsPage({ kind, onBack, onSaved }) {
     catch (err) { setError(err.message); setSaving(false); }
   }
   const restConflict = kind === 'break' && draft ? restConflictMessage(draft.restPeriods, fixedBlocks) : null;
-  const invalid = draft && (kind === 'preferred' ? !draft.preferredPeriod : kind === 'break' ? draft.restPeriods.some((period) => !period.start || !period.end || period.start === period.end) : kind === 'sleep' ? !draft.sleep.start || !draft.sleep.end || draft.sleep.start === draft.sleep.end : kind === 'available' ? !draft.dayStart || !draft.dayEnd || draft.dayStart >= draft.dayEnd : kind === 'style' ? draft.maxBlockMinutes < draft.minSlotMinutes : false);
+  const invalidDaily = draft && (!Number.isInteger(draft.maxDailyMinutes) || draft.maxDailyMinutes < 0 || draft.maxDailyMinutes > 1440);
+  const invalid = draft && (kind === 'preferred' ? !draft.preferredPeriod : kind === 'break' ? draft.restPeriods.some((period) => !period.start || !period.end || period.start === period.end) : kind === 'sleep' ? !draft.sleep.start || !draft.sleep.end || draft.sleep.start === draft.sleep.end : kind === 'available' ? !draft.dayStart || !draft.dayEnd || draft.dayStart >= draft.dayEnd : kind === 'style' ? invalidDaily || draft.maxBlockMinutes < draft.minSlotMinutes : false);
   const invalidMessage = kind === 'preferred' ? '희망 작업 시간대를 선택해 주세요.'
     : kind === 'break' ? '휴식 시작과 종료를 서로 다르게 입력해 주세요.'
     : kind === 'sleep' ? '취침과 기상 시각을 서로 다르게 선택해 주세요.'
     : kind === 'available' ? '작업 종료 시간은 시작 시간보다 늦어야 해요.'
-    : '연속 작업 시간은 최소 작업 단위 이상으로 선택해 주세요.';
+    : invalidDaily ? '하루 작업량은 0시간 0분부터 24시간 0분 사이로 입력해 주세요.' : '연속 작업 시간은 최소 작업 단위 이상으로 선택해 주세요.';
   const saveHint = invalid ? invalidMessage : !confirmed ? '저장하려면 위의 재배치 동의 항목을 체크해 주세요.' : '';
   return <div className="pattern-page" ref={root}>
     <header className="pattern-header"><button type="button" disabled={saving} onClick={onBack} aria-label="마이로 돌아가기">‹</button><h1>{titles[kind]}</h1></header>
@@ -103,10 +104,10 @@ export default function PatternSettingsPage({ kind, onBack, onSaved }) {
         {invalid && <p className="pattern-error">종료 시간은 시작 시간보다 늦어야 해요.</p>}
       </>}
       {kind === 'style' && <>
-        <section><h2>한 번에 얼마나 작업하고 싶나요?</h2><ChoiceGroup label="연속 작업 시간" options={[30,45,60,90].map((value) => ({ value, label: `${value}분` }))} value={draft.maxBlockMinutes} onChange={(maxBlockMinutes) => update({ maxBlockMinutes })} /><p className="pattern-help">긴 작업은 최대 {draft.maxBlockMinutes}분 단위로 나누어요. 현재 최소 작업 단위는 {draft.minSlotMinutes}분이에요.</p>{invalid && <p className="pattern-error">최소 작업 단위 이상의 시간을 선택해 주세요.</p>}</section>
-        <section><h2>하루에 어느 정도 작업하고 싶나요?</h2><ChoiceGroup label="하루 작업량" vertical options={[{value:120,label:'가볍게',description:'2시간'},{value:240,label:'적당히',description:'4시간'},{value:360,label:'집중해서',description:'6시간'},{value:480,label:'많이',description:'8시간'}]} value={draft.maxDailyMinutes} onChange={(maxDailyMinutes) => update({ maxDailyMinutes })} /><p className="pattern-help">고정 일정은 작업량 한도에 포함하지 않아요. 기존 진행·완료 기록은 보존해요.</p></section>
+        <section><h2>한 번에 얼마나 작업하고 싶나요?</h2><ChoiceGroup label="연속 작업 시간" options={[30,45,60,90].map((value) => ({ value, label: `${value}분` }))} value={draft.maxBlockMinutes} onChange={(maxBlockMinutes) => update({ maxBlockMinutes })} /><p className="pattern-help">긴 작업은 최대 {draft.maxBlockMinutes}분 단위로 나누어요. 현재 최소 작업 단위는 {draft.minSlotMinutes}분이에요.</p>{draft.maxBlockMinutes < draft.minSlotMinutes && <p className="pattern-error">최소 작업 단위 이상의 시간을 선택해 주세요.</p>}</section>
+        <section><h2>하루에 어느 정도 작업하고 싶나요?</h2><DailyWorkloadPicker value={draft.maxDailyMinutes} onChange={(maxDailyMinutes) => update({ maxDailyMinutes })} /><p className="pattern-help">고정 일정은 작업량 한도에 포함하지 않아요. 기존 진행·완료 기록은 보존해요.</p></section>
         <section><h2>일정을 어떻게 배치할까요?</h2><ChoiceGroup label="배치 방식" vertical options={[{value:'early',label:'미리 끝내기',description:'가능한 빠른 빈 시간부터 배치해요.'},{value:'balanced',label:'나누어 하기',description:'마감 전까지 여러 날짜에 분산을 시도해요.'}]} value={draft.distribution} onChange={(distribution) => update({ distribution })} /><p className="pattern-help">나누어 하기는 마감과 빈 시간에 따라 균등하지 않을 수 있어요.</p></section>
-        <section className="pattern-summary"><h2>나의 작업 스타일</h2><strong>{draft.maxBlockMinutes}분씩 · 하루 최대 {draft.maxDailyMinutes / 60}시간<br />{draft.distribution === 'early' ? '미리 끝내기' : '나누어 하기'}</strong></section>
+        <section className="pattern-summary"><h2>나의 작업 스타일</h2><strong>{draft.maxBlockMinutes}분씩 · 하루 최대 {dailyDuration(draft.maxDailyMinutes)}<br />{draft.distribution === 'early' ? '미리 끝내기' : '나누어 하기'}</strong></section>
       </>}
       <section className="pattern-confirm"><label><input ref={confirmation} type="checkbox" checked={confirmed} onChange={(event) => { setConfirmed(event.target.checked); setError(''); }} /><span>설정을 저장하고 새 조건으로 미래 예정 블록 {snapshot.futurePlannedBlocks}개의 AI 재배치를 시도하는 데 동의해요.</span></label><p>진행 중인 블록 {snapshot.ongoingBlocks}개와 지난 기록·완료 기록은 유지해요. 재배치에 실패해도 설정은 저장하고 기존 일정은 유지해요. 재배치가 완료되면 마감 전 배치하지 못한 작업을 안내해요.</p></section>
       {error && <p className="pattern-error" ref={feedback} role="alert">{error}</p>}

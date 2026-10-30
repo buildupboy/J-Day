@@ -5,6 +5,12 @@ import { diffScheduledBlocks } from './rescheduler.js';
 import { fail, object, text } from '../services/validation.js';
 
 /** AI가 선택한 시각을 검사한다. 보정·이동·빈 구간 자동 채우기를 하지 않는다. */
+function requiredRest(earlier, later, db, settings) {
+  if (earlier.breakAfterMinutes === 0 && later.continuationOf === earlier.id) return 0;
+  return earlier.breakAfterMinutes === 0 && (db.scheduledBlocks ?? []).some(block => block.continuationOf === earlier.id)
+    ? db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? settings.breakMinutes
+    : earlier.breakAfterMinutes ?? db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? settings.breakMinutes;
+}
 export function acceptAiPlan(db, input, { now }) {
   object(input);
   const state = db.aiScheduling;
@@ -43,6 +49,7 @@ export function acceptAiPlan(db, input, { now }) {
     if (length > context.settings.maxBlockMinutes) fail('최대 작업 블록 길이를 초과했습니다.');
     const unit = task.subtasks.find(unit => unit.subtaskId === subtaskId);
     if (!unit || (task.subtasks.some(unit => unit.subtaskId !== undefined) && subtaskId === undefined)) fail('하위작업 ID가 없거나 올바르지 않습니다.');
+    if (unit.notBefore && instant(block, 'start') < datetime(unit.notBefore)) fail('원래 작업의 시작 가능 시각보다 빠릅니다.');
     if (subtaskId !== undefined) block.subtaskId = subtaskId;
     if (value.placementReason !== undefined) block.placementReason = text(value.placementReason, 'placementReason');
     const unitKey = JSON.stringify([task.taskId, subtaskId ?? null]);
@@ -61,13 +68,13 @@ export function acceptAiPlan(db, input, { now }) {
       if (other.date !== block.date) {
         const earlier = instant(block, 'start') < instant(other, 'start') ? block : other;
         const later = earlier === block ? other : block;
-        const rest = db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? context.settings.breakMinutes;
+        const rest = requiredRest(earlier, earlier === block ? other : block, db, context.settings);
         if (instant(later, 'start') - instant(earlier, 'end') < rest * 60000) fail('날짜 경계의 작업 간 휴식이 부족합니다.');
         continue;
       }
       const gap = Math.max(minute(other.start) - end, start - minute(other.end));
       const earlier = start >= minute(other.end) ? other : block;
-      const rest = db.tasks.find(task => task.id === earlier.taskId)?.breakAfterMinutes ?? context.settings.breakMinutes;
+      const rest = requiredRest(earlier, earlier === block ? other : block, db, context.settings);
       if (gap < rest) fail('다른 블록과 겹치거나 휴식 시간이 부족합니다.');
       if (start < minute(other.end) && minute(other.start) < end) fail('다른 블록과 겹칩니다.');
     }

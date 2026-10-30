@@ -8,7 +8,7 @@ import { assertSchema } from './voice-validation.js';
 // 서버 검증용 전체 문맥은 보존하고 모델에는 중복 설명과 범위 밖 기록을 줄여 전달한다.
 export function planningModelInput(context) {
   const { sourceRevision, schemaVersion, priorityPolicy, planningInstructions, ...input } = context;
-  const slimBlock = ({ id, taskId, subtaskId, date, start, end, status }) => ({ id, taskId, subtaskId, date, start, end, status });
+  const slimBlock = ({ id, taskId, subtaskId, date, start, end, status, continuationOf, breakAfterMinutes }) => ({ id, taskId, subtaskId, date, start, end, status, continuationOf, breakAfterMinutes });
   return { ...input,
     protectedBlocks: context.protectedBlocks.filter(block => block.date >= context.window.from && block.date <= context.window.to).map(slimBlock),
     existingFutureBlocks: (context.existingFutureBlocks ?? []).map(slimBlock) };

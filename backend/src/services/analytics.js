@@ -1,3 +1,4 @@
+import { sourceOfBlock } from './grouped-task.js';
 import { computeCorrectionFactors } from '../scheduler/estimator.js';
 ﻿const TYPES = ['report', 'coding', 'exam', 'presentation', 'reading', 'etc'];
 export function kstDate(value) {
@@ -34,7 +35,7 @@ export function analyze(db, period, now = new Date()) {
   const history = (db.history || []).filter((item) => !item.subtaskId && kstDate(item.completedAt)).sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt));
   const completed = unique(history, (item) => item.taskId ? `task:${item.taskId}` : `legacy:${item.id || JSON.stringify([item.taskTitle, item.type, item.completedAt, item.estimatedMinutes, item.actualMinutes])}`).filter((item) => inside(kstDate(item.completedAt)));
   const blocks = unique((db.scheduledBlocks || []).filter((block) => inside(kstDate(block.date)) && !block.released), (block) => block.id || JSON.stringify([block.taskId, block.subtaskId, block.date, block.start, block.end]));
-  const due = tasks.filter((task) => inside(kstDate(task.deadline)));
+  const due = tasks.flatMap(task => task.sourceTasks?.length ? task.sourceTasks : [task]).filter((task) => inside(kstDate(task.deadline)));
   const categoryMinutes = Object.fromEntries(TYPES.map((type) => [type, 0]));
   const daily = Array.from({ length: Math.round((new Date(period.end) - new Date(period.from)) / 86400000) }, (_, i) => ({ date: addDays(period.from, i), minutes: 0, completedTasks: 0, missedBlocks: 0, blocks: [] }));
   const bands = ['오전', '오후', '저녁·밤'].map((label) => ({ label, minutes: 0, done: 0, missed: 0, total: 0 }));
@@ -54,11 +55,12 @@ export function analyze(db, period, now = new Date()) {
       differencePercent: correctionFactor === null ? null : Math.round((correctionFactor - 1) * 100) };
   });
   for (const block of blocks) {
-    const minutes = blockMinutes(block), type = typeOf(taskMap.get(block.taskId)?.type);
+    const owner = taskMap.get(block.taskId), source = sourceOfBlock(owner, block);
+    const minutes = blockMinutes(block), type = typeOf(source?.type);
     categoryMinutes[type] += minutes;
     const day = daily.find((item) => item.date === block.date);
     day.minutes += minutes; day.missedBlocks += Number(block.status === 'missed');
-    day.blocks.push({ id: block.id, title: taskMap.get(block.taskId)?.title || '연결된 작업 없음', start: block.start, end: block.end, status: block.status, type });
+    day.blocks.push({ id: block.id, title: owner?.subtasks?.find(unit => unit.id === block.subtaskId)?.title || source?.title || '연결된 작업 없음', start: block.start, end: block.end, status: block.status, type });
     const hour = Number(block.start?.slice(0, 2));
     const band = bands[hour >= 6 && hour < 12 ? 0 : hour >= 12 && hour < 18 ? 1 : 2];
     band.minutes += minutes; band.total++; band.done += Number(block.status === 'done'); band.missed += Number(block.status === 'missed');

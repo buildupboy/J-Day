@@ -46,6 +46,7 @@ export function rankTasks(tasks, { existingBlocks = [], now } = {}) {
       remainingMinutes: units.reduce((sum, unit) => sum + unit.remaining, 0),
       subtasks: units.map(unit => ({ ...(unit.subtaskId === undefined ? {} : { subtaskId: unit.subtaskId }),
         title: task.subtasks?.find(subtask => subtask.id === unit.subtaskId)?.title ?? task.title,
+        ...(task.subtasks?.find(subtask => subtask.id === unit.subtaskId)?.notBefore ? { notBefore: task.subtasks.find(subtask => subtask.id === unit.subtaskId).notBefore } : {}),
         remainingMinutes: unit.remaining, reservedUntil: Number.isFinite(unit.reservedUntil) ? new Date(unit.reservedUntil).toISOString() : null })) };
   }).filter(task => task.remainingMinutes > 0)
     .sort((a, b) => datetime(a.deadline) - datetime(b.deadline) || b.importance - a.importance || a.remainingMinutes - b.remainingMinutes)
@@ -54,7 +55,7 @@ export function rankTasks(tasks, { existingBlocks = [], now } = {}) {
 
 export function protectedBlocks(db, now, window) {
   const time = timestamp(now);
-  return (db.scheduledBlocks ?? []).filter(block => !releasedBlock(block) && (block.status !== 'planned' || day(block.date) - KST + minute(block.start) * 60000 < time
+  return (db.scheduledBlocks ?? []).filter(block => !releasedBlock(block) && (block.status !== 'planned' || (block.continuationOf && instant(block, 'start') <= Math.ceil(time / 60000) * 60000) || day(block.date) - KST + minute(block.start) * 60000 < time
     || (window && (block.date < window.from || block.date > window.to))));
 }
 export function availableWindows(date, fixedBlocks, occupied, settings, now) {
@@ -63,7 +64,7 @@ export function availableWindows(date, fixedBlocks, occupied, settings, now) {
   const midnight = day(date) - KST;
   const padded = occupied.map(block => ({ date,
     start: clock(Math.max(0, Math.min(1440, (instant(block, 'start') - midnight) / 60000 - settings.breakMinutes))),
-    end: clock(Math.max(0, Math.min(1440, (instant(block, 'end') - midnight) / 60000 + (settings.taskRestMinutes?.[block.taskId] ?? settings.breakMinutes))))
+    end: clock(Math.max(0, Math.min(1440, (instant(block, 'end') - midnight) / 60000 + (block.breakAfterMinutes ?? settings.taskRestMinutes?.[block.taskId] ?? settings.breakMinutes))))
   })).filter(block => block.start < block.end);
   return findFreeSlots(date, fixedBlocks, padded, { ...settings, dayStart: clock(start), minSlotMinutes: 1 });
 }

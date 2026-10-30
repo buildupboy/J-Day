@@ -14,5 +14,8 @@ export default function DateWheel({ value, onChange, label = '날짜 선택' }) 
       return { value: toIsoDate(d), label: text.replace(/\s\((.)\)$/, ' ($1)') };
     });
   }, []);
-  return <WheelPicker items={items} value={value} onChange={onChange} label={label} />;
+  const choices = value && !items.some(item => item.value === value)
+    ? [...items, { value, label: new Date(`${value}T00:00:00`).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) }].sort((a, b) => a.value.localeCompare(b.value))
+    : items;
+  return <WheelPicker items={choices} value={value} onChange={onChange} label={label} />;
 }
