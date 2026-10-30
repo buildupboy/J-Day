@@ -14,6 +14,11 @@ export function day(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(result) || new Date(result).toISOString().slice(0, 10) !== value) throw new RangeError('유효한 YYYY-MM-DD 날짜가 필요합니다.');
   return result;
 }
+/** 고정 일정이 그 날짜에 있는지. date가 있으면 그날 하루만, 없으면 dayOfWeek마다 반복한다. */
+export function occursOn(block, date) {
+  if (block.date) return block.date === date;
+  return block.dayOfWeek.includes(new Date(day(date)).getUTCDay());
+}
 export function datetime(value) {
   const result = Date.parse(value);
   if (typeof value !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(result)) throw new RangeError('시간대가 포함된 유효한 일시가 필요합니다.');

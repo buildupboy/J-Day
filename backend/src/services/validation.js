@@ -19,6 +19,12 @@ export function iso(value, name) {
   if (!Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== date) fail(`${name} 날짜가 올바르지 않습니다.`);
   try { return datetime(value); } catch { fail(`${name} 값이 올바르지 않습니다.`); }
 }
+/** 선택 메모: 문자열 1000자 이하. 공백뿐이면 저장하지 않는다(undefined). */
+export function memo(value, name = 'memo') {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || value.length > 1000) fail(`${name}는 1000자 이하 문자열이어야 합니다.`);
+  return value.trim() || undefined;
+}
 export function explainRequested(query) {
   if (query.explain === undefined || query.explain === 'false') return false;
   if (query.explain === 'true') return true;

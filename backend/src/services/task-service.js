@@ -4,7 +4,7 @@ import { createExamReviewTasks } from '../scheduler/reviews.js';
 import { reschedule, diffScheduledBlocks } from '../scheduler/rescheduler.js';
 import { explainSchedule } from '../scheduler/explanations.js';
 import { instant } from '../scheduler/time.js';
-import { fail, object, integer, text, iso } from './validation.js';
+import { fail, object, integer, text, iso, memo } from './validation.js';
 
 const types = new Set(['report','coding','exam','presentation','reading','etc']);
 const kst = date => new Date(date.getTime() + 9 * 3600000).toISOString().replace('Z', '+09:00');
@@ -72,6 +72,8 @@ export async function registerTask(db, input, { now, explain = false, planner = 
     actualMinutes: 0, progress: 0, status: 'todo', createdAt: kst(now) };
   if (input.notBefore !== undefined) task.notBefore = input.notBefore;
   if (input.breakAfterMinutes !== undefined) task.breakAfterMinutes = integer(input.breakAfterMinutes, 'breakAfterMinutes', 0, 1440);
+  const note = memo(input.memo);
+  if (note) task.memo = note;
   db.tasks.push(task);
   const reviewTasks = input.review === undefined || input.review === false ? [] : addReviews(db, task, input.review);
   const result = await schedule(db, now, 'new_task', undefined, explain, planner);

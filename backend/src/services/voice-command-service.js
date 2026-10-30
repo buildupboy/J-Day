@@ -3,6 +3,7 @@ import * as llm from './llm.js';
 import { INTERPRET_SCHEMA, BREAKDOWN_SCHEMA, TASK_TYPES } from '../prompts/schemas.js';
 import { computeCorrectionFactors, applyCorrection } from '../scheduler/estimator.js';
 import { enqueueSchedule, dispatchPending } from './scheduler-gateway.js';
+import { occursOn } from '../scheduler/time.js';
 import { assertSchema, fail, validText, integer, date, deadline } from './voice-validation.js';
 
 const kstDate = now => new Date(now.getTime() + 9 * 3600000).toISOString().slice(0, 10);
@@ -147,9 +148,8 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
     if (intent === 'query_schedule') {
       const target = slots.date === null ? kstDate(now()) : date(slots.date);
       const latest = await readDb();
-      const weekday = new Date(`${target}T00:00:00Z`).getUTCDay();
       return { requestId: request.requestId, intent, status: 'read_only', reply: '저장된 일정을 조회했어요.',
-        result: { date: target, fixedBlocks: latest.fixedBlocks.filter(block => block.dayOfWeek.includes(weekday)),
+        result: { date: target, fixedBlocks: latest.fixedBlocks.filter(block => occursOn(block, target)),
           scheduledBlocks: latest.scheduledBlocks.filter(block => block.date === target) } };
     }
     if (intent === 'add_task') {
