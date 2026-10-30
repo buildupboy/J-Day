@@ -181,3 +181,10 @@ allocate(tasks, fixedBlocks, { from, to, settings, existingBlocks: [], now })
 - balanced는 각 과제의 남은 작업량을 마감 전 배치 가능한 날짜 수로 나누어 일별 목표량을 계산한다. 전체 과제의 전역 최적 균등 분산을 보장하는 방식은 아니다.
 - 고정 일정, 하위작업 순서, 하루 한도 등의 영향으로 미배치량이 생기면 early 결과와 비교한다. 우선순위가 높은 과제부터 미배치량을 비교하여 더 적은 쪽을 선택한다. 마감 준수가 균등 분산보다 우선한다.
 - 분산 목표량이 최소 구간보다 작아도 최소 구간 이상의 빈 시간 안에서는 짧은 블록을 허용한다.
+
+
+### 개인별 처리 속도 보정
+
+estimator.js의 computeCorrectionFactors(history)는 유형별 실제 시간 합 / 기본 추정시간 합을 반환한다. 기록이 없는 유형은 applyCorrection에서 1배로 처리한다. 잘못된 유형, 0 이하 시간, 정수가 아닌 기록은 제외하며 유효한 기록에 임의의 이상치 제거/최근 가중치는 적용하지 않는다.
+
+applyCorrection(baseMinutes, type, factors)는 양의 보정 계수를 곱하고 1분 단위로 올림한다. 과제 등록/추정 갱신 때 원본 LLM 추정시간에 한 번만 적용하여 Task.estimatedMinutes에 저장한다. allocator/rescheduler는 이미 보정된 값을 사용하므로 history를 다시 곱하지 않는다. HistoryRecord.estimatedMinutes에는 비교 기준인 원본 추정시간을 기록해야 한다.

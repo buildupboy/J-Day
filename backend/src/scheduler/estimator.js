@@ -1,25 +1,26 @@
-// 개인 보정 계수 기반 작업량 추정.
-// LLM이 준 "일반적인" 추정시간에, 이 사용자의 과거 수행 기록으로 계산한 보정 계수를 곱한다.
+const types = new Set(['report', 'coding', 'exam', 'presentation', 'reading', 'etc']);
 
-/**
- * 과제 유형별 개인 보정 계수를 계산한다.
- * 계수 = 실제 소요시간 합 / 추정시간 합 (기록이 없으면 1.0)
- * @param {Array<{ type: string, estimatedMinutes: number, actualMinutes: number }>} history
- * @returns {Record<string, number>} 예: { report: 1.4, coding: 1.1 }
- */
+/** 유형별 실제 시간 합 / 기본 추정시간 합. 유효하지 않은 기록은 제외한다. */
 export function computeCorrectionFactors(history) {
-  // TODO: 유형별 그룹핑, 이상치 처리, 최근 기록 가중치 등
-  return {};
+  if (!Array.isArray(history)) throw new TypeError('history는 배열이어야 합니다.');
+  const totals = new Map();
+  for (const record of history) {
+    if (!record || !types.has(record.type) || !Number.isInteger(record.estimatedMinutes) || record.estimatedMinutes <= 0
+      || !Number.isInteger(record.actualMinutes) || record.actualMinutes <= 0) continue;
+    const total = totals.get(record.type) ?? { estimated: 0, actual: 0 };
+    total.estimated += record.estimatedMinutes;
+    total.actual += record.actualMinutes;
+    totals.set(record.type, total);
+  }
+  return Object.fromEntries([...totals].map(([type, total]) => [type, total.actual / total.estimated]));
 }
 
-/**
- * 기본 추정시간에 개인 보정 계수를 적용한다.
- * @param {number} baseMinutes LLM이 추정한 기본 소요시간
- * @param {string} type 과제 유형
- * @param {Record<string, number>} factors computeCorrectionFactors 결과
- * @returns {number} 보정된 추정시간(분)
- */
+/** 원본 추정시간에 한 번만 적용한다. 1분 단위 올림으로 작업량 손실을 피한다. */
 export function applyCorrection(baseMinutes, type, factors) {
-  // TODO: 반올림 단위(예: 10분) 정하기
-  return Math.round(baseMinutes * (factors[type] ?? 1));
+  if (!Number.isInteger(baseMinutes) || baseMinutes < 0 || !types.has(type)) throw new RangeError('기본 시간과 과제 유형을 확인하세요.');
+  const factor = Object.hasOwn(factors, type) ? factors[type] : 1;
+  if (!Number.isFinite(factor) || factor <= 0) throw new RangeError('보정 계수는 양수여야 합니다.');
+  const result = Math.ceil(baseMinutes * factor);
+  if (!Number.isSafeInteger(result)) throw new RangeError('보정 시간이 너무 큽니다.');
+  return result;
 }
