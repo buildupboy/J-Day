@@ -38,6 +38,7 @@
 | `id` | string | |
 | `title` | string | |
 | `deadline` | ISO datetime | 마감 |
+| `importance` | number? | 중요도: 1=낮음, 2=보통, 3=높음. 생략 시 2 |
 | `type` | `'report' \| 'coding' \| 'exam' \| 'presentation' \| 'reading' \| 'etc'` | 과제 유형 (개인 보정 계수의 기준) |
 | `subtasks` | `Subtask[]` | 하위작업 |
 | `estimatedMinutes` | number | 보정 후 총 추정시간 |
@@ -128,3 +129,43 @@
 // res
 { "scheduledBlocks": [ ], "changes": [ ], "unplaced": [ { "taskId": "t-os-hw", "remainingMinutes": 60 } ] }
 ```
+
+## 스케줄러 allocator (내부 함수)
+
+`backend/src/scheduler/allocator.js`는 DB나 LLM 호출 없이 입력을 변경하지 않고 계산한다.
+기존 HTTP 응답 및 데이터 필드 규약은 유지한다. 재배치 API 연결은 별도 작업이다.
+
+```js
+findFreeSlots(date, fixedBlocks, scheduledBlocks, settings)
+// => [{ start: '09:00', end: '10:00' }]
+allocate(tasks, fixedBlocks, { from, to, settings, existingBlocks: [] })
+// => { blocks: ScheduledBlock[], unplaced: [{ taskId, remainingMinutes }] }
+```
+
+- `from`, `to`는 양 끝을 포함하는 `YYYY-MM-DD`이다. 오늘 일부 시간만 배치하려면 호출자가 `dayStart`를 조정해야 한다. 현재 시각은 자동 참조하지 않는다.
+- 날짜와 마감은 KST 기준으로 계산한다. 마감 초 단위는 분으로 내림하며 마감 이후에는 배치하지 않는다.
+- 고정 일정은 반복 요일에만 적용한다. 기존 블록은 상태와 무관하게 해당 날짜의 점유 시간으로 유지한다. 겹치거나 맞닿은 구간을 합치고 하루 범위 밖은 제외한다.
+- 우선순위는 마감 시각 임박 → importance 높은 순 → 남은 작업량 큰 순이다. 모두 같으면 입력 순서를 유지한다. 중요도는 마감 날짜뿐 아니라 정확한 마감 시각이 같을 때 적용한다. 생략하면 2(보통)이며 null·문자열·범위 밖 값은 RangeError로 거부한다. 중요도는 호출자가 전달하고 스케줄러는 추정하지 않는다.
+- 남은 작업량은 `max(0, ceil(estimatedMinutes * (1 - progress)) - 기존 planned 블록의 분 합계)`이다. `done` 작업은 제외한다. 완료 블록은 진행률에 반영된 것으로 보아 다시 차감하지 않는다.
+- `existingBlocks`는 유지할 블록만 전달한다. 범위 밖의 planned도 예약된 작업량으로 차감하므로 지난 미수행 블록은 호출자가 missed로 바꾸거나 재배치 대상에서 제거해야 한다.
+- 최소 빈 구간은 `minSlotMinutes`, 최대 작업 블록은 `maxBlockMinutes`이다. 남은 작업이 최소 길이보다 짧으면 최소 길이 이상의 빈 구간 안에 짧은 완료 블록을 허용한다.
+- 작업 블록 전후에는 `breakMinutes`를 확보한다. 휴식은 별도 ScheduledBlock으로 반환하지 않으며 고정 일정에는 별도 휴식을 붙이지 않는다. 하루 경계를 넘는 휴식은 계산하지 않는다.
+- 이번 구현은 작업 단위 배치로 `subtaskId`를 생성하지 않는다. 하위작업 완료는 호출자가 작업의 progress에 반영한다.
+- 반환 blocks는 새로 만든 블록만 포함하며 날짜/시작 순으로 정렬한다. ID는 입력에 대해 결정적이고 기존 ID와 충돌하지 않는다.
+- 같은 날짜 안에서 시작 < 종료여야 한다. 자정을 넘는 고정 일정은 요일별 두 구간으로 나눈다. 잘못된 날짜·시간·설정·진행률은 RangeError를 발생시킨다.
+
+테스트: 저장소 루트에서 `npm test --prefix backend` 실행.
+
+## 재스케줄러 rescheduler (내부 함수)
+
+`reschedule(db, { now: Date, reason })`는 `{ scheduledBlocks, changes, unplaced }`를 반환한다. DB와 입력 객체를 변경하지 않으며 HTTP 연결/저장/자동 호출은 별도 작업이다.
+
+- reason은 `new_task | missed | progress | manual`이며 변경 기록에 남긴다. 배치 우선순위는 allocator와 동일하다.
+- KST 기준 현재 시각 이후부터 미완료 작업의 가장 늦은 마감 날짜까지 배치한다. 초가 있으면 다음 분부터 시작하며 다음 날에는 원래 dayStart를 사용한다.
+- 시작 시각이 현재보다 이른 블록, done/missed 기록은 보존한다. 미래 planned만 제거하여 다시 계산한다. 정확히 현재 시각에 시작하는 planned는 재배치 대상이다.
+- `detectMissedBlocks(scheduledBlocks, tasks, now)`는 종료 시각 <= now인 planned 중 연결된 작업이 미완료(status != done, progress < 1)인 블록을 반환한다. 이미 missed인 기록과 연결 작업이 없는 기록은 제외한다.
+- 감지된 블록은 시간과 ID를 유지하고 상태만 missed로 갱신한다. 전체 진행률만으로 특정 블록의 완료 여부를 추측하지 않으므로 호출자는 완료한 블록의 status를 done으로 관리해야 한다.
+- 진행 중인 planned는 전체 예약 시간을 유지하고 남은 작업량에서 차감한다. 진행 도중의 부분 수행량과 잔여 시간을 정밀하게 나누는 처리는 이번 범위에 포함하지 않는다.
+- 과거 planned는 반환 이력으로 보존하되 새 배치의 예약량에서 차감하지 않는다. 완료 수행량은 Task.progress가 기준이다.
+- changes 항목은 `{ type: 'added', reason, after }`, `{ type: 'removed', reason, before }`, `{ type: 'updated', reason, before, after }`이다. before/after는 ScheduledBlock이며 ID 기준으로 비교한다. 이동/분할된 블록은 제거+추가로 나타날 수 있다.
+- 동일한 DB와 now로 반복 실행하면 같은 배치가 나오며 변경이 없으면 changes는 빈 배열이다.
