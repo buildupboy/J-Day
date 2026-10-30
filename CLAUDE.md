@@ -36,14 +36,15 @@ npm run dev
 | `backend/src/routes` | HTTP 핸들러. 얇게 유지하고 로직은 services/scheduler로 |
 | `backend/src/services/llm.js` | LLM 공통 인터페이스 (`complete`, `interpretUtterance`, `breakdownTask`) |
 | `backend/src/prompts` | LLM 프롬프트 문자열 |
-| `backend/src/scheduler` | `estimator`(개인 보정 계수), `allocator`(빈 시간 배치), `rescheduler`(재배치) — 규칙 기반 순수 함수 |
+| `backend/src/scheduler` | 개인 보정·잔여량·우선순위·빈 구간·AI 결과 검증 — 실제 시각 배치는 하지 않음 |
 | `backend/src/store` | `readDb`/`writeDb`/`updateDb`. 파일 접근은 여기서만 |
 | `backend/data/seed.json` | 시연용 대학생 예시 데이터 |
 
 ## 코딩 규칙
 
-- **LLM은 이해·추정만 한다.** 발화 해석, 하위작업 분해, 소요시간 추정, 응답 문장 생성까지.
-  **시간 배치는 규칙 기반 스케줄러(`backend/src/scheduler`)가 담당**한다. LLM에게 시간표를 짜게 하지 않는다.
+- **사용자 결정으로 역할 변경(2026-10-30): LLM이 실제 시간 배치를 담당한다.**
+  스케줄러는 우선순위·남은 작업량·빈 시간·제약을 정리하고 AI 결과를 검증한다. 규칙 기반으로 새 작업 블록을 만들거나 AI가 정한 시각을 자동 보정하지 않는다.
+  모델 호출은 LLM 담당자가 연결한다. 입력·검증 계약은 docs/ai-scheduling.md를 따른다.
 - **API 키는 백엔드에서만** `process.env`로 읽는다. 프론트엔드 코드, `VITE_` 환경변수, 커밋에 절대 넣지 않는다.
 - 스케줄러 함수는 DB·네트워크에 의존하지 않는 순수 함수로 작성해 테스트하기 쉽게 한다.
 - 데이터 구조를 바꾸면 `docs/api.md`와 `seed.json`을 같이 고친다.
