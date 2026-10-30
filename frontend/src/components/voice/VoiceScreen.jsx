@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client.js';
 import { mockInterpret } from '../../data/mockInterpret.js';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
+import { useAudioLevel } from '../../hooks/useAudioLevel.js';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis.js';
 import { MicIcon, SparkIcon, ArrowRightIcon, KeyboardIcon } from '../common/Icons.jsx';
 import TaskProposalCard from './TaskProposalCard.jsx';
@@ -9,6 +10,7 @@ import jayImage from '../../assets/jay.webp';
 
 const EXAMPLES = ['절반 했어', '오늘 뭐 있어?', '내일로 미뤄 줘'];
 const BAR_COUNT = 31;
+const SILENCE_LIMIT_MS = 5000; // 이 시간 동안 말이 없으면 듣기를 끝내고 제이에게 보낸다
 
 const ERROR_TEXT = {
   'not-allowed': '마이크 권한이 필요해요. 브라우저 설정에서 허용해 주세요.',
@@ -49,6 +51,26 @@ export default function VoiceScreen({ onClose }) {
     onFinalResult: (t) => send(t, true),
   });
 
+  const lastActivityRef = useRef(Date.now());
+  const levels = useAudioLevel(listening && !typing, BAR_COUNT, (level) => {
+    if (level > 0) lastActivityRef.current = Date.now();
+  });
+
+  // 인식된 글자가 바뀌면 말하는 중으로 본다
+  useEffect(() => {
+    if (interimTranscript) lastActivityRef.current = Date.now();
+  }, [interimTranscript]);
+
+  // 듣는 동안 조용한 시간이 5초를 넘으면 자동 종료 → 들린 말은 훅이 제이에게 넘긴다
+  useEffect(() => {
+    if (!listening || typing) return undefined;
+    lastActivityRef.current = Date.now();
+    const t = setInterval(() => {
+      if (Date.now() - lastActivityRef.current >= SILENCE_LIMIT_MS) stop();
+    }, 500);
+    return () => clearInterval(t);
+  }, [listening, typing, stop]);
+
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, thinking]);
@@ -80,11 +102,12 @@ export default function VoiceScreen({ onClose }) {
 
   const startListening = () => {
     cancel();
+    setTyping(false);
     start();
   };
 
-  // 말하는 중 화면
-  if (listening) {
+  // 말하는 중 화면. 키보드 버튼을 누르면 듣기 종료를 기다리지 않고 바로 채팅 화면으로 넘어간다
+  if (listening && !typing) {
     return (
       <div className="voice">
         <button type="button" className="icon-button voice-close" onClick={onClose} aria-label="닫기">
@@ -108,8 +131,8 @@ export default function VoiceScreen({ onClose }) {
 
         <div className="listen-foot">
           <div className="waveform" aria-hidden="true">
-            {Array.from({ length: BAR_COUNT }, (_, i) => (
-              <i key={i} style={{ animationDelay: `${(i % 9) * 0.09}s` }} />
+            {levels.map((lv, i) => (
+              <i key={i} style={{ height: 4 + lv * 44 }} />
             ))}
           </div>
           <div className="mic-row">

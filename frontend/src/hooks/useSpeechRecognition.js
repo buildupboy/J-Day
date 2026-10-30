@@ -12,6 +12,8 @@ const getSpeechRecognition = () =>
 export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
   const recognitionRef = useRef(null);
   const onFinalRef = useRef(onFinalResult);
+  const lastInterimRef = useRef(''); // 종료 직전까지 들린 말
+  const deliveredRef = useRef(false); // 이번 듣기에서 최종 결과를 이미 넘겼는지
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState(null);
@@ -35,15 +37,23 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
         const result = event.results[i];
         const text = result[0].transcript.trim();
         if (result.isFinal) {
-          if (text) onFinalRef.current?.(text);
+          if (text) {
+            deliveredRef.current = true;
+            lastInterimRef.current = '';
+            onFinalRef.current?.(text);
+          }
         } else {
           interim += text;
         }
       }
+      if (interim) lastInterimRef.current = interim;
       setInterimTranscript(interim);
     };
     recognition.onerror = (event) => setError(event.error);
     recognition.onend = () => {
+      // 말을 멈추거나 직접 종료했을 때 최종 결과 없이 끝나면 들린 부분까지 보낸다
+      if (!deliveredRef.current && lastInterimRef.current) onFinalRef.current?.(lastInterimRef.current);
+      lastInterimRef.current = '';
       setListening(false);
       setInterimTranscript('');
     };
@@ -55,6 +65,8 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
   const start = useCallback(() => {
     if (!recognitionRef.current) return;
     setError(null);
+    lastInterimRef.current = '';
+    deliveredRef.current = false;
     try {
       recognitionRef.current.start();
       setListening(true);
