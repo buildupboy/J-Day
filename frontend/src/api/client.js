@@ -1,5 +1,6 @@
 // 백엔드 호출 함수 모음. vite 프록시로 /api → http://localhost:3001
 // API 키 등 비밀값은 절대 여기에 두지 않는다.
+import { trackRescheduling } from './rescheduling.js';
 
 async function request(path, { method = 'GET', body, signal } = {}) {
   const res = await fetch(`/api${path}`, {
@@ -15,7 +16,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 
 export const api = {
   getUserSettings: () => request('/user/settings'),
-  saveUserSettings: (settings) => request('/user/settings', { method: 'PATCH', body: { settings, confirmReschedule: true } }),
+  saveUserSettings: (settings) => trackRescheduling(request('/user/settings', { method: 'PATCH', body: { settings, confirmReschedule: true } })),
   getAnalytics: (mode = 'week', from) => request(`/analytics/${mode}${from ? `?from=${encodeURIComponent(from)}` : ''}`),
   getTimetable: () => request('/timetable'),
   extractTimetable: async (image) => {
@@ -39,8 +40,12 @@ export const api = {
   // 작업
   estimateTask: (payload, { signal } = {}) => request('/tasks/estimate', { method: 'POST', body: payload, signal }),
   getTasks: () => request('/tasks'),
-  createTask: (task) => request('/tasks', { method: 'POST', body: task }),
-  reportProgress: (taskId, payload) => request(`/tasks/${taskId}/progress`, { method: 'PATCH', body: payload }),
+  createTask: (task) => trackRescheduling(request('/tasks', { method: 'POST', body: task })),
+  // payload.reschedule === false면 기록만 저장하고 재배치는 나중에 reschedule()로 요청한다
+  reportProgress: (taskId, payload) => {
+    const sent = request(`/tasks/${taskId}/progress`, { method: 'PATCH', body: payload });
+    return payload.reschedule === false ? sent : trackRescheduling(sent);
+  },
 
   updateTask: (taskId, patch) => request(`/tasks/${taskId}`, { method: 'PATCH', body: patch }),
   deleteTask: (taskId) => request(`/tasks/${taskId}`, { method: 'DELETE' }),
@@ -56,10 +61,10 @@ export const api = {
   // 일정
   getTodaySchedule: () => request('/schedule/today'),
   getWeekSchedule: (from) => request(`/schedule/week?from=${encodeURIComponent(from)}`),
-  reschedule: (reason = 'manual') => request('/schedule/reschedule', { method: 'POST', body: { reason } }),
+  reschedule: (reason = 'manual') => trackRescheduling(request('/schedule/reschedule', { method: 'POST', body: { reason } })),
 
   // 고정 일정(일정·루틴·알바). 저장·삭제 후 서버가 작업을 다시 배치한다
   getFixedBlocks: () => request('/fixed-blocks'),
-  createFixedBlock: (block) => request('/fixed-blocks', { method: 'POST', body: block }),
-  deleteFixedBlock: (id) => request(`/fixed-blocks/${id}`, { method: 'DELETE' }),
+  createFixedBlock: (block) => trackRescheduling(request('/fixed-blocks', { method: 'POST', body: block })),
+  deleteFixedBlock: (id) => trackRescheduling(request(`/fixed-blocks/${id}`, { method: 'DELETE' })),
 };

@@ -6,6 +6,7 @@ import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
 import { PlusIcon, StopIcon } from '../components/common/Icons.jsx';
 import useBlockDetails from '../hooks/useBlockDetails.js';
 import useLiveSchedule from '../hooks/useLiveSchedule.js';
+import { useRescheduling } from '../hooks/useDeferredReschedule.js';
 import { addDays, isSameDay } from '../utils/calendar.js';
 import { toMinutes } from '../utils/time.js';
 import { priorityOf, formatLongDate, formatClock } from '../utils/labels.js';
@@ -25,6 +26,7 @@ export default function CalendarPage({ nav }) {
   const [view, setView] = useState('week');
   const [selected, setSelected] = useState(() => new Date());
   const schedule = useLiveSchedule(selected, view);
+  const rescheduling = useRescheduling();
   const details = useBlockDetails();
   const [pickedId, setPickedId] = useState(null);
   const [detailId, setDetailId] = useState(null);
@@ -91,6 +93,14 @@ export default function CalendarPage({ nav }) {
       {schedule.error && (
         <p className="d-alert" role="alert">
           일정을 불러오지 못했어요. ({schedule.error})
+        </p>
+      )}
+
+      {/* 재배치 중에는 서버가 조회를 미뤄 빈 화면이 되므로 무엇을 기다리는지 알려 준다 */}
+      {(rescheduling || (schedule.loading && !schedule.days.length)) && (
+        <p className="calendar-loading" role="status">
+          <i className="spinner" aria-hidden="true" />
+          {rescheduling ? '리스케쥴링 중이에요. 새 일정을 곧 보여 드릴게요…' : '일정을 불러오는 중이에요…'}
         </p>
       )}
 

@@ -6336,3 +6336,60 @@ button:disabled {
 .analysis-due-button:hover { background: var(--surface-2); }
 .analysis-due-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
 .analysis-due-chevron { flex-shrink: 0; padding: 0 6px; color: var(--muted); font-size: 24px; }
+
+/* 재배치 대기·진행 안내 */
+.spinner {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.reschedule-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 100px;
+  z-index: 51;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 40px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--panel);
+  font-size: 13px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.reschedule-notice strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.reschedule-notice .spinner {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: var(--panel);
+}
+
+.calendar-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--routine-ink);
+  font-size: 13px;
+}

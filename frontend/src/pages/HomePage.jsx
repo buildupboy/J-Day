@@ -4,6 +4,7 @@ import DeadlineSheet from '../components/home/DeadlineSheet.jsx';
 import FreeTimeSheet from '../components/home/FreeTimeSheet.jsx';
 import useTodoActions from '../hooks/useTodoActions.js';
 import useBlockDetails from '../hooks/useBlockDetails.js';
+import { queueReschedule, delayPendingReschedule } from '../hooks/useDeferredReschedule.js';
 import { BellIcon, SpeakerIcon, MicIcon, StopIcon, CalendarIcon, ClockIcon, ChevronIcon } from '../components/common/Icons.jsx';
 import useLiveSchedule, { scheduleChanged, dateKey } from '../hooks/useLiveSchedule.js';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis.js';
@@ -123,15 +124,23 @@ export default function HomePage({ nav }) {
         showToast('완료 취소는 아직 지원하지 않아요.');
         return;
       }
+      // 시작 전 블록도 미리 완료할 수 있다. 기록만 바로 저장하고, 비는 시간의 재배치는 10초 뒤에 한 번만 한다
+      setDoneIds((prev) => new Set(prev).add(block.id));
       try {
         await api.reportProgress(block.taskId, {
           blockId: block.id,
           blockStatus: 'done',
+          reschedule: false,
           ...(block.subtaskId ? { subtaskId: block.subtaskId, subtaskDone: true } : {}),
         });
         scheduleChanged();
-        showToast(`'${block.title}' 완료했어요`);
+        queueReschedule();
       } catch (error) {
+        setDoneIds((prev) => {
+          const nextIds = new Set(prev);
+          nextIds.delete(block.id);
+          return nextIds;
+        });
         showToast(error.message);
       }
       return;
@@ -141,6 +150,7 @@ export default function HomePage({ nav }) {
       if (!nextIds.delete(block.id)) nextIds.add(block.id);
       return nextIds;
     });
+    delayPendingReschedule();
   };
 
   // 하위작업을 눌러도 상세는 상위 작업 기준으로 보여 준다 (이 하위작업은 '이 시간에 할 일'로 표시됨)
