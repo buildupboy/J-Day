@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { toMinutes } from '../../utils/time.js';
 import { isSameDay } from '../../utils/calendar.js';
-import { getBlocksForDate } from '../../data/sampleSchedule.js';
 
 const START_HOUR = 0;
 const END_HOUR = 24;
@@ -11,9 +10,8 @@ const top = (minutes) => ((minutes - START_HOUR * 60) / 60) * HOUR_HEIGHT + 12;
 const SCROLL_MARGIN = 20; // 기준 시각 위로 남겨 둘 여백(px)
 
 // 하루 타임테이블. 블록은 시작·종료 시각으로 절대 위치를 잡는다
-export default function DayTimetable({ date, onSelectBlock, statusOf }) {
+export default function DayTimetable({ date, blocks = [], onSelectBlock, statusOf }) {
   const scrollRef = useRef(null);
-  const blocks = getBlocksForDate(date);
   const dayKey = date.toDateString();
 
   // 오늘이면 현재 시각, 다른 날이면 첫 일정 시작 시각부터 보이도록 스크롤
@@ -43,7 +41,7 @@ export default function DayTimetable({ date, onSelectBlock, statusOf }) {
       {blocks.map((b) => {
         const s = toMinutes(b.start);
         const e = toMinutes(b.end);
-        const status = statusOf?.(b.id);
+        const status = statusOf?.(b.id) ?? b.status;
         return (
           <div
             key={b.id}

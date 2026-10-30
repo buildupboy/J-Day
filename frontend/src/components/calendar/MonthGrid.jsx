@@ -1,8 +1,7 @@
 import { WEEKDAY_LABELS, getMonthGrid, isSameDay } from '../../utils/calendar.js';
-import { getBlocksForDate } from '../../data/sampleSchedule.js';
 
 // 월간 달력. 날짜를 누르면 onSelect로 넘겨 주 보기로 전환한다
-export default function MonthGrid({ year, month, selected, onSelect }) {
+export default function MonthGrid({ year, month, selected, onSelect, blocksForDate = () => [] }) {
   const today = new Date();
   return (
     <div className="month-grid">
@@ -13,7 +12,7 @@ export default function MonthGrid({ year, month, selected, onSelect }) {
       ))}
       {getMonthGrid(year, month).map((day) => {
         const inMonth = day.getMonth() === month;
-        const dots = Math.min(getBlocksForDate(day).length, 3);
+        const dots = Math.min(blocksForDate(day).length, 3);
         const classes = [
           'month-cell',
           inMonth ? '' : 'is-out',

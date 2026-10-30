@@ -1,12 +1,11 @@
 import { WEEKDAY_LABELS, getWeekDays, isSameDay } from '../../utils/calendar.js';
-import { getBlocksForDate } from '../../data/sampleSchedule.js';
 
 // 요일·날짜 한 줄. 날짜 아래 점은 그날의 블록 수(최대 3개)
-export default function WeekStrip({ selected, onSelect }) {
+export default function WeekStrip({ selected, onSelect, blocksForDate = () => [] }) {
   return (
     <div className="week-strip">
       {getWeekDays(selected).map((day, i) => {
-        const dots = Math.min(getBlocksForDate(day).length, 3);
+        const dots = Math.min(blocksForDate(day).length, 3);
         const active = isSameDay(day, selected);
         return (
           <button

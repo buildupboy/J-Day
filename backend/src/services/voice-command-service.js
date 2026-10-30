@@ -52,18 +52,25 @@ function createTask(db, input, breakdown, now) {
 }
 
 // 명세의 누적 actualMinutes와 0~1 progress를 유지한다. 블록 수행 판정은 스케줄러 담당.
-function updateProgress(db, slots, now) {
+function updateProgress(db, slots, now, progressReporter = null) {
   const task = db.tasks.find(task => task.id === slots.taskId);
   if (!task) fail('진행 보고할 작업을 찾을 수 없습니다. 다시 지정해 주세요.', 404);
   if (slots.progress === null && slots.actualMinutes === null) fail('진행률 또는 실제 작업시간이 필요합니다.');
   if (slots.progress !== null && (slots.progress < 0 || slots.progress > 1)) fail('진행률은 0~1이어야 합니다.');
   if (slots.progress !== null && slots.progress < task.progress) fail('기존 진행률보다 낮게 보고할 수 없습니다.', 409);
+  let actual = task.actualMinutes ?? 0;
   if (slots.actualMinutes !== null) {
     integer(slots.actualMinutes, 'actualMinutes');
     if (!['increment', 'cumulative'].includes(slots.actualMinutesMode)) fail('실제시간이 누적인지 추가인지 확인해야 합니다.');
-    const actual = slots.actualMinutesMode === 'increment' ? (task.actualMinutes ?? 0) + slots.actualMinutes : slots.actualMinutes;
-    task.actualMinutes = integer(actual, 'actualMinutes');
+    actual = slots.actualMinutesMode === 'increment' ? (task.actualMinutes ?? 0) + slots.actualMinutes : slots.actualMinutes;
+    integer(actual, 'actualMinutes');
   }
+  // 통합 환경에서는 친구의 기존 진행 처리기로 블록 상태·완료 기록·재배치를 일관되게 처리한다.
+  if (progressReporter) return progressReporter(db, task.id, {
+    ...(slots.progress !== null ? { progress: slots.progress } : {}),
+    ...(slots.actualMinutes !== null ? { actualMinutes: actual } : {}),
+  }, { now }).task;
+  task.actualMinutes = actual;
   const subtaskTotal = (task.subtasks ?? []).reduce((sum, item) => sum + item.estimatedMinutes, 0);
   const completedMinutes = (task.subtasks ?? []).reduce((sum, item) => sum + (item.done ? item.estimatedMinutes : 0), 0);
   task.progress = Math.max(slots.progress ?? task.progress, subtaskTotal > 0 ? completedMinutes / subtaskTotal : 0);
@@ -83,7 +90,7 @@ function updateProgress(db, slots, now) {
 }
 
 export function createVoiceService({ readDb, updateDb, interpreter = llm.interpretUtterance,
-  breakdownTask = llm.breakdownTask, scheduler = null, now = () => new Date() }) {
+  breakdownTask = llm.breakdownTask, scheduler = null, progressReporter = null, now = () => new Date() }) {
   // 같은 requestId의 병렬 요청은 모델을 한 번만 호출한다. 저장 직전에도 중복을 검사한다.
   const inFlight = new Map();
   async function execute(request) {
@@ -125,11 +132,14 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
       const duplicate = replay(db, request);
       if (duplicate) { response = duplicate; return db; }
       const committedAt = now();
+      let progressResult;
       const task = intent === 'add_task' ? createTask(db, input, breakdown, committedAt)
-        : intent === 'report_progress' ? updateProgress(db, slots, committedAt) : null;
+        : intent === 'report_progress' ? updateProgress(db, slots, committedAt, scheduler && progressReporter ? (...args) => {
+          progressResult = progressReporter(...args); return progressResult;
+        } : null) : null;
       const reason = intent === 'add_task' ? 'new_task' : intent === 'report_progress' ? 'progress' : 'manual';
       const schedulerRequest = enqueueSchedule(db, { commandId: request.requestId, taskId: task?.id, reason, now: committedAt });
-      const scheduling = scheduler ? dispatchPending(db, { scheduler, now: committedAt }) : { rescheduled: false };
+      const scheduling = scheduler ? dispatchPending(db, { scheduler: progressResult ? () => progressResult : scheduler, now: committedAt }) : { rescheduled: false };
       response = { requestId: request.requestId, intent, status: scheduling.rescheduled ? 'scheduled' : 'pending_schedule',
         reply: scheduling.rescheduled ? (scheduling.unplaced.length ? '저장했어요. 마감 전에 배치하지 못한 작업시간이 있어요.' : '저장하고 일정을 다시 배치했어요.') : '저장했어요. 스케줄러 배치 요청은 대기 중이에요.',
         assumptions: [...extracted.assumptions, ...(breakdown?.assumptions ?? [])],

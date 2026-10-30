@@ -6,12 +6,14 @@ import MonthGrid from '../components/calendar/MonthGrid.jsx';
 import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
 import useBlockDetails from '../hooks/useBlockDetails.js';
 import { addDays } from '../utils/calendar.js';
+import useLiveSchedule from '../hooks/useLiveSchedule.js';
 
 const SWIPE_MIN_PX = 60;
 
 export default function CalendarPage({ onOpenMy }) {
   const [view, setView] = useState('week');
   const [selected, setSelected] = useState(() => new Date());
+  const schedule = useLiveSchedule(selected, view);
 
   const swipeStart = useRef(null);
   const [openBlock, setOpenBlock] = useState(null);
@@ -55,6 +57,8 @@ export default function CalendarPage({ onOpenMy }) {
     <div className="calendar-page">
       <PageHeader title={`${selected.getMonth() + 1}월`} onOpenMy={onOpenMy} />
       <div className="page-body calendar-body">
+        {schedule.error && <p className="field-error" role="alert">일정을 불러오지 못했어요. {schedule.error}</p>}
+        {schedule.loading && <p role="status">일정을 불러오는 중이에요.</p>}
         <div className="calendar-toolbar">{toggle}</div>
         {view === 'week' ? (
           <div
@@ -67,8 +71,8 @@ export default function CalendarPage({ onOpenMy }) {
               swipeStart.current = null;
             }}
           >
-            <WeekStrip selected={selected} onSelect={setSelected} />
-            <DayTimetable date={selected} onSelectBlock={setOpenBlock} statusOf={details.statusOf} />
+            <WeekStrip selected={selected} onSelect={setSelected} blocksForDate={schedule.blocksForDate} />
+            <DayTimetable date={selected} blocks={schedule.blocksForDate(selected)} onSelectBlock={setOpenBlock} statusOf={details.statusOf} />
           </div>
         ) : (
           <MonthGrid
@@ -76,6 +80,7 @@ export default function CalendarPage({ onOpenMy }) {
             month={selected.getMonth()}
             selected={selected}
             onSelect={pickFromMonth}
+            blocksForDate={schedule.blocksForDate}
           />
         )}
       </div>

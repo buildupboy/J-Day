@@ -3,7 +3,8 @@ import FreeTimeSheet from '../components/home/FreeTimeSheet.jsx';
 import TodoActionSheet from '../components/home/TodoActionSheet.jsx';
 import useTodoActions from '../hooks/useTodoActions.js';
 import { BellIcon, UserIcon, CalendarIcon, ClockIcon, ChevronIcon, CheckIcon, NoteIcon } from '../components/common/Icons.jsx';
-import { getBlocksForDate, getTaskById, getTasks } from '../data/sampleSchedule.js';
+import useLiveSchedule, { scheduleChanged } from '../hooks/useLiveSchedule.js';
+import { api } from '../api/client.js';
 import { formatKoreanDate, toMinutes, formatDuration, freeSlots } from '../utils/time.js';
 
 const USER_NAME = '민지'; // TODO: 백엔드 user 연결
@@ -19,26 +20,26 @@ function greeting(hour) {
 function daysUntil(iso) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return Math.round((new Date(`${iso}T00:00:00`) - today) / 86400000);
+  return Math.round((new Date(`${iso.slice(0, 10)}T00:00:00`) - today) / 86400000);
 }
 
 export default function HomePage({ onOpenMy, onNavigate }) {
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
+  const schedule = useLiveSchedule(now);
 
   // 오늘 할 일: 휴식을 뺀 오늘 블록. 이미 끝난 블록은 완료로 시작한다
   const actions = useTodoActions();
   const [openTodo, setOpenTodo] = useState(null);
   const [toast, setToast] = useState('');
 
-  const todos = getBlocksForDate(now)
+  const todos = schedule.blocksForDate(now)
     .filter((b) => b.kind !== 'break' && !actions.isHidden(b.id))
     .map((b) => ({ ...b, title: actions.metaOf(b.id).title ?? b.title }))
     .sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
 
-  const [doneIds, setDoneIds] = useState(
-    () => new Set(todos.filter((b) => toMinutes(b.end) <= nowMin).map((b) => b.id))
-  );
+  const [localDoneIds, setDoneIds] = useState(() => new Set());
+  const doneIds = new Set([...localDoneIds, ...todos.filter(block => block.status === 'done').map(block => block.id)]);
   const [startedId, setStartedId] = useState(null);
 
   const moveTodo = (id, message) => {
@@ -48,23 +49,33 @@ export default function HomePage({ onOpenMy, onNavigate }) {
     setTimeout(() => setToast(''), 2000);
   };
 
-  const toggleDone = (id) =>
+  const toggleDone = async (id) => {
+    const block = todos.find(item => item.id === id);
+    if (block?.taskId) {
+      if (block.status === 'done') { setToast('완료 취소는 아직 지원하지 않아요.'); return; }
+      try {
+        await api.reportProgress(block.taskId, { blockId: id, blockStatus: 'done', ...(block.subtaskId ? { subtaskId: block.subtaskId, subtaskDone: true } : {}) });
+        scheduleChanged();
+      } catch (error) { setToast(error.message); }
+      return;
+    }
     setDoneIds((prev) => {
       const next = new Set(prev);
       if (!next.delete(id)) next.add(id);
       return next;
     });
+  };
 
   // 다음 할 일: 아직 안 끝난 첫 작업 블록
   const next = todos.find((b) => b.kind === 'task' && !doneIds.has(b.id));
   const started = next && startedId === next.id;
   const minutesToStart = next ? toMinutes(next.start) - nowMin : 0;
 
-  const nearest = getTasks()
+  const nearest = schedule.tasks.filter(task => task.status !== 'done')
     .map((t) => ({ ...t, left: daysUntil(t.deadline) }))
     .filter((t) => t.left >= 0)
     .sort((a, b) => a.left - b.left)[0];
-  const slots = freeSlots(getBlocksForDate(now), Math.max(nowMin, FREE_FROM), FREE_TO);
+  const slots = freeSlots(schedule.blocksForDate(now), Math.max(nowMin, FREE_FROM), FREE_TO);
   const free = slots.reduce((sum, sl) => sum + sl.minutes, 0);
   const [freeOpen, setFreeOpen] = useState(false);
 
@@ -96,6 +107,8 @@ export default function HomePage({ onOpenMy, onNavigate }) {
         {greeting(now.getHours())}
       </h1>
       <p className="home-sub">오늘도 차분하고 좋은 하루가 되길 바라요.</p>
+      {schedule.loading && <p role="status">일정을 불러오는 중이에요.</p>}
+      {schedule.error && <p className="field-error" role="alert">일정 조회 실패: {schedule.error}</p>}
 
       <div className="summary-row">
         <button type="button" className="summary-card" onClick={() => onNavigate('tasks')}>
@@ -128,7 +141,7 @@ export default function HomePage({ onOpenMy, onNavigate }) {
             <i /> 다음 할 일 · {next.start}
           </div>
           <h2>{next.title}</h2>
-          <p>{[next.note, getTaskById(next.taskId)?.title].filter(Boolean).join(' · ')}</p>
+          <p>{[next.note, schedule.taskById(next.taskId)?.title].filter(Boolean).join(' · ')}</p>
           <div className="next-foot">
             <span>
               {started ? '진행 중' : minutesToStart > 0 ? `${minutesToStart}분 뒤 시작` : '지금 시작할 시간이에요'}

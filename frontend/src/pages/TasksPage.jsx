@@ -5,6 +5,8 @@ import { MicIcon } from '../components/common/Icons.jsx';
 import DeadlineInput from '../components/tasks/DeadlineInput.jsx';
 import EstimateAssist from '../components/tasks/EstimateAssist.jsx';
 import { parseTaskText } from '../utils/parseTaskText.js';
+import { estimateTask } from '../utils/estimateTask.js';
+import { scheduleChanged } from '../hooks/useLiveSchedule.js';
 
 const PRIORITIES = [
   { id: 'must', name: 'Must', rank: '1순위', hint: 'Must · 가장 먼저 배치돼요' },
@@ -23,6 +25,8 @@ export default function TasksPage({ onClose }) {
   const [priority, setPriority] = useState('must');
   const [filled, setFilled] = useState(false); // 말한 내용으로 자동 채웠는지
   const [toast, setToast] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [formKey, setFormKey] = useState(0); // 등록 후 마감일 입력칸을 비우기 위한 키
 
   const { supported, listening, interimTranscript, error, start, stop } = useSpeechRecognition({
@@ -46,17 +50,21 @@ export default function TasksPage({ onClose }) {
   };
 
   const submit = async () => {
+    if (saving || !canSubmit) return;
+    setSaving(true);
+    setSaveError('');
     const task = {
       title: title.trim(),
-      deadline: date,
-      deadlineTime: time,
-      priority,
-      estimatedMinutes: totalMinutes,
+      type: estimateTask(title).type,
+      deadline: `${date}T${time}:00+09:00`,
+      importance: ({ must: 3, important: 2, optional: 1 })[priority],
+      baseEstimatedMinutes: totalMinutes,
       subtasks,
     };
-    // TODO: 백엔드 POST /api/tasks → POST /api/schedule/reschedule 로 빈 시간에 자동 배치
-    await api.createTask(task).catch(() => null);
-    setToast(`'${task.title}' 작업을 등록했어요`);
+    try {
+    const result = await api.createTask(task);
+    scheduleChanged();
+    setToast(result.unplaced?.length ? `'${task.title}' 저장됨 · 배치하지 못한 시간이 있어요` : `'${task.title}' 저장·배치 완료`);
     setTimeout(() => setToast(''), 2200);
     setTitle('');
     setDate('');
@@ -66,6 +74,11 @@ export default function TasksPage({ onClose }) {
     setMinutes('');
     setSubtasks([]);
     setFilled(false);
+    } catch (error) {
+      setSaveError(error.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -160,8 +173,9 @@ export default function TasksPage({ onClose }) {
       <p className="priority-hint">{priorityInfo.hint}</p>
 
       <div className="task-footer">
-        <button type="button" className="primary-button" disabled={!canSubmit} onClick={submit}>
-          빈 시간에 자동 배치
+        {saveError && <p className="field-error" role="alert">저장하지 못했어요. {saveError}</p>}
+        <button type="button" className="primary-button" disabled={!canSubmit || saving} onClick={submit}>
+          {saving ? '저장·배치 중…' : '빈 시간에 자동 배치'}
         </button>
       </div>
 

@@ -26,6 +26,7 @@ export default function EstimateAssist({ title, onApply }) {
 
       {open && (
         <>
+          <p className="ai-note">유형별 기본 예시로 추천해요. 파일 내용 분석과 AI 추정은 이 입력창에 아직 연결되지 않았어요.</p>
           <label className="assist-label" htmlFor="task-content">
             일정/작업 내용
           </label>

@@ -11,7 +11,7 @@ const KIND_LABEL = {
 const PRIORITY_LABEL = { must: 'Must', important: 'Should', optional: 'Could' };
 
 function deadlineText(iso) {
-  const d = new Date(`${iso}T00:00:00`);
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diff = Math.round((d - today) / 86400000);
@@ -30,7 +30,7 @@ function formatSize(bytes) {
 // task 블록은 상위 작업의 마감일·예상 시간, 하위 작업 체크리스트, 메모·첨부, 완료/미루기를 보여준다.
 // details: hooks/useBlockDetails.js 의 반환값
 export default function BlockDetailSheet({ block, details, onClose }) {
-  const task = block.taskId ? getTaskById(block.taskId) : null;
+  const task = block.task ?? (block.taskId ? getTaskById(block.taskId) : null);
   const slotMinutes = toMinutes(block.end) - toMinutes(block.start);
   const status = details.statusOf(block.id);
 
@@ -89,7 +89,7 @@ export default function BlockDetailSheet({ block, details, onClose }) {
               </div>
               <div>
                 <dt>중요도</dt>
-                <dd>{PRIORITY_LABEL[task.priority]}</dd>
+                <dd>{PRIORITY_LABEL[task.priority] ?? ({ 3: 'Must', 2: 'Should', 1: 'Could' })[task.importance]}</dd>
               </div>
             </>
           )}

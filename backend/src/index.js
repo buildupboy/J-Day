@@ -7,6 +7,7 @@ import scheduleRouter from './routes/schedule.js';
 import { createChatRouter } from './routes/chat.js';
 import { initStore } from './store/index.js';
 import { createMissedMonitor } from './scheduler/missed-monitor.js';
+import { reportProgress } from './services/task-service.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -23,7 +24,7 @@ app.use('/api/schedule', scheduleRouter);
 // 기본값은 미연결. 친구의 스케줄러 구현을 병합한 후에만 활성화한다.
 const scheduler = process.env.VOICE_SCHEDULER_ENABLED === 'true'
   ? (await import('./scheduler/rescheduler.js')).reschedule : null;
-app.use('/api/chat', createChatRouter({ scheduler }));
+app.use('/api/chat', createChatRouter({ scheduler, progressReporter: reportProgress }));
 
 // 공통 에러 핸들러
 app.use((err, req, res, next) => {

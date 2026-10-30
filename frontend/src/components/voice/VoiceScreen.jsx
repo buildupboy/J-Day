@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client.js';
-import { mockInterpret } from '../../data/mockInterpret.js';
+import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
 import { useAudioLevel } from '../../hooks/useAudioLevel.js';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis.js';
@@ -28,27 +28,30 @@ export default function VoiceScreen({ onClose }) {
   const [text, setText] = useState('');
   const [typing, setTyping] = useState(false); // 키보드 버튼으로 넘어온 경우 입력창에 바로 포커스
   const threadRef = useRef(null);
+  const sendingRef = useRef(false);
   const { speak, cancel } = useSpeechSynthesis();
 
-  const send = async (raw, viaVoice = false) => {
+  const send = async (raw, viaVoice = false, retry = null) => {
     const content = raw.trim();
-    if (!content) return;
+    if (!content || sendingRef.current) return;
+    sendingRef.current = true;
+    const command = retry ?? { requestId: crypto.randomUUID(), conversation: messages.filter(m => !m.isError).slice(-12).map(m => ({ role: m.role, content: m.text })) };
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', text: content }]);
     setThinking(true);
 
-    let res;
     try {
-      res = await api.interpret(content);
-    } catch {
-      res = await mockInterpret(content); // 백엔드 미구현 동안 시연용
+      const res = await api.interpret(content, command);
+      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: res.reply,
+        task: res.intent === 'add_task' ? res.result?.task ?? null : null, added: true, status: res.status }]);
+      if (res.status === 'scheduled' || res.status === 'pending_schedule') scheduleChanged();
+      if (viaVoice) speak(res.reply.replace(/\n/g, ' '));
+    } catch (error) {
+      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant',
+        text: `처리하지 못했어요. ${error.message}`, isError: true, retry: { content, command } }]);
+    } finally {
+      setThinking(false);
+      sendingRef.current = false;
     }
-
-    setThinking(false);
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: 'assistant', text: res.reply, task: res.result?.task ?? null, added: false },
-    ]);
-    if (viaVoice) speak(res.reply.replace(/\n/g, ' '));
   };
 
   const { supported, listening, hearing, audioStarted, interimTranscript, error, start, stop } = useSpeechRecognition({
@@ -110,12 +113,6 @@ export default function VoiceScreen({ onClose }) {
 
   const updateMessage = (id, patch) =>
     setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
-
-  const addTask = async (m) => {
-    // TODO: 백엔드 POST /api/tasks 구현 후 실패 처리. 지금은 화면에서만 추가 상태로 바꾼다.
-    await api.createTask(m.task).catch(() => null);
-    updateMessage(m.id, { added: true });
-  };
 
   const submitText = (e) => {
     e.preventDefault();
@@ -220,12 +217,13 @@ export default function VoiceScreen({ onClose }) {
                   </span>
                   <div className="assistant-col">
                     <p className="bubble-assistant">{m.text}</p>
+                    {m.retry && <button type="button" className="chip" disabled={thinking} onClick={() => send(m.retry.content, false, m.retry.command)}>다시 시도</button>}
                     {m.task && (
                       <TaskProposalCard
                         task={m.task}
                         added={m.added}
+                        status={m.status}
                         onChange={(task) => updateMessage(m.id, { task })}
-                        onAdd={() => addTask(m)}
                       />
                     )}
                   </div>
@@ -266,7 +264,7 @@ export default function VoiceScreen({ onClose }) {
             type="button"
             className="dock-mic"
             onClick={startListening}
-            disabled={!supported}
+            disabled={!supported || thinking}
             aria-label="말하기"
           >
             <MicIcon size={22} />

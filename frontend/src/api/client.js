@@ -16,7 +16,8 @@ export const api = {
   health: () => request('/health'),
 
   // 음성 텍스트 해석
-  interpret: (text) => request('/chat/interpret', { method: 'POST', body: { text } }),
+  interpret: (text, { requestId = crypto.randomUUID(), conversation = [] } = {}) =>
+    request('/chat/interpret', { method: 'POST', body: { text, requestId, conversation } }),
 
   // 작업
   getTasks: () => request('/tasks'),
@@ -25,5 +26,6 @@ export const api = {
 
   // 일정
   getTodaySchedule: () => request('/schedule/today'),
+  getWeekSchedule: (from) => request(`/schedule/week?from=${encodeURIComponent(from)}`),
   reschedule: (reason = 'manual') => request('/schedule/reschedule', { method: 'POST', body: { reason } }),
 };

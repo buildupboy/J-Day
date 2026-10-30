@@ -49,14 +49,14 @@ export function estimateTask(title) {
   const type = TYPES.find((t) => t.match.test(title)) ?? DEFAULT_TYPE;
   const items = type.items.map(([name, base]) => ({
     title: name,
-    hours: Math.max(1, Math.round(base * type.coef)),
+    hours: Math.max(1, Math.round(base)),
   }));
   const totalHours = items.reduce((sum, it) => sum + it.hours, 0);
 
   return {
     type: type.key,
     label: type.label,
-    coef: type.coef,
+    coef: 1, // 개인 보정은 백엔드가 등록 시 한 번만 적용한다.
     items,
     totalHours,
     minHours: totalHours,

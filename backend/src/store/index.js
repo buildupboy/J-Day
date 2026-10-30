@@ -62,5 +62,6 @@ export function createJsonStore({ dbPath, seedPath }) {
 
 const dataDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
 export const { initStore, readDb, writeDb, updateDb, resetDb } = createJsonStore({
-  dbPath: path.join(dataDir, 'db.json'), seedPath: path.join(dataDir, 'seed.json'),
+  dbPath: process.env.J_DAY_DB_PATH ? path.resolve(process.env.J_DAY_DB_PATH) : path.join(dataDir, 'db.json'),
+  seedPath: path.join(dataDir, 'seed.json'),
 });
