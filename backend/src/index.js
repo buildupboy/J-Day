@@ -13,7 +13,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 
 app.use(cors());
-app.use('/api/timetable', express.json({ limit: '8mb' }), timetableRouter);
+app.use('/api/timetable', express.json({ limit: '16mb' }), timetableRouter);
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {

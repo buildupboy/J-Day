@@ -15,8 +15,16 @@ async function request(path, { method = 'GET', body } = {}) {
 export const api = {
   getAnalytics: (mode = 'week', from) => request(`/analytics/${mode}${from ? `?from=${encodeURIComponent(from)}` : ''}`),
   getTimetable: () => request('/timetable'),
-  extractTimetable: (image) => request('/timetable/extract', { method: 'POST', body: { image } }),
-  saveTimetable: (lessons) => request('/timetable', { method: 'PUT', body: { lessons } }),
+  extractTimetable: async (image) => {
+    const photo = await fetch(image).then((response) => response.blob());
+    const form = new FormData();
+    form.append('image', photo, 'timetable');
+    const response = await fetch('/api/timetable/ocr', { method: 'POST', body: form });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(data?.error || data?.message || `HTTP ${response.status}`);
+    return data;
+  },
+  saveTimetable: (lessons, visibleDays = []) => request('/timetable', { method: 'PUT', body: { lessons, visibleDays } }),
   health: () => request('/health'),
 
   // 음성 텍스트 해석

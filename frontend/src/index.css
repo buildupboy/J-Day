@@ -522,10 +522,10 @@ body {
 .fixed-upload input:focus-visible + label { outline: 2px solid #777; outline-offset: 4px; }
 .fixed-upload-label.is-disabled { opacity: .4; cursor: default; }
 .fixed-upload small { display: block; margin-top: 12px; font-size: 11px; color: #999; }
-.fixed-image-preview { margin-bottom: 24px; }
+.fixed-image-preview { margin-bottom: 16px; }
 .fixed-image-preview img { display: block; max-width: 100%; max-height: 400px; object-fit: contain; margin: 0 auto; border-radius: 12px; }
 .fixed-image-preview > small { display: block; font-size: 11px; color: #888; margin-top: 8px; overflow-wrap: anywhere; }
-.fixed-image-preview .primary-button { width: 100%; margin-top: 12px; }
+.fixed-upload .fixed-extract { width: 100%; margin-top: 12px; }
 .fixed-error, .fixed-notice, .fixed-warnings { padding: 12px; border-radius: 10px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 .fixed-error { color: #a33737; background: #fff0f0; }
 .fixed-notice { color: #335640; background: #edf5ef; }
@@ -567,3 +567,31 @@ body {
 .analysis-due-list small { display: block; margin-top: 5px; font-size: 11px; color: #888; }
 .analysis-pattern-link { display: flex; width: 100%; justify-content: space-between; padding: 12px 0; border: 0; background: transparent; color: #111; font-weight: 700 !important; }
 .analysis-speed-row > span { font-size: 11px; color: #777; text-align: right; }
+
+.timetable-class.is-editable { text-align: left; color: #111; cursor: pointer; z-index: 2; font: inherit; }
+.timetable-class.is-editable:hover { filter: brightness(.96); }
+.timetable-class.is-editable:focus-visible, .timetable-empty-slot:focus-visible { outline: 2px solid #111; outline-offset: -2px; z-index: 3; }
+.timetable-empty-slot { position: absolute; left: 0; right: 0; width: 100%; border: 0; padding: 0; background: transparent; color: #888; cursor: pointer; }
+.timetable-empty-slot span { opacity: 0; }
+.timetable-empty-slot:hover, .timetable-empty-slot:focus-visible { background: #f1f1f1; }
+.timetable-empty-slot:hover span, .timetable-empty-slot:focus-visible span { opacity: 1; }
+.lesson-editor-form { margin-top: 18px; border: 0; padding: 0; }
+.lesson-editor-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lesson-editor-actions .fixed-add { margin: 0; }
+.lesson-editor .fixed-days button { font: inherit; font-size: 12px; cursor: pointer; }
+.fixed-pending-list { margin: 18px 0; padding: 12px; border-radius: 12px; background: #f7f7f7; }
+.fixed-pending-list h3 { margin: 0 0 8px; font-size: 13px; }
+.fixed-pending-list button { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 12px 0; border: 0; border-top: 1px solid #e5e5e5; background: transparent; color: #111; text-align: left; font-size: 13px; }
+.fixed-pending-list small { color: #888; font-size: 11px; flex-shrink: 0; }
+
+/* 사진 선택 전후 동일한 높이를 유지하는 업로드 카드 */
+.fixed-upload.fixed-upload-compact { height: 250px; margin: 12px 0 16px; padding: 14px; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+.fixed-upload-compact .fixed-upload-content { width: 100%; height: 126px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.fixed-upload-compact h2 { margin: 6px 0; font-size: 16px; }
+.fixed-upload-compact .fixed-upload-content p { margin: 0; font-size: 12px; line-height: 1.6; }
+.fixed-upload-compact .fixed-image-preview { width: 100%; height: 126px; margin: 0; }
+.fixed-upload-compact .fixed-image-preview img { width: 100%; height: 100px; max-height: 100px; object-fit: contain; }
+.fixed-upload-compact .fixed-image-preview > small { margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fixed-upload-controls { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; }
+.fixed-upload-controls .fixed-upload-label, .fixed-upload-controls .primary-button { padding: 10px 14px; font-size: 13px; border-radius: 10px; line-height: 20px; white-space: nowrap; }
+.fixed-upload-compact .fixed-upload-caption { width: 100%; margin: 10px 0 0; font-size: 10px; color: #888; line-height: 1.6; }
