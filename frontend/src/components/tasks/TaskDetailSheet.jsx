@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { formatDuration } from '../../utils/time.js';
 import SheetHandle from '../common/SheetHandle.jsx';
 
@@ -23,7 +24,13 @@ const dayLabel = (date) => {
 
 // 작업 하나의 상세 시트. 홈의 "가장 빠른 마감" 카드에서 열린다.
 // blocks: 이 작업에 배치된 시간 [{ id, date, start, end, status }]
-export default function TaskDetailSheet({ task, blocks, onClose }) {
+export default function TaskDetailSheet({ task, blocks, onClose, periodLabel = '이번 주' }) {
+  const closeButton = useRef(null);
+  useEffect(() => {
+    const previous = document.activeElement;
+    closeButton.current?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
   const subtasks = task.subtasks ?? [];
   const doneSubtasks = subtasks.filter((st) => st.done);
   const percent = Math.round((task.progress ?? 0) * 100);
@@ -31,14 +38,14 @@ export default function TaskDetailSheet({ task, blocks, onClose }) {
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <section className="sheet sheet-auto" onClick={(e) => e.stopPropagation()}>
+      <section className="sheet sheet-auto" role="dialog" aria-modal="true" aria-label={task.title + ' 상세'} onKeyDown={event => { if (event.key === 'Tab') { event.preventDefault(); closeButton.current?.focus(); } }} onClick={(e) => e.stopPropagation()}>
         <SheetHandle onClose={onClose} />
         <div className="sheet-head">
           <div>
             <span className="kind-chip tt-task">작업</span>
             <h2>{task.title}</h2>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="닫기">
+          <button ref={closeButton} type="button" className="icon-button" onClick={onClose} aria-label="닫기">
             ✕
           </button>
         </div>
@@ -73,7 +80,7 @@ export default function TaskDetailSheet({ task, blocks, onClose }) {
         <div className="subtask-box">
           <div className="subtask-head">
             <h3>배치된 시간</h3>
-            <span>{blocks.length ? `이번 주 ${blocks.length}개` : '이번 주 없음'}</span>
+            <span>{blocks.length ? `${periodLabel} ${blocks.length}개` : `${periodLabel} 없음`}</span>
           </div>
           {blocks.length > 0 && (
             <ul className="subtask-list">
@@ -83,7 +90,7 @@ export default function TaskDetailSheet({ task, blocks, onClose }) {
                     <span className={b.status === 'done' ? 'is-done' : ''}>
                       {dayLabel(b.date)} {b.start}–{b.end}
                     </span>
-                    <em>{b.status === 'done' ? '완료' : b.status === 'missed' ? '미수행' : '예정'}</em>
+                    <em>{b.status === 'done' ? '완료' : b.status === 'missed' ? '완료 확인 필요' : '예정'}</em>
                   </label>
                 </li>
               ))}

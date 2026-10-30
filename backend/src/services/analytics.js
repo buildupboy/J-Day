@@ -45,6 +45,8 @@ export function analyze(db, period, now = new Date()) {
     const records = speedRecords.filter(item => item.type === type);
     const correctionFactor = factors[type] ?? null;
     return { type, completedTasks: completed.filter(item => typeOf(item.type) === type).length, missedBlocks: 0,
+      dueCompletedTasks: due.filter(task => typeOf(task.type) === type && task.status === 'done').length,
+      incompleteTasks: due.filter(task => typeOf(task.type) === type && task.status !== 'done').length,
       validActualRecords: records.length,
       estimatedMinutes: records.reduce((sum, item) => sum + item.estimatedMinutes, 0),
       actualMinutes: records.reduce((sum, item) => sum + item.actualMinutes, 0),

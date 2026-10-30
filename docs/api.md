@@ -308,3 +308,12 @@ correctionFactor(실제 합계 / 예상 합계), differencePercent(비율 차이
 유효 기록이 없으면 validActualRecords와 두 합계는 0, correctionFactor/differencePercent는 null이다.
 차이가 양수면 예상보다 오래, 음수면 적게 걸린 것이다. 0%는 반올림 기준 거의 비슷한 경우다.
 이 API는 조회 전용이며 DB나 새 작업 보정 방식을 변경하지 않는다. 신규 작업 보정은 전체 이력 기준이므로 선택 기간의 표시값과 다를 수 있다.
+
+
+### 작업 유형별 마감 작업 완료 현황
+
+분석 API patterns[]의 dueCompletedTasks는 선택 기간에 마감하는 완료 작업 수,
+incompleteTasks는 선택 기간에 마감하는 status가 done이 아닌 작업 수다.
+작업 ID 중복을 제거한 뒤 집계하며, 같은 작업에 여러 missed 블록이 있어도 작업 수는 늘지 않는다.
+이 두 필드의 유형별 합은 dueTasks.completed와 dueTasks.total - dueTasks.completed에 각각 일치한다.
+기존 completedTasks(기간 내 완료 이력 수)와 missedBlocks는 유지한다. 작업 속도 계산도 완료 이력 기준을 유지한다.
