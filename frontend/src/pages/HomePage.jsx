@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import FreeTimeSheet from '../components/home/FreeTimeSheet.jsx';
 import TodoActionSheet from '../components/home/TodoActionSheet.jsx';
+import TaskDetailSheet from '../components/tasks/TaskDetailSheet.jsx';
 import useTodoActions from '../hooks/useTodoActions.js';
 import { BellIcon, UserIcon, CalendarIcon, ClockIcon, ChevronIcon, CheckIcon, NoteIcon } from '../components/common/Icons.jsx';
 import useLiveSchedule, { scheduleChanged } from '../hooks/useLiveSchedule.js';
@@ -21,6 +22,13 @@ function daysUntil(iso) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return Math.round((new Date(`${iso.slice(0, 10)}T00:00:00`) - today) / 86400000);
+}
+
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+// 예: 11/1(일) 18:00
+function formatDeadline(date) {
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return `${date.getMonth() + 1}/${date.getDate()}(${WEEKDAYS[date.getDay()]}) ${time}`;
 }
 
 export default function HomePage({ onOpenMy, onNavigate }) {
@@ -71,13 +79,20 @@ export default function HomePage({ onOpenMy, onNavigate }) {
   const started = next && startedId === next.id;
   const minutesToStart = next ? toMinutes(next.start) - nowMin : 0;
 
+  // 아직 안 지난 마감 중 시각이 가장 이른 작업 (같은 날이면 시각 순)
   const nearest = schedule.tasks.filter(task => task.status !== 'done')
-    .map((t) => ({ ...t, left: daysUntil(t.deadline) }))
-    .filter((t) => t.left >= 0)
-    .sort((a, b) => a.left - b.left)[0];
+    .map((t) => ({ ...t, left: daysUntil(t.deadline), due: new Date(t.deadline) }))
+    .filter((t) => t.due >= now)
+    .sort((a, b) => a.due - b.due)[0];
   const slots = freeSlots(schedule.blocksForDate(now), Math.max(nowMin, FREE_FROM), FREE_TO);
   const free = slots.reduce((sum, sl) => sum + sl.minutes, 0);
   const [freeOpen, setFreeOpen] = useState(false);
+  // 가장 빠른 마감 카드로 연 작업 상세. id만 들고 있어서 일정이 갱신되면 최신 값으로 보인다.
+  const [detailTaskId, setDetailTaskId] = useState(null);
+  const detailTask = detailTaskId ? schedule.taskById(detailTaskId) : null;
+  const detailBlocks = detailTask
+    ? schedule.days.flatMap((day) => day.items.filter((item) => item.taskId === detailTask.id).map((item) => ({ ...item, date: day.date })))
+    : [];
 
   const startOrFinish = () => {
     if (!started) setStartedId(next.id);
@@ -111,13 +126,14 @@ export default function HomePage({ onOpenMy, onNavigate }) {
       {schedule.error && <p className="field-error" role="alert">일정 조회 실패: {schedule.error}</p>}
 
       <div className="summary-row">
-        <button type="button" className="summary-card" onClick={() => onNavigate('tasks')}>
+        <button type="button" className="summary-card" onClick={() => (nearest ? setDetailTaskId(nearest.id) : onNavigate('tasks'))}>
           <span className="summary-icon">
             <CalendarIcon />
           </span>
           <span className="summary-text">
             <small>가장 빠른 마감</small>
             <strong className="is-urgent">{nearest ? (nearest.left === 0 ? 'D-DAY' : `D-${nearest.left}`) : '-'}</strong>
+            {nearest && <small>{formatDeadline(nearest.due)}</small>}
           </span>
           <ChevronIcon size={14} />
         </button>
@@ -201,6 +217,7 @@ export default function HomePage({ onOpenMy, onNavigate }) {
           onClose={() => setFreeOpen(false)}
         />
       )}
+      {detailTask && <TaskDetailSheet task={detailTask} blocks={detailBlocks} onClose={() => setDetailTaskId(null)} />}
       {openTodo && (
         <TodoActionSheet
           todo={openTodo}
