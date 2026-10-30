@@ -25,8 +25,19 @@ export function createLlmClient({ fetchImpl = globalThis.fetch, env = process.en
       if (['TimeoutError', 'AbortError'].includes(err.name)) throw failure('AI 응답 시간이 초과됐어요. 같은 requestId로 다시 시도해 주세요.', 504);
       throw failure('AI 서비스에 연결하지 못했어요.');
     }
-    // 제공자 원문 오류에는 민감한 정보가 있을 수 있으므로 전달하지 않는다.
-    if (!response.ok) throw failure(response.status === 429 ? 'AI 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.' : 'AI 요청이 실패했어요. 모델과 키 설정을 확인해 주세요.', response.status === 429 ? 503 : 502);
+    // 원문 메시지는 API 키 일부 등을 포함할 수 있다. 상태·알려진 코드만 해석한다.
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const code = errorBody?.error?.code;
+      if (response.status === 401) throw failure('OpenAI API 키 인증에 실패했어요. backend/.env의 OPENAI_API_KEY를 확인한 뒤 백엔드를 재시작해 주세요.', 503);
+      if (response.status === 403) throw failure('OpenAI API 접근 권한이 없어요. 키의 프로젝트·모델 사용 권한을 확인해 주세요.', 503);
+      if (response.status === 404) throw failure('설정한 AI 모델에 접근할 수 없어요. OPENAI_MODEL과 프로젝트의 모델 사용 권한을 확인해 주세요.', 503);
+      if (response.status === 429) throw failure(code === 'insufficient_quota'
+        ? 'OpenAI API 사용 잔액 또는 결제 한도를 확인해 주세요.'
+        : 'AI 요청 한도에 도달했어요. 잠시 후 다시 시도해 주세요.', 503);
+      if (response.status === 400) throw failure('AI 요청 형식이 거부됐어요. 설정한 모델의 Chat Completions·JSON Schema 지원 여부를 확인해 주세요.', 502);
+      throw failure('AI 서비스 요청이 실패했어요. 잠시 후 다시 시도해 주세요.', 502);
+    }
     let data;
     try { data = await response.json(); } catch { throw failure('AI 응답을 읽을 수 없어요.'); }
     const choice = data.choices?.[0];
