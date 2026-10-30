@@ -47,3 +47,12 @@ npm test --prefix backend, npm run build --prefix frontend를 사용합니다. �
 ## 로컬 Git
 
 병합 직전 작업은 커밋 d70293a와 backup/pre-devleop3-integration-20261030 브랜치로 보존했습니다. 중첩 haru-biseo/ 폴더는 병합에 포함하지 않았습니다. 원격 push는 별도 요청 전까지 하지 않습니다.
+
+
+## 504 대기시간 보완
+
+- 발화 해석/작업 추정 기본 60초(LLM_TIMEOUT_MS), 배치 기본 120초(LLM_PLANNING_TIMEOUT_MS)로 분리했습니다. 기존 환경변수 LLM_TIMEOUT_MS는 배치 제한을 낮추지 않습니다.
+- Vite 개발 프록시는 단계별 AI 호출과 1회 검증 교정이 끝날 때까지 최대 420초 기다립니다. Vite 설정을 읽지 않는 다른 프록시를 배포에 쓰면 해당 응답 대기시간도 별도로 맞춰야 합니다.
+- [ai] 로그는 단계명·시간·HTTP 상태만 출력하며 발화나 API 키는 출력하지 않습니다.
+- planningModelInput은 서버 검증 문맥을 보존하고 모델에 보내는 중복 설명과 범위 밖 기록만 줄입니다. contextId/taskId/subtaskId와 수면/휴식/이동·일일 한도는 유지합니다.
+- 채팅은 10초 이상 응답 대기 시 일정과 휴식을 검토 중이라는 안내를 표시합니다.

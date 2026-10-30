@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAiPlanner } from '../src/services/ai-planner.js';
+import { planningModelInput, createAiPlanner } from '../src/services/ai-planner.js';
 import { reschedule } from '../src/scheduler/rescheduler.js';
 import { acceptAiPlan } from '../src/scheduler/ai-plan.js';
 import { mergeSettings } from '../src/services/user-settings.js';
@@ -110,4 +110,15 @@ test('재검토가 실패해도 최초의 유효한 부분 계획을 다시 검�
   calls++;return JSON.stringify({contextId:JSON.parse(request.messages[0].content).contextId,blocks:[block(calls===1?{}:{start:'12:00',end:'12:30'})]});
  }});
  const result=await planner(db,{now,reason:'manual'});assert.equal(calls,2);assert.equal(result.unplaced[0].remainingMinutes,30);assert.equal(db.aiScheduling.status,'applied');
+});
+
+
+test('모델 입력은 contextId와 제약을 유지하며 과거 설명 및 중복 메타데이터 축소', () => {
+ const db = prepared(fixture()), context = db.aiScheduling.context;
+ context.existingFutureBlocks = [{ id:'old',taskId:'t',date:'2026-10-31',start:'15:00',end:'16:00',status:'planned',placementReason:'반복 설명' }];
+ const input=planningModelInput(context);
+ assert.equal(input.contextId,context.contextId);assert.deepEqual(input.rankedTasks,context.rankedTasks);
+ assert.deepEqual(input.blockedWindows,context.blockedWindows);assert.deepEqual(input.days,context.days);
+ assert.equal(input.existingFutureBlocks[0].placementReason,undefined);
+ assert.equal(context.existingFutureBlocks[0].placementReason,'반복 설명');
 });

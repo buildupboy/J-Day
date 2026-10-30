@@ -25,6 +25,13 @@ const ERROR_TEXT = {
 export default function VoiceScreen({ onClose }) {
   const [messages, setMessages] = useState([]);
   const [thinking, setThinking] = useState(false);
+  const [longWait, setLongWait] = useState(false);
+  useEffect(() => {
+    setLongWait(false);
+    if (!thinking) return;
+    const timer = setTimeout(() => setLongWait(true), 10000);
+    return () => clearTimeout(timer);
+  }, [thinking]);
   const [text, setText] = useState('');
   const [typing, setTyping] = useState(false); // 키보드 버튼으로 넘어온 경우 입력창에 바로 포커스
   const threadRef = useRef(null);
@@ -230,6 +237,7 @@ export default function VoiceScreen({ onClose }) {
                 </li>
               )
             )}
+            {thinking && longWait && <li className="assistant-row" role="status"><p className="bubble-assistant">기존 일정과 휴식 시간을 함께 검토하고 있어요. 잠시만 기다려 주세요.</p></li>}
             {(thinking || stopping) && (
               <li className="assistant-row">
                 <span className="assistant-avatar">

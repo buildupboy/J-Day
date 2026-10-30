@@ -5,13 +5,22 @@ import { reschedule } from '../scheduler/rescheduler.js';
 import { acceptAiPlan } from '../scheduler/ai-plan.js';
 import { assertSchema } from './voice-validation.js';
 
+// 서버 검증용 전체 문맥은 보존하고 모델에는 중복 설명과 범위 밖 기록을 줄여 전달한다.
+export function planningModelInput(context) {
+  const { sourceRevision, schemaVersion, priorityPolicy, planningInstructions, ...input } = context;
+  const slimBlock = ({ id, taskId, subtaskId, date, start, end, status }) => ({ id, taskId, subtaskId, date, start, end, status });
+  return { ...input,
+    protectedBlocks: context.protectedBlocks.filter(block => block.date >= context.window.from && block.date <= context.window.to).map(slimBlock),
+    existingFutureBlocks: (context.existingFutureBlocks ?? []).map(slimBlock) };
+}
+
 /** 공식 입력 준비 → AI → 공식 검증/적용. 호출자의 updateDb 트랜잭션에서 실행한다. */
 export function createAiPlanner({ completeFn = complete, clock = () => new Date() } = {}) {
   return async function planSchedule(db, options) {
     let prepared = reschedule(db, options);
     let candidate = { ...db, scheduledBlocks: prepared.scheduledBlocks,
       aiScheduling: { status: 'pending', context: prepared.planningContext } };
-    let messages = [{ role: 'user', content: JSON.stringify(prepared.planningContext) }];
+    let messages = [{ role: 'user', content: JSON.stringify(planningModelInput(prepared.planningContext)) }];
     let best, bestPlan;
     const commit = result => {
       Object.assign(db, { scheduledBlocks: result.scheduledBlocks, aiScheduling: result.aiScheduling });
@@ -66,7 +75,7 @@ export function createAiPlanner({ completeFn = complete, clock = () => new Date(
           prepared = reschedule(db, { ...options, now: clock() });
           candidate = { ...db, scheduledBlocks: prepared.scheduledBlocks,
             aiScheduling: { status: 'pending', context: prepared.planningContext } };
-          messages = [{ role: 'user', content: JSON.stringify({ ...prepared.planningContext, validationErrors: [error.message] }) }];
+          messages = [{ role: 'user', content: JSON.stringify({ ...planningModelInput(prepared.planningContext), validationErrors: [error.message] }) }];
         } else messages.push({ role: 'assistant', content }, { role: 'user', content: JSON.stringify({
           validationErrors: [error.message], currentTime: clock().toISOString(), instruction: '현재 시각과 모든 조건을 확인하고 같은 contextId로 전체 계획을 다시 반환하세요.' }) });
       }

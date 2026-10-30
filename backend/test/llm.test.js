@@ -45,3 +45,26 @@ test('API 사용 한도는 503, 네트워크 timeout은 504', async () => {
   await assert.rejects(createLlmClient({ env, fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ error: { code: 'rate_limit_exceeded' } }) }) }).interpretUtterance('test'), { status: 503 });
   await assert.rejects(createLlmClient({ env, fetchImpl: async () => { throw Object.assign(new Error(), { name: 'TimeoutError' }); } }).interpretUtterance('test'), { status: 504 });
 });
+
+
+test('단계별 대기시간 분리: 해석 60초, 배치 120초 및 각각 설정 재정의', async () => {
+  const limits = [], telemetry = [];
+  const client = createLlmClient({ env, timeoutSignal: ms => { limits.push(ms); return new AbortController().signal; },
+    onTelemetry: event => telemetry.push(event), fetchImpl: async () => response('{}') });
+  await client.interpretUtterance('test');
+  await client.complete({ system: 'test', messages: [], name: 'schedule_plan' });
+  assert.deepEqual(limits, [60000, 120000]);
+  assert.ok(telemetry.some(event => event.stage === 'schedule_plan' && event.event === 'completed'));
+  const custom = createLlmClient({ env: { ...env, LLM_TIMEOUT_MS: '1000', LLM_PLANNING_TIMEOUT_MS: '90000' },
+    timeoutSignal: ms => { limits.push(ms); return new AbortController().signal; }, onTelemetry: () => {}, fetchImpl: async () => response('{}') });
+  await custom.interpretUtterance('test'); await custom.complete({ system:'test', messages:[], name:'schedule_plan' });
+  assert.deepEqual(limits.slice(2), [1000, 90000]);
+});
+
+test('배치 타임아웃과 본문 읽기 타임아웃도 단계가 담긴 504 반환', async () => {
+  for (const bodyTimeout of [false, true]) {
+    const timeout = () => { throw Object.assign(new Error('sensitive'), { name: 'TimeoutError' }); };
+    const client = createLlmClient({ env, onTelemetry: () => {}, fetchImpl: async () => bodyTimeout ? { ok: true, json: timeout } : timeout() });
+    await assert.rejects(client.complete({ system:'test', messages:[], name:'schedule_plan' }), error => error.status === 504 && error.stage === 'schedule_plan' && error.message.includes('120초') && !error.message.includes('sensitive'));
+  }
+});
