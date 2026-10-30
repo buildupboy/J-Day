@@ -4,11 +4,12 @@ import { formatDuration } from '../../utils/time.js';
 
 function deadlineLabel(iso) {
   const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
-  return `${d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}까지`;
+  const time = iso.includes('T') ? ` ${new Date(iso).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false })}` : '';
+  return `${d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}${time}까지`;
 }
 
 // 제이가 제안한 작업 카드. 수정(제목·마감일) 후 "일정에 추가"를 누르면 확정된다.
-export default function TaskProposalCard({ task, added, status, onChange, onAdd }) {
+export default function TaskProposalCard({ task, added, status, cardMode, updated = false, onChange, onAdd }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [deadline, setDeadline] = useState(task.deadline);
@@ -57,9 +58,11 @@ export default function TaskProposalCard({ task, added, status, onChange, onAdd 
           <button type="button" className="proposal-primary" onClick={save}>
             저장
           </button>
+        ) : cardMode === 'existing' ? (
+          <button type="button" className="proposal-primary is-added" disabled>기존 저장된 과제</button>
         ) : added ? (
           <button type="button" className="proposal-primary is-added" disabled>
-            {status === 'pending_schedule' ? '저장됨 · 배치 대기' : '저장·배치 완료'}
+            {status === 'pending_schedule' ? '저장됨 · 배치 대기' : updated ? '수정·저장·배치 완료' : '저장·배치 완료'}
           </button>
         ) : (
           <>

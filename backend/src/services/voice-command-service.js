@@ -128,6 +128,20 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
     const extracted = await interpreter(request.text, context, request.conversation);
     assertSchema(extracted, INTERPRET_SCHEMA);
     const { intent, slots } = extracted;
+    const duplicateQuestion = tasks => {
+      const byId = slots.taskId ? tasks.find(task => task.id === slots.taskId) : null;
+      const matches = byId ? [byId] : tasks.filter(task => slots.title && task.title.replace(/\s/g, '').toLowerCase() === slots.title.replace(/\s/g, '').toLowerCase());
+      if (!matches.length) return null;
+      return { requestId: request.requestId, intent: 'clarify', status: 'needs_clarification',
+        reply: matches.length === 1 ? `이미 등록된 과제 ‘${matches[0].title}’예요. 해당 과제를 수정할까요?` : '같은 이름의 과제가 여러 개예요. 어떤 날짜의 과제를 수정할까요?',
+        assumptions: extracted.assumptions,
+        result: matches.length === 1 ? { task: structuredClone(matches[0]), cardMode: 'existing' } : null };
+    };
+    // 모델이 중복 등록을 clarify로 분류한 경우도 서버의 실제 저장 카드로 안내한다.
+    if (intent === 'clarify' && /수정|변경/.test(extracted.reply)) {
+      const question = duplicateQuestion(snapshot.tasks);
+      if (question) return question;
+    }
     if (['clarify', 'unsupported'].includes(intent)) return { requestId: request.requestId, intent,
       status: intent === 'clarify' ? 'needs_clarification' : 'unsupported', reply: extracted.reply, assumptions: extracted.assumptions, result: null };
     if (intent === 'query_schedule') {
@@ -138,13 +152,6 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
         result: { date: target, fixedBlocks: latest.fixedBlocks.filter(block => block.dayOfWeek.includes(weekday)),
           scheduledBlocks: latest.scheduledBlocks.filter(block => block.date === target) } };
     }
-    const duplicateQuestion = tasks => {
-      const matches = tasks.filter(task => task.id === slots.taskId || (slots.title && task.title.replace(/\s/g, '').toLowerCase() === slots.title.replace(/\s/g, '').toLowerCase()));
-      if (!matches.length) return null;
-      return { requestId: request.requestId, intent: 'clarify', status: 'needs_clarification',
-        reply: matches.length === 1 ? `이미 등록된 일정 ‘${matches[0].title}’ (${matches[0].deadline})이에요. 기존 일정을 변경할까요?` : '같은 이름의 일정이 여러 개예요. 어떤 날짜의 일정을 변경할까요?',
-        assumptions: extracted.assumptions, result: null };
-    };
     if (intent === 'add_task') {
       const question = duplicateQuestion(snapshot.tasks);
       if (question) return question;
@@ -182,7 +189,7 @@ export function createVoiceService({ readDb, updateDb, interpreter = llm.interpr
       response = { requestId: request.requestId, intent, status: scheduling.rescheduled ? 'scheduled' : 'pending_schedule',
         reply: scheduling.rescheduled ? (scheduling.unplaced.length ? '저장했어요. 마감 전에 배치하지 못한 작업시간이 있어요.' : '저장하고 일정을 다시 배치했어요.') : '저장했어요. AI 자동배치를 기다리고 있어요.',
         assumptions: [...extracted.assumptions, ...(breakdown?.assumptions ?? [])],
-        result: { task, ...scheduling, ...(breakdown ? { estimate: { baseEstimatedMinutes: breakdown.baseEstimatedMinutes, rangeMinutes: breakdown.rangeMinutes } } : {}) },
+        result: { task, ...(['add_task', 'update_task'].includes(intent) ? { cardMode: 'saved' } : {}), ...scheduling, ...(breakdown ? { estimate: { baseEstimatedMinutes: breakdown.baseEstimatedMinutes, rangeMinutes: breakdown.rangeMinutes } } : {}) },
         schedulerRequest };
       (db.voiceCommands ??= []).push({ id: request.requestId, hash: request.hash, createdAt: committedAt.toISOString(), response });
       return db;

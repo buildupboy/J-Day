@@ -49,7 +49,8 @@ export default function VoiceScreen({ onClose }) {
     try {
       const res = await api.interpret(content, command);
       setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: res.reply,
-        task: res.intent === 'add_task' ? res.result?.task ?? null : null, added: true, status: res.status }]);
+        task: ['add_task', 'update_task'].includes(res.intent) || res.result?.cardMode === 'existing' ? res.result?.task ?? null : null,
+        cardMode: res.result?.cardMode, updated: res.intent === 'update_task', added: true, status: res.status }]);
       if (res.status === 'scheduled' || res.status === 'pending_schedule') scheduleChanged();
       if (viaVoice) speak(res.reply.replace(/\n/g, ' '));
     } catch (error) {
@@ -229,6 +230,8 @@ export default function VoiceScreen({ onClose }) {
                       <TaskProposalCard
                         task={m.task}
                         added={m.added}
+                        cardMode={m.cardMode}
+                        updated={m.updated}
                         status={m.status}
                         onChange={(task) => updateMessage(m.id, { task })}
                       />

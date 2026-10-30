@@ -189,7 +189,9 @@ test('기존 일정 재등록은 변경 질문, 동의 후 같은 ID 수정·재
   h.setInterpret(extracted('add_task', { deadline: '2026-11-06T23:59:00+09:00' }));
   const question = await h.request(input('duplicate'));
   assert.equal(question.body.status, 'needs_clarification');
-  assert.match(question.body.reply, /변경할까요/);
+  assert.match(question.body.reply, /해당 과제를 수정할까요/);
+  assert.equal(question.body.result.cardMode, 'existing');
+  assert.deepEqual(question.body.result.task, task);
   assert.deepEqual((await h.readDb()).tasks, before.tasks);
   assert.equal(h.breakdownCalls(), 1);
   h.setInterpret(extracted('update_task', { taskId: task.id, title: null, type: null,
@@ -200,6 +202,7 @@ test('기존 일정 재등록은 변경 질문, 동의 후 같은 ID 수정·재
   ] }));
   assert.equal(response.status, 200);
   assert.equal(response.body.result.task.id, task.id);
+  assert.equal(response.body.result.cardMode, 'saved');
   assert.equal(response.body.result.task.deadline, '2026-11-06T23:59:00+09:00');
   assert.deepEqual(response.body.result.task.subtasks, task.subtasks);
   assert.equal((await h.readDb()).tasks.length, 1);
@@ -220,4 +223,30 @@ test('완료 작업도 일정 변경 가능하며 완료 기록과 진행 상태
   assert.deepEqual((await h.readDb()).history, before.history);
   const again = await h.request(input('edit-done', { text: '완료한 보고서 마감을 11월 7일로 변경해' }));
   assert.equal(again.body.replayed, true);
+});
+
+test('모델이 중복 요청을 clarify로 분류해도 기존 저장 카드와 수정 질문 반환', async t => {
+  const h = await setup(t);
+  const task = (await h.request()).body.result.task;
+  const before = await h.readDb();
+  h.setInterpret({ ...extracted('clarify', { taskId: task.id, deadline: '2026-11-06T15:00:00+09:00' }), reply: '기존 일정을 변경할까요?' });
+  const result = await h.request(input('clarify-duplicate'));
+  assert.equal(result.body.status, 'needs_clarification');
+  assert.match(result.body.reply, /해당 과제를 수정할까요/);
+  assert.equal(result.body.result.cardMode, 'existing');
+  assert.equal(result.body.result.task.deadline, task.deadline);
+  assert.deepEqual(await h.readDb(), before);
+});
+
+test('같은 이름 여러 개는 대상 질문, 정확한 ID 지정 시 해당 카드만 반환', async t => {
+  const h = await setup(t);
+  const task = (await h.request()).body.result.task;
+  await h.updateDb(db => { db.tasks.push({ ...structuredClone(task), id: 'other', deadline: '2026-11-10T23:59:00+09:00' }); return db; });
+  const ambiguous = await h.request(input('ambiguous-duplicate'));
+  assert.equal(ambiguous.body.status, 'needs_clarification');
+  assert.equal(ambiguous.body.result, null);
+  h.setInterpret({ ...extracted('clarify', { taskId: task.id }), reply: '수정할까요?' });
+  const exact = await h.request(input('exact-duplicate'));
+  assert.equal(exact.body.result.task.id, task.id);
+  assert.equal(exact.body.result.cardMode, 'existing');
 });
