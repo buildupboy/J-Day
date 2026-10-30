@@ -188,3 +188,18 @@ allocate(tasks, fixedBlocks, { from, to, settings, existingBlocks: [], now })
 estimator.js의 computeCorrectionFactors(history)는 유형별 실제 시간 합 / 기본 추정시간 합을 반환한다. 기록이 없는 유형은 applyCorrection에서 1배로 처리한다. 잘못된 유형, 0 이하 시간, 정수가 아닌 기록은 제외하며 유효한 기록에 임의의 이상치 제거/최근 가중치는 적용하지 않는다.
 
 applyCorrection(baseMinutes, type, factors)는 양의 보정 계수를 곱하고 1분 단위로 올림한다. 과제 등록/추정 갱신 때 원본 LLM 추정시간에 한 번만 적용하여 Task.estimatedMinutes에 저장한다. allocator/rescheduler는 이미 보정된 값을 사용하므로 history를 다시 곱하지 않는다. HistoryRecord.estimatedMinutes에는 비교 기준인 원본 추정시간을 기록해야 한다.
+
+
+## 재스케줄러 rescheduler (내부 함수)
+
+`reschedule(db, { now: Date, reason })`는 `{ scheduledBlocks, changes, unplaced }`를 반환한다. DB와 입력 객체를 변경하지 않으며 HTTP 연결/저장/자동 호출은 별도 작업이다.
+
+- reason은 `new_task | missed | progress | manual`이며 변경 기록에 남긴다. 배치 우선순위는 allocator와 동일하다.
+- KST 기준 현재 시각 이후부터 미완료 작업의 가장 늦은 마감 날짜까지 배치한다. 초가 있으면 다음 분부터 시작하며 다음 날에는 원래 dayStart를 사용한다.
+- 시작 시각이 현재보다 이른 블록, done/missed 기록은 보존한다. 미래 planned만 제거하여 다시 계산한다. 정확히 현재 시각에 시작하는 planned는 재배치 대상이다.
+- `detectMissedBlocks(scheduledBlocks, tasks, now)`는 종료 시각 <= now인 planned 중 연결된 작업이 미완료(status != done, progress < 1)인 블록을 반환한다. 이미 missed인 기록, 연결 작업이 없는 기록, 완료된 하위작업의 블록과 모든 하위작업이 완료된 작업은 제외한다.
+- 감지된 블록은 시간과 ID를 유지하고 상태만 missed로 갱신한다. 전체 진행률만으로 특정 블록의 완료 여부를 추측하지 않으므로 호출자는 완료한 블록의 status를 done으로 관리해야 한다.
+- 진행 중인 planned 블록은 원래 시간·ID를 보존하되, 남은 작업량에서는 now를 분 단위로 올림한 이후의 예약분만 차감한다. 경과 시간만으로 실제 수행을 추정하지 않는다. Task.progress는 호출 시점에 보고된 완료율이다.
+- 과거 planned는 반환 이력으로 보존하되 새 배치의 예약량에서 차감하지 않는다. 완료 수행량은 Task.progress가 기준이다.
+- changes 항목은 `{ type: 'added', reason, after }`, `{ type: 'removed', reason, before }`, `{ type: 'updated', reason, before, after }`이다. before/after는 ScheduledBlock이며 ID 기준으로 비교한다. 이동/분할된 블록은 제거+추가로 나타날 수 있다.
+- 동일한 DB와 now로 반복 실행하면 같은 배치가 나오며 변경이 없으면 changes는 빈 배열이다.
