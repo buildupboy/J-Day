@@ -34,7 +34,7 @@ function parseDeadline(text) {
 }
 
 export async function mockInterpret(text) {
-  await new Promise((r) => setTimeout(r, 700)); // 생각하는 시간
+  await new Promise((r) => setTimeout(r, 400)); // 생각하는 척하는 시간
 
   if (/오늘.*(뭐|일정|할 ?일)/.test(text)) {
     const items = getBlocksForDate(new Date())

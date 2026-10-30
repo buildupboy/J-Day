@@ -5,8 +5,10 @@ const getSpeechRecognition = () =>
   typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : undefined;
 
 // stop() 뒤 이 시간 안에 onend가 안 오면 직접 끝낸다
-// 말을 마친 뒤 서버가 최종 결과를 돌려주기까지 걸리는 시간을 넉넉히 기다린다 (너무 짧으면 결과가 버려진다)
-const FORCE_END_MS = 5000;
+// 종료를 눌렀을 때 서버의 최종 결과를 기다리는 시간.
+// 이미 들린 글자(중간 결과)가 있으면 짧게 기다렸다가 그걸로 보내고, 아무것도 없으면 넉넉히 기다린다.
+const FORCE_END_WITH_TEXT_MS = 700;
+const FORCE_END_NO_TEXT_MS = 5000;
 
 /**
  * Web Speech API 음성 인식 훅 (크롬 기준, ko-KR).
@@ -128,6 +130,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     }
     // 브라우저가 onend를 늦게 주거나 안 줘도 화면이 듣기 상태에 갇히지 않게 한다
     clearTimeout(forceTimerRef.current);
+    const wait = lastInterimRef.current ? FORCE_END_WITH_TEXT_MS : FORCE_END_NO_TEXT_MS;
     forceTimerRef.current = setTimeout(() => {
       try {
         rec.abort();
@@ -135,7 +138,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
         // 이미 끝난 인식기면 무시
       }
       finish(rec);
-    }, FORCE_END_MS);
+    }, wait);
   }, [finish]);
 
   // 화면이 사라질 때 듣고 있던 세션을 정리한다
