@@ -38,14 +38,10 @@
 | `id` | string | |
 | `title` | string | |
 | `deadline` | ISO datetime | 마감 |
-| `notBefore` | ISO datetime? | 선택적 작업 시작 가능 시각. 생략 시 제한 없음 |
-| `reviewOf` | string? | 복습 작업의 원본 시험 Task.id |
-| `importance` | number? | 중요도: 1=낮음, 2=보통, 3=높음. 생략 시 2 |
+| `importance` | number? | 1=낮음, 2=보통(기본), 3=높음 |
 | `type` | `'report' \| 'coding' \| 'exam' \| 'presentation' \| 'reading' \| 'etc'` | 과제 유형 (개인 보정 계수의 기준) |
 | `subtasks` | `Subtask[]` | 하위작업 |
 | `estimatedMinutes` | number | 보정 후 총 추정시간 |
-| `baseEstimatedMinutes` | number? | 등록 시 원본 추정시간. 기존 데이터는 없을 수 있음 |
-| `actualMinutes` | number? | 보고된 누적 실제 작업시간. 생략된 기존 데이터는 0으로 처리 |
 | `progress` | number | 0 ~ 1 |
 | `status` | `'todo' \| 'in_progress' \| 'done'` | |
 | `createdAt` | ISO datetime | |
@@ -76,7 +72,7 @@
 { "user": { "settings": {} }, "fixedBlocks": [], "tasks": [], "scheduledBlocks": [], "history": [] }
 ```
 
-`user.settings`: `dayStart`, `dayEnd`, `minSlotMinutes`, `maxBlockMinutes`, `breakMinutes`, 선택적 `maxDailyMinutes`, `bufferMinutes`, `distribution`
+`user.settings`: `dayStart`, `dayEnd`, `minSlotMinutes`, `maxBlockMinutes`, `breakMinutes`
 
 ## API 목록
 
@@ -85,12 +81,10 @@
 | ✅ | GET | `/api/health` | 헬스체크 |
 | ✅ | GET | `/api/tasks` | 작업 목록 |
 | TODO | POST | `/api/chat/interpret` | 음성 텍스트 해석 |
-| ✅ | GET | `/api/schedule/today` | 오늘 타임라인 조회 |
-| ✅ | GET | `/api/schedule/week` | KST 주간 타임라인 조회 |
-| ✅ | POST | `/api/tasks` | 구조화된 작업 등록·보정·자동 배치 |
-| ✅ | POST | `/api/tasks/:id/reviews` | 시험 복습 생성·저장·자동 배치 |
-| ✅ | PATCH | `/api/tasks/:id/progress` | 진행 보고·완료 기록·자동 재배치 |
-| ✅ | POST | `/api/schedule/reschedule` | 재스케줄링·결과 저장 |
+| TODO | GET | `/api/schedule/today` | 오늘 타임라인 조회 |
+| TODO | POST | `/api/tasks` | 작업 등록 |
+| TODO | PATCH | `/api/tasks/:id/progress` | 진행 보고 |
+| TODO | POST | `/api/schedule/reschedule` | 재스케줄링 |
 
 ### POST /api/chat/interpret — 음성 텍스트 해석
 
@@ -136,10 +130,11 @@
 { "scheduledBlocks": [ ], "changes": [ ], "unplaced": [ { "taskId": "t-os-hw", "remainingMinutes": 60 } ] }
 ```
 
+
 ## 스케줄러 allocator (내부 함수)
 
 `backend/src/scheduler/allocator.js`는 DB나 LLM 호출 없이 입력을 변경하지 않고 계산한다.
-기존 HTTP 응답 및 데이터 필드 규약은 유지한다. POST /api/schedule/reschedule에서 계산과 결과 저장을 연결한다.
+기존 HTTP 응답 및 데이터 필드 규약은 유지한다. HTTP 연결과 저장은 후속 API 브랜치에서 구현한다.
 
 ```js
 findFreeSlots(date, fixedBlocks, scheduledBlocks, settings)
@@ -162,21 +157,6 @@ allocate(tasks, fixedBlocks, { from, to, settings, existingBlocks: [], now })
 
 테스트: 저장소 루트에서 `npm test --prefix backend` 실행.
 
-## 재스케줄러 rescheduler (내부 함수)
-
-`reschedule(db, { now: Date, reason })`는 `{ scheduledBlocks, changes, unplaced }`를 반환한다. DB와 입력 객체를 변경하지 않으며 HTTP 연결/저장/자동 호출은 별도 작업이다.
-
-- reason은 `new_task | missed | progress | manual`이며 변경 기록에 남긴다. 배치 우선순위는 allocator와 동일하다.
-- KST 기준 현재 시각 이후부터 미완료 작업의 가장 늦은 마감 날짜까지 배치한다. 초가 있으면 다음 분부터 시작하며 다음 날에는 원래 dayStart를 사용한다.
-- 시작 시각이 현재보다 이른 블록, done/missed 기록은 보존한다. 미래 planned만 제거하여 다시 계산한다. 정확히 현재 시각에 시작하는 planned는 재배치 대상이다.
-- `detectMissedBlocks(scheduledBlocks, tasks, now)`는 종료 시각 <= now인 planned 중 연결된 작업이 미완료(status != done, progress < 1)인 블록을 반환한다. 이미 missed인 기록, 연결 작업이 없는 기록, 완료된 하위작업의 블록과 모든 하위작업이 완료된 작업은 제외한다.
-- 감지된 블록은 시간과 ID를 유지하고 상태만 missed로 갱신한다. 전체 진행률만으로 특정 블록의 완료 여부를 추측하지 않으므로 호출자는 완료한 블록의 status를 done으로 관리해야 한다.
-- 진행 중인 planned 블록은 원래 시간·ID를 보존하되, 남은 작업량에서는 now를 분 단위로 올림한 이후의 예약분만 차감한다. 경과 시간만으로 실제 수행을 추정하지 않는다. Task.progress는 호출 시점에 보고된 완료율이다.
-- 과거 planned는 반환 이력으로 보존하되 새 배치의 예약량에서 차감하지 않는다. 완료 수행량은 Task.progress가 기준이다.
-- changes 항목은 `{ type: 'added', reason, after }`, `{ type: 'removed', reason, before }`, `{ type: 'updated', reason, before, after }`이다. before/after는 ScheduledBlock이며 ID 기준으로 비교한다. 이동/분할된 블록은 제거+추가로 나타날 수 있다.
-- 동일한 DB와 now로 반복 실행하면 같은 배치가 나오며 변경이 없으면 changes는 빈 배열이다.
-
-
 ### 선택적 하루 작업량 제한과 여유 시간
 
 - user.settings.maxDailyMinutes: 하루 전체 작업의 최대 분 합계(0~1440 정수). 생략 시 1440으로 기존 동작 유지. 0이면 새 작업을 배치하지 않는다. 기존 planned/done 블록도 작업량에 포함하며 missed·고정 일정·휴식은 제외한다. 이미 한도를 넘은 기존 블록을 삭제하지 않는다.
@@ -185,7 +165,6 @@ allocate(tasks, fixedBlocks, { from, to, settings, existingBlocks: [], now })
 - 한도에 남은 분이 minSlotMinutes보다 작으면 최소 길이 이상의 빈 구간 안에서 그만큼 짧은 작업 블록을 허용한다.
 - reschedule에서도 같은 설정을 적용한다. 오늘은 현재 시각 이후의 빈 시간에서 여유 시간을 확보하며, 이미 완료한 오늘 작업량도 한도에 포함한다.
 - 예: maxDailyMinutes=180, bufferMinutes=60이면 하루 작업은 최대 3시간이고 늦은 빈 시간에서 최대 1시간을 비워 둔다. seed의 기본값은 기존 동작 보존을 위해 1440/0이다.
-
 
 ### 하위작업별 작업량 계산
 
@@ -202,130 +181,3 @@ allocate(tasks, fixedBlocks, { from, to, settings, existingBlocks: [], now })
 - balanced는 각 과제의 남은 작업량을 마감 전 배치 가능한 날짜 수로 나누어 일별 목표량을 계산한다. 전체 과제의 전역 최적 균등 분산을 보장하는 방식은 아니다.
 - 고정 일정, 하위작업 순서, 하루 한도 등의 영향으로 미배치량이 생기면 early 결과와 비교한다. 우선순위가 높은 과제부터 미배치량을 비교하여 더 적은 쪽을 선택한다. 마감 준수가 균등 분산보다 우선한다.
 - 분산 목표량이 최소 구간보다 작아도 최소 구간 이상의 빈 시간 안에서는 짧은 블록을 허용한다.
-
-### 개인별 처리 속도 보정
-
-estimator.js의 computeCorrectionFactors(history)는 유형별 실제 시간 합 / 기본 추정시간 합을 반환한다. 기록이 없는 유형은 applyCorrection에서 1배로 처리한다. 잘못된 유형, 0 이하 시간, 정수가 아닌 기록은 제외하며 유효한 기록에 임의의 이상치 제거/최근 가중치는 적용하지 않는다.
-
-applyCorrection(baseMinutes, type, factors)는 양의 보정 계수를 곱하고 1분 단위로 올림한다. 과제 등록/추정 갱신 때 원본 LLM 추정시간에 한 번만 적용하여 Task.estimatedMinutes에 저장한다. allocator/rescheduler는 이미 보정된 값을 사용하므로 history를 다시 곱하지 않는다. HistoryRecord.estimatedMinutes에는 비교 기준인 원본 추정시간을 기록해야 한다.
-
-### 시험 전 복습 생성
-
-reviews.js의 createExamReviewTasks(examTask, { daysBefore: [7, 3, 1], minutes: 30 })는 별도 복습 Task 배열을 반환한다. 옵션 생략 시 시험 7일/3일/1일 전 각 30분이다. 유틸리티 자체는 자동 호출하지 않으며, 과제 등록의 review 옵션 또는 복습 등록 API에서 명시적으로 선택한다.
-
-- 시험의 KST 날짜를 기준으로 계산하고 notBefore와 deadline으로 해당 하루에만 배치한다. reviewOf는 시험 ID이다.
-- 복습 시간은 원본 시험 공부 시간과 별도로 추가된다. 사용자가 설정한 복습 시간을 개인 보정으로 다시 늘리지 않는다.
-- ID는 원본 시험 ID와 간격으로 결정된다. 저장 시 ID 기준으로 중복 추가를 막아야 한다. 시험 날짜 변경 시 호출자가 기존 복습을 갱신해야 한다.
-- 지난 복습 날짜나 빈 시간이 없는 날짜는 unplaced로 반환하며 다른 날짜로 임의 이동하지 않는다.
-
-### 배치 설명
-
-explanations.js의 explainSchedule(tasks, result, { settings, now })는 { blocks, unplaced } 형태의 설명 자료를 반환한다. result는 allocate 또는 reschedule 반환값이다. 원래 반환 규약과 ScheduledBlock은 변경하지 않는다.
-
-- blocks에는 blockId, taskId, title, estimatedMinutes(해당 블록 길이), deadline, importance, reasons, message가 포함된다.
-- reasons는 적용하는 배치 규칙 설명이다. 특정 시간 선택의 유일한 원인을 역추정하지 않는다.
-- unplaced는 deadline_passed 또는 constraints_prevent_placement와 설명을 제공한다. 후자는 여러 제약 중 하나가 원인이라고 임의로 단정하지 않는다.
-- 한국어 설명은 규칙 기반이며 LLM 호출이 없다. API 응답/화면 연결 시 호출자가 이 자료를 활용한다.
-
-검증: 저장소 루트에서 node --test backend/test/*.test.js 실행.
-
-
-### 재배치 API 실행·저장 규칙
-
-- POST /api/schedule/reschedule은 JSON 객체의 reason을 필수로 받는다. 허용값은 new_task, missed, progress, manual이다. 누락·잘못된 값·잘못된 JSON은 HTTP 400과 { error }를 반환하고 저장하지 않는다.
-- 서버의 현재 시각으로 계산한다. 클라이언트가 전달한 now는 사용하지 않는다. 요청이 대기하면 실제 갱신 차례가 시작될 때 시각을 잡는다.
-- updateDb 안에서 최신 DB를 읽고 reschedule을 실행하여 scheduledBlocks만 교체한다. tasks, fixedBlocks, user, history와 기타 필드는 보존한다.
-- 저장 완료 후 HTTP 200으로 { scheduledBlocks, changes, unplaced }를 반환한다. 마감 초과나 공간 부족으로 남은 작업이 있어도 정상 처리이며 unplaced에 표시한다.
-- 계산·DB 읽기·저장 실패는 공통 에러 처리로 HTTP 500과 { error }를 반환한다. 실패한 계산의 결과를 저장하거나 성공으로 응답하지 않는다.
-- JSON 저장소는 단일 서버 프로세스 안에서 writeDb/updateDb/resetDb를 직렬화한다. 임시 파일을 완성한 뒤 rename으로 교체해 기존 DB의 부분 덮어쓰기를 피한다. 외부 프로세스나 직접 파일 편집과의 동시 갱신은 이 큐로 조정되지 않는다.
-- readDb는 앞선 쓰기를 기다린다. updateDb 콜백에서는 전달받은 db를 사용하고 같은 저장소의 readDb/updateDb를 중첩 호출하지 않는다.
-- 과제 등록·진행 보고·복습 생성은 같은 DB 갱신 안에서 재배치한다. 서버 시작 시 미수행 주기 확인을 연결한다(아래 실행 규칙 참고).
-- GET /api/schedule/today와 /week는 저장된 일정의 읽기 전용 조회이다. 조회로 재배치하지 않는다.
-
-수동 확인(실행 중인 백엔드가 필요하며 실제 DB의 scheduledBlocks가 저장된다):
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:3001/api/schedule/reschedule -ContentType application/json -Body '{"reason":"manual"}'
-```
-
-자동 테스트는 임시 폴더의 DB와 별도 포트를 사용한다. 실제 backend/data/db.json을 변경하지 않는다.
-
-
-## 백엔드 등록·진행 보고·조회 연결
-
-### POST /api/tasks — 구조화된 과제 등록
-
-LLM 호출은 포함하지 않는다. LLM/프런트엔드 담당자는 이미 추출·추정한 아래 JSON을 전달한다. 저장된 Task의 estimatedMinutes는 보정 후 값이며, 등록 요청은 보정 전 baseEstimatedMinutes를 사용하여 이중 보정을 방지한다.
-
-~~~json
-{
-  "id": "optional-client-id",
-  "title": "운영체제 과제",
-  "type": "coding",
-  "deadline": "2026-11-04T23:59:00+09:00",
-  "baseEstimatedMinutes": 180,
-  "importance": 2,
-  "subtasks": [
-    { "id": "design", "title": "설계", "estimatedMinutes": 60 },
-    { "id": "code", "title": "구현", "estimatedMinutes": 120 }
-  ]
-}
-~~~
-
-- title/type/deadline/baseEstimatedMinutes는 필수이다. id와 하위작업 id를 생략하면 서버가 생성한다. importance 기본값은 2, subtasks 기본값은 빈 배열이다. notBefore는 선택적 시작 가능 일시이다.
-- 새 작업은 progress=0, status=todo, 모든 하위작업 done=false로 등록한다. createdAt은 서버의 KST 시각이다. 실제 누적시간은 0으로 시작한다.
-- 추정시간은 0~1,000,000 정수, 중요도는 1~3이다. 빈 제목·잘못된 일시·중복 하위작업 ID·잘못된 하위작업 시간은 400이다. 기존 작업 ID 중복은 409이며 덮어쓰지 않는다.
-- 성공은 201과 { task, reviewTasks, rescheduled: true, scheduledBlocks, changes, unplaced }이다. 과제 추가와 재배치 결과를 하나의 updateDb에서 저장하며 실패 시 둘 다 저장하지 않는다. 과거 마감도 등록되지만 남은 시간은 unplaced에 나온다.
-- 시험(type=exam)에 review:true 또는 review:{daysBefore:[7,3,1],minutes:30}을 추가하면 복습 작업을 함께 생성한다. 생략/false이면 생성하지 않는다. 시험 외 유형에 review를 요청하면 400이다.
-- 복습 작업은 입력한 분량을 그대로 쓰며 개인 보정을 다시 적용하지 않는다. 복습은 원본 시험 작업량 외에 추가되는 시간이다.
-
-### POST /api/tasks/:id/reviews — 기존 시험의 복습 등록
-
-- JSON 본문은 {}(기본값) 또는 {daysBefore:[3,1],minutes:30}이다. 간격은 1~365일의 정수, 최대 30개이며 중복 간격은 하나로 처리한다. 복습시간은 1~1440분이다.
-- 200과 {task,reviewTasks,rescheduled:true,scheduledBlocks,changes,unplaced}를 반환한다. 없는 작업은 404, 시험이 아니면 400이다.
-- 동일한 시험·간격·시간으로 재요청하면 기존 복습의 진행률과 완료 상태를 유지하고 중복 생성하지 않는다. 같은 복습 ID의 날짜/시간 설정이 달라지면 409로 거부한다. 복습 일정 재설정/시험 날짜 수정 API는 별도 범위이다.
-
-### PATCH /api/tasks/:id/progress — 진행·수행 보고
-
-기존 progress/actualMinutes/subtaskId 요청을 유지하며 선택적으로 subtaskDone, blockId, blockStatus를 확장한다.
-
-~~~json
-{ "progress": 0.6, "actualMinutes": 80, "subtaskId": "code" }
-~~~
-
-~~~json
-{ "subtaskId": "code", "subtaskDone": true, "actualMinutes": 130 }
-~~~
-
-- progress(0~1), actualMinutes(0~1,000,000 정수), subtaskDone, blockStatus 중 하나 이상이 필요하다. 없는 작업/하위작업/블록은 404이다.
-- actualMinutes는 해당 작업 전체의 누적 분량이며 보고할 때마다 더하는 값이 아니다. 같은 값의 재전송은 중복 가산되지 않는다. 하위작업별 시간을 따로 저장하지 않는다.
-- subtaskId만 보내면 맥락 지정이며 완료 표시하지 않는다. 완료 표시에는 subtaskDone:true를 함께 보낸다. 완료된 하위작업을 되돌리거나 progress를 낮추는 요청은 409이다.
-- 하위작업 완료 비중보다 progress가 작으면 완료 비중까지 올린다. 모든 하위작업 완료 또는 progress=1이면 Task는 done이고 모든 하위작업도 done이다. 실제 시간이 있거나 진행률이 양수이면 in_progress이다.
-- 특정 수행 기록을 표시하려면 blockId와 blockStatus(done|missed)를 함께 보낸다. 아직 시작하지 않은 블록은 400이다. 블록 상태 보고만으로 Task.progress를 추측하지 않는다.
-- 작업 또는 하위작업이 완료되면 이미 시작한 해당 planned 블록을 done으로 바꾸고 미래 예정은 재배치 시 제거한다. 이미 done/missed인 이력은 유지한다. 진행 중 블록을 조기 완료해도 기록의 원래 종료 시각은 보존한다.
-- 성공은 200과 {task,historyRecorded,rescheduled:true,scheduledBlocks,changes,unplaced}이다. 변경 내역에는 수행 상태 갱신도 포함한다.
-- 일반 작업 완료 시 history-taskId라는 결정적 ID로 기록한다. 반복 보고로 중복하지 않으며 완료 후 actualMinutes를 정정하면 같은 기록의 실제시간을 갱신한다. completedAt은 최초 완료 시각을 유지한다.
-- 기록의 estimatedMinutes는 baseEstimatedMinutes가 있으면 원본, 없으면 기존 estimatedMinutes를 사용한다. 원본을 알 수 없는 기존 과제의 보정 기준에는 한계가 있다. 실제시간 미보고 시 0을 기록하고 estimator는 0인 기록을 학습에 사용하지 않는다.
-- 자동 생성된 복습은 개인 보정용 history에서 제외한다. 작업·수행 기록·재배치를 한 번에 저장한다.
-
-### GET /api/schedule/today와 /week
-
-- today는 서버 현재 시각의 KST 날짜에 해당하는 {date,items}를 반환한다.
-- week는 ?from=YYYY-MM-DD부터 7일을 반환한다. from을 생략하면 현재 KST 주의 월요일부터 일요일이다. 응답은 {from,to,days:[{date,items},...]}이다. 잘못된 날짜는 400이다.
-- items는 시작/종료 시각으로 정렬한다. fixed 항목에는 source,id,kind,title,start,end,선택적 location이 포함된다. scheduled 항목에는 source와 ScheduledBlock 필드, 하위작업명(없으면 작업명)이 포함된다.
-- 예정·완료·미수행 블록을 모두 조회하며 실제 저장 기록을 표시한다. 읽기 요청은 재배치하거나 저장하지 않는다.
-
-### 설명 응답
-
-- 과제 등록/진행 보고/복습 등록/재배치/오늘·주간 조회에 ?explain=true를 붙이면 explanations를 추가한다. 생략 또는 false이면 기존 필드를 유지한다. 다른 값은 400이다.
-- 주간 조회는 각 days 항목에 explanations가 추가된다. 설명 생성 실패 시 변경 API는 저장을 완료하지 않는다.
-
-### 미수행 자동 확인
-
-- backend/src/index.js로 서버를 실행하면 60초 간격으로 확인한다. 첫 확인은 서버 시작 60초 후이다. LLM 호출이나 별도 HTTP 호출 없이 저장소와 스케줄러를 사용한다.
-- 미수행 후보가 없으면 저장하지 않는다. 후보가 있으면 DB 갱신 차례에 다시 확인하여 missed 상태와 재배치 결과를 저장한다. 중복 실행은 하나로 합친다.
-- 오류는 서버 로그에 기록하고 다음 확인에서 다시 시도한다. 서버 종료 시 감시를 중지한다. 서버가 실행되지 않는 동안에는 확인하지 않는다.
-- AUTO_RESCHEDULE_ENABLED=false로 주기 확인을 끌 수 있다. 값이 없으면 켜진다. 라우터/테스트 모듈 import만으로는 주기 작업을 시작하지 않는다.
-- 단일 서버 프로세스용이다. 같은 JSON 파일을 사용하는 서버를 여러 개 실행하는 운영 방식은 지원하지 않는다.
-
-LLM의 자연어 해석·실제 모델 호출과 프런트엔드 화면 연결은 팀원 담당으로 남겨둔다. 고정 일정 CRUD, 작업 수정/삭제, 시험 날짜 변경 API도 이번 연결 범위에 포함하지 않는다.
