@@ -1,4 +1,5 @@
 import { MicIcon, CalendarIcon, ListIcon, RepeatIcon, ChevronIcon } from './Icons.jsx';
+import SheetHandle from './SheetHandle.jsx';
 
 const OPTIONS = [
   { id: 'newEvent', icon: <CalendarIcon size={22} />, title: '일정', hint: '시간이 정해진 약속·예약·시험' },
@@ -13,7 +14,7 @@ export default function AddSheet({ nav, onClose }) {
   return (
     <div className="d-sheet-backdrop" onClick={onClose}>
       <section className="d-sheet" aria-label="추가하기" onClick={(e) => e.stopPropagation()}>
-        <span className="d-sheet-handle" aria-hidden="true" />
+        <SheetHandle onClose={onClose} />
         <h2 className="d-sheet-title">무엇을 추가할까요?</h2>
         <button type="button" className="add-voice" onClick={() => nav.open('voice')}>
           <MicIcon size={22} />

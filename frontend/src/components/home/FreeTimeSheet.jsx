@@ -4,6 +4,7 @@ import { scheduleChanged } from '../../hooks/useLiveSchedule.js';
 import { CloseIcon, PlusIcon } from '../common/Icons.jsx';
 import { fromMinutes, formatDuration } from '../../utils/time.js';
 import { josa } from '../../utils/labels.js';
+import SheetHandle from '../common/SheetHandle.jsx';
 
 const NIGHT_FROM = 22 * 60; // 이 시각 이후 틈은 쉬기를 권한다
 
@@ -44,7 +45,7 @@ export default function FreeTimeSheet({ slots, total, minGap, suggestTask, nav, 
   return (
     <div className="d-sheet-backdrop" onClick={onClose}>
       <section className="d-sheet" aria-label="오늘의 여유 시간" onClick={(e) => e.stopPropagation()}>
-        <span className="d-sheet-handle" aria-hidden="true" />
+        <SheetHandle onClose={onClose} />
         <div className="sheet-head">
           <div>
             <p className="d-sub">오늘의 여유 시간</p>

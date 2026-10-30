@@ -1,4 +1,5 @@
 import { formatDuration } from '../../utils/time.js';
+import SheetHandle from '../common/SheetHandle.jsx';
 
 const IMPORTANCE_LABEL = { 3: 'Must', 2: 'Should', 1: 'Could' };
 const STATUS_LABEL = { todo: '시작 전', in_progress: '진행 중', done: '완료' };
@@ -31,6 +32,7 @@ export default function TaskDetailSheet({ task, blocks, onClose }) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <section className="sheet sheet-auto" onClick={(e) => e.stopPropagation()}>
+        <SheetHandle onClose={onClose} />
         <div className="sheet-head">
           <div>
             <span className="kind-chip tt-task">작업</span>

@@ -5,6 +5,7 @@ import { toMinutes, formatDuration } from '../../utils/time.js';
 import { getTaskById } from '../../data/sampleSchedule.js';
 import { useAppDialogs } from '../common/AppDialogs.jsx';
 import { TaskEditForm, FixedEditForm, FixedMemo, TaskMemo, PostponeForm, ReminderField, SubtaskRow, SubtaskAddForm } from './TaskEditParts.jsx';
+import SheetHandle from '../common/SheetHandle.jsx';
 
 const KIND_LABEL = {
   fixed: '고정 시간',
@@ -82,6 +83,7 @@ export default function BlockDetailSheet({ block, details, onClose }) {
   return (
     <div className="sheet-backdrop is-above-nav" onClick={onClose}>
       <section className="sheet sheet-auto" onClick={(e) => e.stopPropagation()}>
+        <SheetHandle onClose={onClose} />
         <div className="sheet-head">
           <div>
             <span className={`kind-chip tt-${block.kind}`}>{KIND_LABEL[block.kind]}</span>
