@@ -85,11 +85,12 @@
 | ✅ | GET | `/api/health` | 헬스체크 |
 | ✅ | GET | `/api/tasks` | 작업 목록 |
 | TODO | POST | `/api/chat/interpret` | 음성 텍스트 해석 |
-| TODO | GET | `/api/schedule/today` | 오늘 타임라인 조회 |
+| ✅ | GET | `/api/schedule/today` | 오늘 타임라인 조회 |
+| ✅ | GET | `/api/schedule/week` | 주간 타임라인 조회 |
 | ✅ | POST | `/api/tasks` | 작업 등록·자동 배치 |
 | ✅ | POST | `/api/tasks/:id/reviews` | 복습 등록 |
 | ✅ | PATCH | `/api/tasks/:id/progress` | 진행 보고·자동 재배치 |
-| TODO | POST | `/api/schedule/reschedule` | 재스케줄링 |
+| ✅ | POST | `/api/schedule/reschedule` | 재배치·저장 |
 
 ### POST /api/chat/interpret — 음성 텍스트 해석
 
@@ -286,3 +287,18 @@ LLM 호출은 포함하지 않는다. LLM/프런트엔드 담당자는 이미 �
 - 자동 생성된 복습은 개인 보정용 history에서 제외한다. 작업·수행 기록·재배치를 한 번에 저장한다.
 
 설명은 등록/진행/복습 요청의 ?explain=true로 추가한다. 저장소는 단일 프로세스에서 갱신을 직렬화하고 완성된 임시 파일을 rename으로 교체한다. updateDb 내부에서 같은 저장소의 readDb/updateDb를 중첩 호출하지 않는다.
+
+
+### GET /api/schedule/today와 /week
+
+- today는 서버 현재 시각의 KST 날짜에 해당하는 {date,items}를 반환한다.
+- week는 ?from=YYYY-MM-DD부터 7일을 반환한다. from을 생략하면 현재 KST 주의 월요일부터 일요일이다. 응답은 {from,to,days:[{date,items},...]}이다. 잘못된 날짜는 400이다.
+- items는 시작/종료 시각으로 정렬한다. fixed 항목에는 source,id,kind,title,start,end,선택적 location이 포함된다. scheduled 항목에는 source와 ScheduledBlock 필드, 하위작업명(없으면 작업명)이 포함된다.
+- 예정·완료·미수행 블록을 모두 조회하며 실제 저장 기록을 표시한다. 읽기 요청은 재배치하거나 저장하지 않는다.
+
+### 설명 응답
+
+- 과제 등록/진행 보고/복습 등록/재배치/오늘·주간 조회에 ?explain=true를 붙이면 explanations를 추가한다. 생략 또는 false이면 기존 필드를 유지한다. 다른 값은 400이다.
+- 주간 조회는 각 days 항목에 explanations가 추가된다. 설명 생성 실패 시 변경 API는 저장을 완료하지 않는다.
+
+POST /api/schedule/reschedule은 {reason:new_task|missed|progress|manual}을 받아 최신 DB를 읽고 서버 시각으로 재배치한 뒤 저장하고 {scheduledBlocks,changes,unplaced}를 반환한다. 잘못된 요청은 400, 읽기/계산/저장 오류는 500이다. 설명은 ?explain=true로 추가한다.
