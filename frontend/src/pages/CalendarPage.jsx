@@ -1,12 +1,28 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import PageHeader from '../components/common/PageHeader.jsx';
 import WeekStrip from '../components/calendar/WeekStrip.jsx';
 import DayTimetable from '../components/calendar/DayTimetable.jsx';
 import MonthGrid from '../components/calendar/MonthGrid.jsx';
+import { addDays } from '../utils/calendar.js';
+
+const SWIPE_MIN_PX = 60;
 
 export default function CalendarPage({ onOpenMy }) {
   const [view, setView] = useState('week');
   const [selected, setSelected] = useState(() => new Date());
+
+  const swipeStart = useRef(null);
+
+  // 왼쪽으로 밀면 이전 주, 오른쪽으로 밀면 다음 주 (같은 요일 유지)
+  const onSwipeEnd = (e) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    setSelected((d) => addDays(d, dx < 0 ? -7 : 7));
+  };
 
   const pickFromMonth = (day) => {
     setSelected(day);
@@ -37,10 +53,19 @@ export default function CalendarPage({ onOpenMy }) {
       <div className="page-body calendar-body">
         <div className="calendar-toolbar">{toggle}</div>
         {view === 'week' ? (
-          <>
+          <div
+            className="week-swipe"
+            onPointerDown={(e) => {
+              swipeStart.current = { x: e.clientX, y: e.clientY };
+            }}
+            onPointerUp={onSwipeEnd}
+            onPointerCancel={() => {
+              swipeStart.current = null;
+            }}
+          >
             <WeekStrip selected={selected} onSelect={setSelected} />
             <DayTimetable date={selected} />
-          </>
+          </div>
         ) : (
           <MonthGrid
             year={selected.getFullYear()}
