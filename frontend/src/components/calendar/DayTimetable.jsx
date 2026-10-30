@@ -46,20 +46,14 @@ export default function DayTimetable({ date }) {
         return (
           <div
             key={b.id}
-            className={`tt-block tt-${b.kind}`}
+            className={`tt-block tt-${b.kind} ${e - s <= 30 ? 'is-compact' : ''}`}
             style={{ top: top(s), height: Math.max(top(e) - top(s) - 2, 14) }}
           >
-            {b.kind === 'break' ? (
-              <span className="tt-break-label">{b.title}</span>
-            ) : (
-              <>
-                <strong>{b.title}</strong>
-                <span>
-                  {b.start}–{b.end}
-                  {b.note ? ` · ${b.note}` : ''}
-                </span>
-              </>
-            )}
+            <strong>{b.title}</strong>
+            <span>
+              {b.start}–{b.end}
+              {b.note ? ` · ${b.note}` : ''}
+            </span>
           </div>
         );
       })}

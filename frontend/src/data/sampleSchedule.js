@@ -1,7 +1,8 @@
 // 백엔드 연결 전까지 쓰는 캘린더 임시 데이터.
-// kind: fixed(수업·알바 등 고정) / task(AI가 배치한 작업) / event(새로 추가된 일정) / break(휴식)
+// kind: fixed(수업·알바 등 고정) / routine(루틴) / task(AI가 배치한 작업) / event(새로 추가된 일정) / break(점심·휴식)
 const SAMPLE = [
-  { id: 'b1', kind: 'fixed', title: '점심', start: '12:00', end: '12:45' },
+  { id: 'b0', kind: 'routine', title: '아침 운동', start: '07:00', end: '07:40' },
+  { id: 'b1', kind: 'break', title: '점심', start: '12:00', end: '12:45' },
   { id: 'b2', kind: 'task', title: '보고서 자료 조사', start: '12:45', end: '13:45', note: '공강 · 60분' },
   { id: 'b3', kind: 'fixed', title: '캡스톤디자인', start: '14:00', end: '15:15', note: '수업' },
   { id: 'b4', kind: 'task', title: 'OS 과제 3', start: '15:30', end: '16:30', note: '60분' },

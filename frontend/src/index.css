@@ -417,27 +417,47 @@ body {
 
 .tt-block {
   position: absolute;
-  left: 52px;
+  left: 46px;
   right: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
-  padding: 0 14px;
-  border-radius: 12px;
+  padding: 0 12px;
+  border-radius: 8px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.tt-block.is-compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.tt-block.is-compact strong {
+  font-size: 11px;
 }
 
 .tt-block strong {
-  font-size: 14px;
+  font-size: 13px;
 }
 
+/* 고정 시간: 수업·알바 */
 .tt-fixed {
-  background: var(--bg);
-  color: #555;
+  background: #e4eaff;
+  color: #2b3a8c;
+  box-shadow: inset 3px 0 0 #4f6bff;
 }
 
+/* 루틴 */
+.tt-routine {
+  background: #e0f3e6;
+  color: #1f6b3a;
+  box-shadow: inset 3px 0 0 #3aa162;
+}
+
+/* 작업: AI가 배치 */
 .tt-task {
   background: #111;
   color: #fff;
@@ -447,28 +467,24 @@ body {
   color: #bbb;
 }
 
+/* 새로 추가된 일정 */
 .tt-event {
   border: 1.5px solid #111;
   background: var(--panel);
 }
 
+/* 휴식·점심 */
 .tt-break {
-  align-items: center;
-  border: 1px dashed var(--muted);
-  background: transparent;
-  padding: 0;
-}
-
-.tt-break-label {
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1;
+  background: #eceef2;
+  color: #6b7280;
+  box-shadow: inset 3px 0 0 #c3c8d2;
 }
 
 .tt-now {
   position: absolute;
   left: 40px;
   right: 0;
+  z-index: 1;
   height: 2px;
   background: var(--danger);
 }
