@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import BottomNav from './components/common/BottomNav.jsx';
-import ChatSheet from './components/chat/ChatSheet.jsx';
+import VoiceScreen from './components/voice/VoiceScreen.jsx';
 import HomePage from './pages/HomePage.jsx';
 import CalendarPage from './pages/CalendarPage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
@@ -35,7 +35,7 @@ export default function App() {
     <div className="app">
       <main className="app-main">{page}</main>
       <BottomNav active={showMy ? null : tab} onSelect={selectTab} onMic={() => setChatOpen(true)} />
-      {chatOpen && <ChatSheet onClose={() => setChatOpen(false)} />}
+      {chatOpen && <VoiceScreen onClose={() => setChatOpen(false)} />}
     </div>
   );
 }

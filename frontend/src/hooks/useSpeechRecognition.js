@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const SpeechRecognition =
+// 브라우저 지원 여부는 사용 시점에 확인한다
+const getSpeechRecognition = () =>
   typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : undefined;
 
 /**
@@ -21,6 +22,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
   }, [onFinalResult]);
 
   useEffect(() => {
+    const SpeechRecognition = getSpeechRecognition();
     if (!SpeechRecognition) return;
     const recognition = new SpeechRecognition();
     recognition.lang = lang;
@@ -61,5 +63,5 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     recognitionRef.current?.stop();
   }, []);
 
-  return { supported: Boolean(SpeechRecognition), listening, interimTranscript, error, start, stop };
+  return { supported: Boolean(getSpeechRecognition()), listening, interimTranscript, error, start, stop };
 }
