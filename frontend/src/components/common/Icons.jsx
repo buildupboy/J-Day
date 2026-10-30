@@ -171,6 +171,13 @@ export const SpeakerIcon = (p) => (
   </Svg>
 );
 
+export const SpeakerMutedIcon = (p) => (
+  <Svg {...p}>
+    <path d="M11 5 6 9H2v6h4l5 4V5z" />
+    <path d="m16 9 6 6m0-6-6 6" />
+  </Svg>
+);
+
 export const SpeakerLoudIcon = (p) => (
   <Svg {...p}>
     <path d="M11 5 6 9H2v6h4l5 4V5z" />

@@ -10,14 +10,16 @@ import {
   KeyboardIcon,
   CloseIcon,
   SpeakerLoudIcon,
-  SpeakerIcon,
+  SpeakerMutedIcon,
   ListIcon,
   StopIcon,
 } from '../common/Icons.jsx';
 import TaskProposalCard from './TaskProposalCard.jsx';
+import { voicePlaybackCommand } from '../../utils/voicePlaybackCommand.js';
 
 const EXAMPLES = ['오늘 뭐 있어?', '절반 했어', '내일로 미뤄 줘'];
 const BAR_COUNT = 7;
+const WAIT_MESSAGE = '기존 일정과 휴식 시간을 함께 검토하고 있어요. 잠시만 기다려 주세요.';
 const SILENCE_LIMIT_MS = 5000; // 이 시간 동안 말이 없으면 듣기를 끝내고 제이에게 보낸다
 
 const ERROR_TEXT = {
@@ -34,12 +36,6 @@ export default function VoiceScreen({ nav, onClose }) {
   const [messages, setMessages] = useState([]);
   const [thinking, setThinking] = useState(false);
   const [longWait, setLongWait] = useState(false);
-  useEffect(() => {
-    setLongWait(false);
-    if (!thinking) return;
-    const timer = setTimeout(() => setLongWait(true), 10000);
-    return () => clearTimeout(timer);
-  }, [thinking]);
   const [text, setText] = useState('');
   const [typing, setTyping] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -48,15 +44,45 @@ export default function VoiceScreen({ nav, onClose }) {
   const mutedRef = useRef(false);
   mutedRef.current = muted;
   const { speak, cancel } = useSpeechSynthesis();
+  const voiceRequestRef = useRef(false);
+  const speakRef = useRef(speak);
+  speakRef.current = speak;
+
+  useEffect(() => {
+    setLongWait(false);
+    if (!thinking) return;
+    const timer = setTimeout(() => {
+      if (!sendingRef.current) return;
+      setLongWait(true);
+      if (voiceRequestRef.current && !mutedRef.current) speakRef.current(WAIT_MESSAGE);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [thinking]);
 
   const send = async (raw, viaVoice = false, retry = null) => {
     const content = raw.trim();
-    if (!content || sendingRef.current) return;
+    if (!content) return;
+    const playbackCommand = voicePlaybackCommand(content);
+    if (playbackCommand) {
+      const nextMuted = playbackCommand === 'mute';
+      mutedRef.current = nextMuted;
+      setMuted(nextMuted);
+      cancel();
+      const reply = nextMuted ? '음성 응답을 껐어요.' : '음성 응답을 켰어요.';
+      setMessages((prev) => [...prev,
+        { id: crypto.randomUUID(), role: 'user', text: content, localControl: true },
+        { id: crypto.randomUUID(), role: 'assistant', text: reply, localControl: true },
+      ]);
+      if (!nextMuted) speak(reply);
+      return;
+    }
+    if (sendingRef.current) return;
     sendingRef.current = true;
+    voiceRequestRef.current = viaVoice;
     const command = retry ?? {
       requestId: crypto.randomUUID(),
       conversation: messages
-        .filter((m) => !m.isError)
+        .filter((m) => !m.isError && !m.localControl)
         .slice(-12)
         .map((m) => ({ role: m.role, content: m.text })),
     };
@@ -80,6 +106,7 @@ export default function VoiceScreen({ nav, onClose }) {
       if (res.status === 'scheduled' || res.status === 'pending_schedule') scheduleChanged();
       if (viaVoice && !mutedRef.current) speak(res.reply.replace(/\n/g, ' '));
     } catch (error) {
+      cancel();
       setMessages((prev) => [
         ...prev,
         {
@@ -174,13 +201,15 @@ export default function VoiceScreen({ nav, onClose }) {
           type="button"
           className="d-icon-btn"
           aria-label={muted ? '음성 응답 켜기' : '음성 응답 끄기'}
+          title={muted ? '음소거됨 · 눌러서 음성 응답 켜기' : '음성 응답 켜짐 · 눌러서 음소거'}
           aria-pressed={muted}
           onClick={() => {
-            setMuted((m) => !m);
+            mutedRef.current = !mutedRef.current;
+            setMuted(mutedRef.current);
             cancel();
           }}
         >
-          {muted ? <SpeakerIcon size={20} /> : <SpeakerLoudIcon size={20} />}
+          {muted ? <SpeakerMutedIcon size={20} /> : <SpeakerLoudIcon size={20} />}
         </button>
       </header>
 
@@ -231,7 +260,7 @@ export default function VoiceScreen({ nav, onClose }) {
                 </li>
               )
             )}
-            {thinking && longWait && <li className="assistant-col" role="status"><p className="bubble-assistant">기존 일정과 휴식 시간을 함께 검토하고 있어요. 잠시만 기다려 주세요.</p></li>}
+            {thinking && longWait && <li className="assistant-col" role="status"><p className="bubble-assistant">{WAIT_MESSAGE}</p></li>}
             {thinking && (
               <li className="assistant-col">
                 <p className="bubble-assistant typing" aria-label="제이가 답을 준비하는 중">
