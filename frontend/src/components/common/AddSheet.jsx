@@ -16,13 +16,13 @@ export default function AddSheet({ nav, onClose, showCapture = false }) {
       <section className="d-sheet" aria-label="추가하기" onClick={(e) => e.stopPropagation()}>
         <SheetHandle onClose={onClose} />
         <h2 className="d-sheet-title">무엇을 추가할까요?</h2>
-        {!showCapture && <button type="button" className="add-voice" onClick={() => nav.open('voice')}>
+        <button type="button" className="add-voice" onClick={() => nav.open('voice')}>
           <MicIcon size={22} />
           <span className="add-text">
             <strong>말로 추가하기</strong>
             <small>일정인지 작업인지 제이가 알아서 나눠요</small>
           </span>
-        </button>}
+        </button>
         <div className="add-list">
           {OPTIONS.map((o) => (
             <button key={o.id} type="button" className="add-row" onClick={() => pick(o.id)}>
