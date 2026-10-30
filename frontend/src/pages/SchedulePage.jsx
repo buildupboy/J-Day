@@ -8,7 +8,7 @@ import { toIsoDate } from '../utils/parseTaskText.js';
 import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
 import useBlockDetails from '../hooks/useBlockDetails.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
-import { selectTimetableEmployee } from '../utils/selectTimetableEmployee.js';
+import useTimetableEmployee from '../hooks/useTimetableEmployee.jsx';
 
 const SHORT_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 화면은 월요일부터, dayOfWeek는 0=일
@@ -181,6 +181,7 @@ function UpcomingDetail({ task, details, onClose }) {
 }
 
 function SetupView({ nav }) {
+  const { chooseEmployee, employeeDialog } = useTimetableEmployee();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [day, setDay] = useState(() => new Date().getDay());
@@ -201,7 +202,7 @@ function SetupView({ nav }) {
     setImportStatus('시간표 분석 중…');
     const photo = URL.createObjectURL(file);
     try {
-      const result = selectTimetableEmployee(await api.extractTimetable(photo));
+      const result = await chooseEmployee(await api.extractTimetable(photo));
       if (!result) return;
       if (result.requiresReview) throw new Error([...result.reviewReasons, ...result.warnings].join(' ') || '요일과 시간을 확인해 주세요. 자동 저장하지 않았어요.');
       if (!result.lessons?.length) throw new Error('등록할 고정 일정을 찾지 못했어요. 요일과 시간이 잘 보이는 사진을 선택해 주세요.');
@@ -240,6 +241,7 @@ function SetupView({ nav }) {
   return (
     <>
       <section className="d-section" aria-label="고정 시간표">
+        {employeeDialog}
         <div className="d-section-head">
           <h2>고정 시간표</h2>
           <span className="d-meta">매주 반복</span>

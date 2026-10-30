@@ -212,15 +212,12 @@ test('multiple employees are extracted separately and selected before importing'
   assert.equal(draft.lessons.length, 2);
   assert.equal(draft.requiresReview, false);
   const { selectTimetableEmployee } = await import('../../../frontend/src/utils/selectTimetableEmployee.js');
-  let remembered = '';
-  const storage = {getItem: () => remembered, setItem: (_key, value) => {remembered = value;}};
-  const selected = selectTimetableEmployee(draft, {prompt: () => '2', storage});
+  const selected = selectTimetableEmployee(draft, '이준호');
   assert.equal(selected.lessons.length, 1);
   assert.equal(selected.lessons[0].employeeName, '이준호');
-  assert.equal(remembered, '이준호');
-  assert.equal(selectTimetableEmployee(draft, {prompt: () => null, storage}), null);
-  assert.throws(() => selectTimetableEmployee(draft, {prompt: () => '없는 이름', storage}));
-  selectTimetableEmployee(draft, {prompt: (_message, initial) => {assert.equal(initial, '이준호'); return '김민지';}, storage});
+  assert.equal(selectTimetableEmployee(draft), null);
+  assert.throws(() => selectTimetableEmployee(draft, '없는 이름'));
+  assert.equal(selectTimetableEmployee(draft, '김민지').lessons[0].employeeName, '김민지');
   assert.equal(draft.lessons.length, 2);
 });
 

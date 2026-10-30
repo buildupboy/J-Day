@@ -37,10 +37,8 @@ router.post('/', async (req, res, next) => {
 });
 router.delete('/', async (_req, res, next) => {
   try {
-    await updateDb(async (db) => {
+    await updateDb((db) => {
       clearTimetable(db);
-      const result = await planSchedule(db, { now: new Date(), reason: 'manual' });
-      db.scheduledBlocks = result.scheduledBlocks;
     });
     res.json({ cleared: true });
   } catch (error) { next(error); }
@@ -49,15 +47,18 @@ router.put('/', async (req, res, next) => {
   let lessons;
   try { lessons = validateLessons(req.body?.lessons); } catch (error) { return res.status(400).json({ error: error.message }); }
   try {
-    // 사용자가 확인한 수업만 교체하고 알바·루틴은 보존한다.
+    // 목록 비우기와 새 시간표 저장은 하나의 트랜잭션에서 반영한다.
     await updateDb(async (db) => {
+      if (req.body.clearExisting === true) clearTimetable(db);
       const otherBlocks = (db.fixedBlocks || []).filter((block) => !isTimetableItem(block));
       const existingIds = new Set((db.fixedBlocks || []).filter(isTimetableItem).map((block) => block.id));
       lessons = lessons.map((lesson, index) => existingIds.has(req.body.lessons[index]?.id) ? { ...lesson, id: req.body.lessons[index].id } : lesson);
       assertNoTimetableConflicts(lessons, otherBlocks);
       db.fixedBlocks = [...otherBlocks, ...lessons];
-      const result = await planSchedule(db, { now: new Date(), reason: 'manual' });
-      db.scheduledBlocks = result.scheduledBlocks;
+      if (lessons.length) {
+        const result = await planSchedule(db, { now: new Date(), reason: 'manual' });
+        db.scheduledBlocks = result.scheduledBlocks;
+      }
       db.timetableVisibleDays = [...new Set([...(Array.isArray(req.body.visibleDays) ? req.body.visibleDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6) : []), ...lessons.flatMap((lesson) => lesson.dayOfWeek)])];
     });
     res.json({ lessons });

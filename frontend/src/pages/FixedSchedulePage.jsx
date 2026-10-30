@@ -4,9 +4,10 @@ import WeekTimetable from '../components/timetable/WeekTimetable.jsx';
 import LessonEditor from '../components/timetable/LessonEditor.jsx';
 import { lessonConflicts } from '../utils/timetableConflicts.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
-import { selectTimetableEmployee } from '../utils/selectTimetableEmployee.js';
+import useTimetableEmployee from '../hooks/useTimetableEmployee.jsx';
 
 export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineImport = false }) {
+  const { chooseEmployee, employeeDialog } = useTimetableEmployee();
   const [lessons, setLessons] = useState([]);
   const [visibleDays, setVisibleDays] = useState([]);
   const [otherBlocks, setOtherBlocks] = useState([]);
@@ -19,6 +20,7 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
   const [notice, setNotice] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [clearRequested, setClearRequested] = useState(false);
   const [editor, setEditor] = useState(null);
   const mounted = useRef(true);
   const fileInput = useRef(null);
@@ -61,7 +63,8 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
     try {
       const extracted = await api.extractTimetable(photo);
       if (!mounted.current) return;
-      const data = selectTimetableEmployee(extracted);
+      const data = await chooseEmployee(extracted);
+      if (!mounted.current) return;
       if (!data) return;
       setWarnings([...(data.reviewReasons ?? []), ...(data.warnings ?? []), ...(data.flexiblePlans ?? []).map((item) => `${item.title}: 유동 계획이므로 고정 시간표에서 제외했어요.`)]);
       setReviewReasons(data.reviewReasons ?? []);
@@ -75,29 +78,22 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
   const incompleteCount = lessons.filter((item) => !item.dayOfWeek.length || !item.start || !item.end || item.start >= item.end).length;
   const conflictLessons = lessons.filter((lesson) => lessonConflicts(lesson, [...lessons, ...otherBlocks]).length > 0);
   const conflicts = conflictLessons.length > 0;
-  async function clearAll() {
-    if (busy || !window.confirm('수업·근무·개인 일정 등 고정 시간표를 모두 삭제할까요? 저장 전 목록도 비웁니다. 과제·작업과 루틴은 유지됩니다.')) return;
-    setBusy('clearing'); setError(''); setNotice('');
-    try {
-      await api.clearTimetable();
-      if (mounted.current) {
-        setLessons([]); setOtherBlocks((items) => items.filter((item) => item.kind === 'routine')); setVisibleDays([]);
-        setImage(''); setFileName(''); setWarnings([]); setReviewReasons([]); setEditor(null); setDirty(false);
-        setNotice('고정 시간표를 모두 지웠어요. 새 시간표를 추가할 수 있어요.');
-      }
-      scheduleChanged();
-    } catch (err) { if (mounted.current) setError(err.message); }
-    finally { if (mounted.current) setBusy(''); }
+  function clearAll() {
+    if (busy || !window.confirm('고정 시간표 목록을 비울까요? 실제 삭제는 ‘고정 시간표 저장하기’를 눌렀을 때 반영됩니다. 과제·작업과 루틴은 유지됩니다.')) return;
+    setError(''); setLessons([]); setOtherBlocks((items) => items.filter((item) => item.kind === 'routine')); setVisibleDays([]);
+    setImage(''); setFileName(''); setWarnings([]); setReviewReasons([]); setEditor(null);
+    setClearRequested(true); setDirty(true);
+    setNotice('화면의 목록만 비웠어요. 저장하면 기존 고정 시간표가 삭제됩니다. 새 시간표를 추가한 뒤 함께 저장할 수도 있어요.');
   }
   async function save(event) {
     event.preventDefault(); if (conflicts || invalid) { setError('겹치는 일정과 미확인 시간을 먼저 수정해 주세요.'); return; }
     if (reviewReasons.length && !window.confirm(`${reviewReasons.join('\n')}\n\n대상과 요일·시간을 확인했으며, 현재 목록을 매주 반복되는 고정 일정으로 저장할까요?`)) return;
     setBusy('saving'); setError(''); setNotice('');
     try {
-      const data = await api.saveTimetable(lessons, visibleDays);
+      const data = await api.saveTimetable(lessons, visibleDays, { clearExisting: clearRequested });
       scheduleChanged();
       if (mounted.current) {
-        setLessons(data.lessons); setDirty(false); setImage(''); setFileName(''); setWarnings([]); setEditor(null);
+        setLessons(data.lessons); setDirty(false); setClearRequested(false); setImage(''); setFileName(''); setWarnings([]); setEditor(null);
         onBack?.();
       }
     }
@@ -105,6 +101,7 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
     finally { if (mounted.current) setBusy(''); }
   }
   return <div className="fixed-page">
+    {employeeDialog}
     {!inlineImport && <header className="analysis-heading"><button type="button" className="analysis-back" aria-label="마이로 돌아가기" onClick={onBack}>‹</button><h1>고정 일정</h1></header>}
     <input ref={fileInput} id={inlineImport ? 'schedule-timetable-photo' : 'timetable-photo'} type="file" accept="image/png,image/jpeg,image/webp" onChange={chooseFile} hidden disabled={!!busy && busy !== 'loading'} />
 
@@ -123,7 +120,7 @@ export default function FixedSchedulePage({ onBack, autoAnalyze = false, inlineI
             {conflicts && <div className="fixed-error" role="alert">시간이 겹치는 일정은 저장할 수 없어요. 일정을 눌러 수정해 주세요.{conflictLessons.map((lesson) => <div key={lesson.id}><button type="button" className="analysis-text-button" disabled={!!busy} onClick={() => setEditor({isNew:false,lesson})}>{lesson.title} ({lesson.start}–{lesson.end}) 수정 ›</button><small>{lessonConflicts(lesson,[...lessons,...otherBlocks]).map((item)=>`${item.title} ${item.start}–${item.end}`).join(', ')}와 겹쳐요.</small></div>)}</div>}
       {incompleteCount > 0 && <div className="fixed-pending-list"><h3>확인이 필요한 일정</h3>{lessons.filter((item) => !item.dayOfWeek.length || !item.start || !item.end || item.start >= item.end).map((lesson) => <button type="button" key={lesson.id} disabled={!!busy} onClick={() => setEditor({ isNew: false, lesson })}><span>{lesson.title}</span><small>요일·시간 확인 ›</small></button>)}</div>}
       <button type="button" className="fixed-add" disabled={!!busy || lessons.length >= 100} onClick={() => addLesson()}>+ 일정 추가</button>
-      <button type="button" className="fixed-delete" disabled={!!busy || (!lessons.length && !otherBlocks.some((item) => item.kind !== 'routine'))} onClick={clearAll}>{busy === 'clearing' ? '삭제 중…' : '고정 시간표 전체 지우기'}</button>
+      <button type="button" className="fixed-delete" disabled={!!busy || (!lessons.length && !otherBlocks.some((item) => item.kind !== 'routine'))} onClick={clearAll}>고정 시간표 전체 지우기</button>
       </div>
       <section className={`fixed-upload fixed-upload-compact${image ? ' has-image' : ''}`} aria-label="사진으로 시간표 추가">
         <div className="fixed-upload-content">

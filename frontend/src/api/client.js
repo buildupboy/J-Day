@@ -26,7 +26,7 @@ export const api = {
     if (!response.ok) throw new Error(data?.error || data?.message || `HTTP ${response.status}`);
     return data;
   },
-  saveTimetable: (lessons, visibleDays = []) => request('/timetable', { method: 'PUT', body: { lessons, visibleDays } }),
+  saveTimetable: (lessons, visibleDays = [], { clearExisting = false } = {}) => request('/timetable', { method: 'PUT', body: { lessons, visibleDays, clearExisting } }),
   appendTimetable: (lessons, visibleDays = []) => request('/timetable', { method: 'POST', body: { lessons, visibleDays } }),
   clearTimetable: () => request('/timetable', { method: 'DELETE' }),
   health: () => request('/health'),
