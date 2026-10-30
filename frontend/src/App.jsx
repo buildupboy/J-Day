@@ -12,6 +12,7 @@ import FixedSchedulePage from './pages/FixedSchedulePage.jsx';
 import FinishTaskPage from './pages/FinishTaskPage.jsx';
 import MyPage from './pages/MyPage.jsx';
 import useReminders from './hooks/useReminders.js';
+import TimetableImportDialog from './components/timetable/TimetableImportDialog.jsx';
 
 // 탭 4개(홈·캘린더·일정·마이) + 가운데 마이크. 추가 선택창·등록 화면·제이 대화는 탭 위에 겹쳐 연다.
 export default function App() {
@@ -53,7 +54,8 @@ export default function App() {
     <div className="app">
       <main className="app-main">{page}</main>
       <BottomNav active={tab} onSelect={(id) => nav.tab(id)} onMic={() => setOverlay('voice')} />
-      {overlay === 'add' && <AddSheet nav={nav} onClose={close} />}
+      {overlay === 'add' && <AddSheet nav={nav} onClose={close} showCapture={tab === 'tasks'} />}
+      {overlay === 'timetableImport' && <TimetableImportDialog onClose={close} />}
       {overlay === 'newEvent' && (
         <div className="screen-overlay">
           <NewEventPage nav={nav} onClose={close} />

@@ -1,4 +1,4 @@
-import { MicIcon, CalendarIcon, ListIcon, RepeatIcon, ChevronIcon } from './Icons.jsx';
+import { MicIcon, CalendarIcon, ListIcon, RepeatIcon, ChevronIcon, ImageIcon } from './Icons.jsx';
 import SheetHandle from './SheetHandle.jsx';
 
 const OPTIONS = [
@@ -8,7 +8,7 @@ const OPTIONS = [
 ];
 
 // 캘린더·일정 화면의 + 버튼이 여는 공통 선택창
-export default function AddSheet({ nav, onClose }) {
+export default function AddSheet({ nav, onClose, showCapture = false }) {
   const pick = (id) => nav.open(id);
 
   return (
@@ -16,13 +16,13 @@ export default function AddSheet({ nav, onClose }) {
       <section className="d-sheet" aria-label="추가하기" onClick={(e) => e.stopPropagation()}>
         <SheetHandle onClose={onClose} />
         <h2 className="d-sheet-title">무엇을 추가할까요?</h2>
-        <button type="button" className="add-voice" onClick={() => nav.open('voice')}>
+        {!showCapture && <button type="button" className="add-voice" onClick={() => nav.open('voice')}>
           <MicIcon size={22} />
           <span className="add-text">
             <strong>말로 추가하기</strong>
             <small>일정인지 작업인지 제이가 알아서 나눠요</small>
           </span>
-        </button>
+        </button>}
         <div className="add-list">
           {OPTIONS.map((o) => (
             <button key={o.id} type="button" className="add-row" onClick={() => pick(o.id)}>
@@ -34,6 +34,11 @@ export default function AddSheet({ nav, onClose }) {
               <ChevronIcon size={16} />
             </button>
           ))}
+          {showCapture && <button type="button" className="add-row" onClick={() => pick('timetableImport')}>
+            <span className="add-row-icon"><ImageIcon size={22} /></span>
+            <span className="add-text"><strong>캡처로 불러오기</strong><small>사진으로 고정 시간표 가져오기</small></span>
+            <ChevronIcon size={16} />
+          </button>}
         </div>
       </section>
     </div>

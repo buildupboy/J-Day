@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
-import { PlusIcon, MicIcon, ImageIcon } from '../components/common/Icons.jsx';
+import { PlusIcon, MicIcon } from '../components/common/Icons.jsx';
 import { getWeekDays, addDays, WEEKDAY_LABELS } from '../utils/calendar.js';
 import { toMinutes, formatDuration } from '../utils/time.js';
 import { priorityOf, TASK_TYPE_LABEL, FIXED_KIND_LABEL, daysUntil, dDay } from '../utils/labels.js';
 import { toIsoDate } from '../utils/parseTaskText.js';
 import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
+import WeekTimetable from '../components/timetable/WeekTimetable.jsx';
+import RoutineEditDialog from '../components/timetable/RoutineEditDialog.jsx';
 import useBlockDetails from '../hooks/useBlockDetails.js';
-import { scheduleChanged } from '../hooks/useLiveSchedule.js';
-import useTimetableEmployee from '../hooks/useTimetableEmployee.jsx';
 import SheetHandle from '../components/common/SheetHandle.jsx';
 
 const SHORT_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
@@ -206,45 +206,10 @@ function UpcomingDetail({ task, details, onClose }) {
   );
 }
 
-function SetupView({ nav }) {
-  const { chooseEmployee, employeeDialog } = useTimetableEmployee();
+function SetupView() {
+  const [editingRoutine, setEditingRoutine] = useState(null);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [day, setDay] = useState(() => new Date().getDay());
-  const photoInput = useRef(null);
-  const importing = useRef(false);
-  const [importStatus, setImportStatus] = useState('');
-
-  async function importPhoto(event) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file || importing.current) return;
-    setError('');
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
-      nav.importFailed({ error: '10MB 이하의 PNG, JPG, WebP 사진을 선택해 주세요.' });
-      return;
-    }
-    importing.current = true;
-    setImportStatus('시간표 분석 중…');
-    const photo = URL.createObjectURL(file);
-    let draft = null;
-    try {
-      const result = await chooseEmployee(await api.extractTimetable(photo));
-      if (!result) return;
-      draft = result;
-      if (result.requiresReview) throw new Error([...result.reviewReasons, ...result.warnings].join(' ') || '요일과 시간을 확인해 주세요. 자동 저장하지 않았어요.');
-      if (!result.lessons?.length) throw new Error('등록할 고정 일정을 찾지 못했어요. 요일과 시간이 잘 보이는 사진을 선택해 주세요.');
-      setImportStatus('시간표 저장 중…');
-      await api.saveTimetable(result.lessons, result.visibleDays ?? [], { clearExisting: true });
-      scheduleChanged();
-    } catch (err) {
-      nav.importFailed({ error: err.message, file, draft });
-    } finally {
-      URL.revokeObjectURL(photo);
-      importing.current = false;
-      setImportStatus('');
-    }
-  }
 
   useEffect(() => {
     let active = true;
@@ -261,63 +226,20 @@ function SetupView({ nav }) {
   }, []);
 
   const all = data ? [...data.lessons, ...data.otherBlocks] : [];
-  const fixed = all
-    .filter((b) => b.kind !== 'routine' && b.dayOfWeek.includes(day) && b.start && b.end)
-    .sort((a, b) => a.start.localeCompare(b.start));
   const routines = all.filter((b) => b.kind === 'routine').sort((a, b) => a.start.localeCompare(b.start));
 
   return (
     <>
       <section className="d-section" aria-label="고정 시간표">
-        {employeeDialog}
-        <div className="d-section-head">
-          <h2>고정 시간표</h2>
-          <span className="d-meta">요일별 일정</span>
-        </div>
-        <div className="day-picker" role="group" aria-label="요일">
-          {DAY_ORDER.map((d, i) => (
-            <button
-              key={d}
-              type="button"
-              aria-pressed={day === d}
-              className={day === d ? 'is-on' : ''}
-              onClick={() => setDay(d)}
-            >
-              {WEEKDAY_LABELS[i]}
-            </button>
-          ))}
-        </div>
         {error && (
           <p className="d-alert" role="alert">
             {error}
           </p>
         )}
-        {data && (
-          <ul className="d-card d-list fixed-list">
-            {fixed.length === 0 && <li className="fixed-empty">이 요일엔 고정 일정이 없어요.</li>}
-            {fixed.map((b) => (
-              <li key={b.id}>
-                <span className="fixed-time">
-                  {b.start} – {b.end}
-                </span>
-                <span className="fixed-title">{b.date && `${b.date} · `}{b.title}</span>
-                <span className="d-meta">{FIXED_KIND_LABEL[b.kind] ?? '일정'}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        {data && <section aria-label="나의 고정 시간표" style={{ marginBottom: 20 }}>
+          <WeekTimetable lessons={all} visibleDays={data.visibleDays ?? []} monochrome showDated={false} />
+        </section>}
         {!data && !error && <p className="d-empty">불러오는 중이에요…</p>}
-        <div className="d-grid-2">
-          <input ref={photoInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={importPhoto} />
-          <button type="button" className="d-btn d-btn-line" disabled={!!importStatus} aria-busy={!!importStatus} onClick={() => photoInput.current?.click()}>
-            <ImageIcon size={18} />
-            {importStatus || '캡처로 불러오기'}
-          </button>
-          <button type="button" className="d-btn d-btn-line" onClick={() => nav.open('voice')}>
-            <MicIcon size={18} />
-            말로 추가
-          </button>
-        </div>
       </section>
 
 
@@ -328,6 +250,7 @@ function SetupView({ nav }) {
             {routines.length === 0 && <li className="fixed-empty">등록된 루틴이 없어요.</li>}
             {routines.map((r) => (
               <li key={r.id} className="routine-item">
+                <button type="button" className="routine-edit-trigger" onClick={() => setEditingRoutine(r)} aria-label={`${r.title} 루틴 수정`} aria-haspopup="dialog">
                 <div className="routine-head">
                   <span>{r.title}</span>
                   <span className="d-meta">
@@ -341,15 +264,13 @@ function SetupView({ nav }) {
                     </span>
                   ))}
                 </div>
+                </button>
               </li>
             ))}
           </ul>
         )}
-        <button type="button" className="voice-hint" onClick={() => nav.open('voice')}>
-          <MicIcon size={18} />
-          “평일 7시에 일어나서 30분 독서”처럼 말해서 추가
-        </button>
       </section>
+      {editingRoutine && <RoutineEditDialog key={editingRoutine.id} routine={editingRoutine} onClose={() => setEditingRoutine(null)} />}
     </>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   UserIcon,
-  CalendarIcon,
   ChartIcon,
   GearIcon,
   CoffeeIcon,
@@ -32,13 +31,10 @@ const shortDate = (iso) => `${Number(iso.slice(5, 7))}월 ${Number(iso.slice(8, 
 const clockOf = (hhmm) => (hhmm === '24:00' ? '00:00' : hhmm);
 
 // 표시와 편집은 팀 공통 /api/user/settings를 사용한다.
-function settingRows(settings, timetable) {
+function settingRows(settings) {
   const s = settings ?? {};
-  const classes = timetable?.lessons.length ?? 0;
-  const jobs = timetable?.otherBlocks.filter((b) => b.kind === 'job').length ?? 0;
   return {
     day: [
-      { id: 'fixed', label: '고정 일정', icon: <CalendarIcon size={20} />, value: timetable ? `수업 ${classes} · 알바 ${jobs}` : '' },
       { id: 'break', label: '휴게 시간', icon: <CoffeeIcon size={20} />, value: s.breakMinutes != null ? `작업 사이 ${s.breakMinutes}분` : '' },
       { id: 'sleep', label: '수면 시간', icon: <MoonIcon size={20} />, value: s.dayEnd ? `${clockOf(s.dayEnd)} – ${s.dayStart}` : '' },
       {
@@ -111,7 +107,6 @@ export default function MyPage({ nav }) {
   const [panel, setPanel] = useState(null);
   const [report, setReport] = useState(null);
   const [reportError, setReportError] = useState('');
-  const [timetable, setTimetable] = useState(null);
   const [reload, setReload] = useState(0);
   const [settingsSnapshot, setSettingsSnapshot] = useState(null);
   const [settingsError, setSettingsError] = useState('');
@@ -131,10 +126,6 @@ export default function MyPage({ nav }) {
       .getAnalytics()
       .then((data) => active && setReport(data))
       .catch(() => active && setReportError('주간 리포트를 불러오지 못했어요.'));
-    api
-      .getTimetable()
-      .then((data) => active && setTimetable(data))
-      .catch(() => {});
     return () => {
       active = false;
     };
@@ -147,7 +138,7 @@ export default function MyPage({ nav }) {
 
   const userName = report?.profile?.name || '사용자';
   const settings = settingsSnapshot?.settings ?? report?.profile?.settings;
-  const rows = settingRows(settings, timetable);
+  const rows = settingRows(settings);
   const selected = [...rows.day, ...rows.ai].find((item) => item.id === panel);
 
   function login(event) {
@@ -178,7 +169,7 @@ export default function MyPage({ nav }) {
     }
   }
 
-  const openRow = (id) => { setSaveResult(null); if (id === 'fixed') nav.open('fixed'); else setPanel(id); };
+  const openRow = (id) => { setSaveResult(null); setPanel(id); };
 
   const menu = (title, items) => (
     <section className="d-section" aria-label={title}>

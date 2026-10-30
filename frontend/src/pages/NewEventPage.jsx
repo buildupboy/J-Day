@@ -151,6 +151,7 @@ export default function NewEventPage({ nav, onClose }) {
           aria-checked={openEnd}
           aria-label="끝나는 시간 정하지 않기"
           className="d-switch"
+          disabled={saving || saved}
           onClick={() => setOpenEnd((v) => !v)}
         >
           <span />
