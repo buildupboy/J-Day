@@ -19,7 +19,7 @@ async function showReminder(body) {
   try {
     const reg = await navigator.serviceWorker?.ready;
     if (reg) {
-      await reg.showNotification('제이', { body, icon: '/icons/icon-192.png', tag: 'jday-reminder', data: { url: '/chat?source=notification' } });
+      await reg.showNotification('제이', { body, icon: '/icons/icon-192.png?v=2', tag: 'jday-reminder', data: { url: '/chat?source=notification' } });
       return;
     }
   } catch { /* 서비스워커를 못 쓰면 아래 기본 알림으로 대체 */ }

@@ -1,5 +1,5 @@
 // 앱 셸만 캐시하고 /api 요청은 항상 네트워크로 보낸다.
-const CACHE = 'jday-shell-v2';
+const CACHE = 'jday-shell-v3';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/'])));
@@ -35,8 +35,8 @@ self.addEventListener('push', (e) => {
   e.waitUntil(
     self.registration.showNotification(data.title || '제이', {
       body: data.body || '제이가 할 얘기가 있어요.',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      icon: '/icons/icon-192.png?v=2',
+      badge: '/icons/icon-192.png?v=2',
       tag: 'jday-chat',
       data: { url: data.url || '/chat?source=notification' },
     })
