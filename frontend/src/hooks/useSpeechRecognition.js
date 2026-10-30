@@ -22,6 +22,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
   const forceTimerRef = useRef(null);
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
+  const [hearing, setHearing] = useState(false); // 인식기가 소리·말을 감지하는 중
   const [error, setError] = useState(null);
 
   // 콜백이 바뀌어도 세션을 다시 만들지 않도록 ref로 보관
@@ -45,6 +46,7 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     }
     lastInterimRef.current = '';
     setListening(false);
+    setHearing(false);
     setInterimTranscript('');
   }, []);
 
@@ -92,6 +94,11 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
       if (rec !== recRef.current) return;
       if (event.error !== 'aborted') setError(event.error);
     };
+    // 파형 표시용: 인식기 스스로 소리를 감지한 구간만 true (별도 마이크 스트림을 열지 않는다)
+    rec.onsoundstart = () => rec === recRef.current && setHearing(true);
+    rec.onspeechstart = () => rec === recRef.current && setHearing(true);
+    rec.onsoundend = () => rec === recRef.current && setHearing(false);
+    rec.onspeechend = () => rec === recRef.current && setHearing(false);
     rec.onend = () => finish(rec);
 
     setError(null);
@@ -142,5 +149,5 @@ export function useSpeechRecognition({ lang = 'ko-KR', onFinalResult } = {}) {
     []
   );
 
-  return { supported: Boolean(getSpeechRecognition()), listening, interimTranscript, error, start, stop };
+  return { supported: Boolean(getSpeechRecognition()), listening, hearing, interimTranscript, error, start, stop };
 }

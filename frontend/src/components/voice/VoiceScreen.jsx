@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client.js';
 import { mockInterpret } from '../../data/mockInterpret.js';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition.js';
-import { useAudioLevel } from '../../hooks/useAudioLevel.js';
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis.js';
 import { MicIcon, ArrowRightIcon, KeyboardIcon } from '../common/Icons.jsx';
 import TaskProposalCard from './TaskProposalCard.jsx';
@@ -51,11 +50,13 @@ export default function VoiceScreen({ onClose }) {
     if (viaVoice) speak(res.reply.replace(/\n/g, ' '));
   };
 
-  const { supported, listening, interimTranscript, error, start, stop } = useSpeechRecognition({
+  const { supported, listening, hearing, interimTranscript, error, start, stop } = useSpeechRecognition({
     onFinalResult: (t) => send(t, true),
   });
 
   const lastActivityRef = useRef(Date.now());
+  const hearingRef = useRef(false);
+  hearingRef.current = hearing;
   // 마이크를 다시 눌러 끝낸 직후. 인식기가 마무리되기를 기다리는 동안에도 바로 답변 화면을 보여 준다
   const [stopping, setStopping] = useState(false);
   useEffect(() => {
@@ -67,21 +68,18 @@ export default function VoiceScreen({ onClose }) {
     stop();
   };
 
-  const levels = useAudioLevel(listening && !typing && !stopping, BAR_COUNT, (level) => {
-    if (level > 0) lastActivityRef.current = Date.now();
-  });
-
-  // 인식된 글자가 바뀌면 말하는 중으로 본다
+  // 소리가 들리거나 인식된 글자가 바뀌면 말하는 중으로 본다
   useEffect(() => {
-    if (interimTranscript) lastActivityRef.current = Date.now();
-  }, [interimTranscript]);
+    if (hearing || interimTranscript) lastActivityRef.current = Date.now();
+  }, [hearing, interimTranscript]);
 
   // 듣는 동안 조용한 시간이 5초를 넘으면 자동 종료 → 들린 말은 훅이 제이에게 넘긴다
   useEffect(() => {
     if (!listening || typing) return undefined;
     lastActivityRef.current = Date.now();
     const t = setInterval(() => {
-      if (Date.now() - lastActivityRef.current >= SILENCE_LIMIT_MS) stop();
+      if (hearingRef.current) lastActivityRef.current = Date.now();
+      else if (Date.now() - lastActivityRef.current >= SILENCE_LIMIT_MS) stop();
     }, 500);
     return () => clearInterval(t);
   }, [listening, typing, stop]);
@@ -145,9 +143,9 @@ export default function VoiceScreen({ onClose }) {
         </div>
 
         <div className="listen-foot">
-          <div className="waveform" aria-hidden="true">
-            {levels.map((lv, i) => (
-              <i key={i} style={{ height: 4 + lv * 44 }} />
+          <div className={`waveform ${hearing ? 'is-live' : ''}`} aria-hidden="true">
+            {Array.from({ length: BAR_COUNT }, (_, i) => (
+              <i key={i} style={{ animationDelay: `${(i % 9) * 0.09}s` }} />
             ))}
           </div>
           <div className="mic-row">
