@@ -1,9 +1,10 @@
 // 백엔드 호출 함수 모음. vite 프록시로 /api → http://localhost:3001
 // API 키 등 비밀값은 절대 여기에 두지 않는다.
 
-async function request(path, { method = 'GET', body } = {}) {
+async function request(path, { method = 'GET', body, signal } = {}) {
   const res = await fetch(`/api${path}`, {
     method,
+    signal,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -34,6 +35,7 @@ export const api = {
     request('/chat/interpret', { method: 'POST', body: { text, requestId, conversation } }),
 
   // 작업
+  estimateTask: (payload, { signal } = {}) => request('/tasks/estimate', { method: 'POST', body: payload, signal }),
   getTasks: () => request('/tasks'),
   createTask: (task) => request('/tasks', { method: 'POST', body: task }),
   reportProgress: (taskId, payload) => request(`/tasks/${taskId}/progress`, { method: 'PATCH', body: payload }),
