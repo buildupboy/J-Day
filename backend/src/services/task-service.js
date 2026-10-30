@@ -110,10 +110,14 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
     const block = db.scheduledBlocks?.find(block => block.id === input.blockId && block.taskId === id);
     if (!block) fail('작업 블록을 찾을 수 없습니다.', 404);
     if (!['done','missed'].includes(input.blockStatus)) fail('blockStatus는 done 또는 missed여야 합니다.');
-    if (instant(block, 'start') >= now.getTime()) fail('아직 시작하지 않은 블록을 수행 보고할 수 없습니다.');
+    // 미리 완료는 받는다. 아직 시작하지 않은 블록을 미수행으로 볼 수는 없다.
+    if (input.blockStatus === 'missed' && instant(block, 'start') >= now.getTime()) fail('아직 시작하지 않은 블록을 미수행으로 보고할 수 없습니다.');
     if (block.status === 'done' && input.blockStatus !== 'done') fail('완료 블록은 되돌릴 수 없습니다.', 409);
+    // 예정 종료 전에 끝낸 블록은 완료 시각을 남겨 재배치 때 남은 시간을 비운다.
+    if (input.blockStatus === 'done' && block.status !== 'done' && instant(block, 'end') > now.getTime()) block.completedAt = kst(now);
     block.status = input.blockStatus;
   }
+  if (has('reschedule') && typeof input.reschedule !== 'boolean') fail('reschedule은 boolean이어야 합니다.');
   let progress = input.progress ?? task.progress;
   if (task.subtasks?.length) {
     const sum = task.subtasks.reduce((n, subtask) => n + subtask.estimatedMinutes, 0);
@@ -140,6 +144,11 @@ export async function reportProgress(db, id, input, { now, explain = false, plan
       db.history.push(history);
     } else if (has('actualMinutes')) history.actualMinutes = task.actualMinutes;
     historyRecorded = true;
+  }
+  // reschedule:false면 기록만 저장하고 재배치는 호출자가 POST /api/schedule/reschedule로 나중에 요청한다.
+  if (input.reschedule === false) {
+    return { task, historyRecorded, rescheduled: false, deferred: true, scheduledBlocks: db.scheduledBlocks ?? [],
+      changes: diffScheduledBlocks(previousBlocks, db.scheduledBlocks ?? [], 'progress'), unplaced: [] };
   }
   return { task, historyRecorded, ...await schedule(db, now, 'progress', previousBlocks, explain, planner) };
 }

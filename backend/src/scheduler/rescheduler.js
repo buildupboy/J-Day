@@ -1,6 +1,6 @@
 import { preparePlanningContext } from './planning-context.js';
 
-import { instant, timestamp } from './time.js';
+import { instant, timestamp, datetime, clock, day, KST } from './time.js';
 const reasons = new Set(['new_task', 'missed', 'progress', 'manual']);
 
 /** 종료 시각이 지났지만 완료되지 않은 planned 블록. 진행률만으로 개별 완료를 추정하지 않는다. */
@@ -16,6 +16,15 @@ export function detectMissedBlocks(scheduledBlocks, tasks, now) {
   }).map(block => ({ ...block }));
 }
 
+/** 미리 완료한 블록이 차지하던 나머지 시간을 비운다. 시작 전에 끝냈으면 블록을 지우고, 진행 중에 끝냈으면 완료 시각까지로 줄인다. */
+function releaseEarlyDone(block) {
+  if (block.status !== 'done' || !block.completedAt) return block;
+  const done = datetime(block.completedAt);
+  if (done >= instant(block, 'end')) return block;
+  if (done <= instant(block, 'start')) return null;
+  return { ...block, plannedEnd: block.plannedEnd ?? block.end, end: clock(Math.ceil((done - (day(block.date) - KST)) / 60000)) };
+}
+
 /**
  * 기록을 보존하고 AI에 전달할 우선순위·잔여량·빈 시간·제약을 준비한다.
  * DB 저장과 이벤트 호출은 호출자 책임. 입력을 변경하지 않는다.
@@ -29,8 +38,9 @@ export function reschedule(db, { now, reason, horizonDays = 14 }) {
   const original = db.scheduledBlocks ?? [];
   const missed = new Set(detectMissedBlocks(original, db.tasks, now).map(block => block.id));
   // 미완료 작업의 기존 미래 계획은 AI 결과가 검증될 때까지 보존한다.
-  const scheduledBlocks = original.map(block => ({ ...block, status: missed.has(block.id) ? 'missed' : block.status }))
+  const scheduledBlocks = original.map(block => releaseEarlyDone({ ...block, status: missed.has(block.id) ? 'missed' : block.status }))
     .filter(block => {
+      if (!block) return false;
       if (block.status !== 'planned' || instant(block, 'start') < time) return true;
       const task = db.tasks.find(task => task.id === block.taskId);
       return !task || (task.status !== 'done' && task.progress < 1

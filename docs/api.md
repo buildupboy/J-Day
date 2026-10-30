@@ -222,7 +222,9 @@ LLM 호출은 포함하지 않는다. LLM/프런트엔드 담당자는 이미 �
 - actualMinutes는 해당 작업 전체의 누적 분량이며 보고할 때마다 더하는 값이 아니다. 같은 값의 재전송은 중복 가산되지 않는다. 하위작업별 시간을 따로 저장하지 않는다.
 - subtaskId만 보내면 맥락 지정이며 완료 표시하지 않는다. 완료 표시에는 subtaskDone:true를 함께 보낸다. 완료된 하위작업을 되돌리거나 progress를 낮추는 요청은 409이다.
 - 하위작업 완료 비중보다 progress가 작으면 완료 비중까지 올린다. 모든 하위작업 완료 또는 progress=1이면 Task는 done이고 모든 하위작업도 done이다. 실제 시간이 있거나 진행률이 양수이면 in_progress이다.
-- 특정 수행 기록을 표시하려면 blockId와 blockStatus(done|missed)를 함께 보낸다. 아직 시작하지 않은 블록은 400이다. 블록 상태 보고만으로 Task.progress를 추측하지 않는다.
+- 특정 수행 기록을 표시하려면 blockId와 blockStatus(done|missed)를 함께 보낸다. 아직 시작하지 않은 블록도 done(미리 완료)은 받고, missed는 400이다. 블록 상태 보고만으로 Task.progress를 추측하지 않는다.
+- 예정 종료 전에 done으로 보고한 블록에는 completedAt(KST)을 남긴다. 다음 재배치에서 시작 전에 끝낸 블록은 지우고, 진행 중에 끝낸 블록은 end를 완료 시각까지로 줄이며 원래 종료는 plannedEnd에 둔다. 비워진 시간은 다시 배치할 수 있다.
+- reschedule:false(boolean)를 보내면 기록만 저장하고 재배치하지 않는다. 응답은 {task,historyRecorded,rescheduled:false,deferred:true,scheduledBlocks,changes,unplaced:[]}이다. 홈은 체크 후 10초 동안 더 체크가 없으면 POST /api/schedule/reschedule {reason:'progress'}를 한 번 보낸다.
 - 작업 또는 하위작업이 완료되면 이미 시작한 해당 planned 블록을 done으로 바꾸고 미래 예정은 재배치 시 제거한다. 이미 done/missed인 이력은 유지한다. 진행 중 블록을 조기 완료해도 기록의 원래 종료 시각은 보존한다.
 - 성공은 200과 {task,historyRecorded,rescheduled:false,scheduledBlocks,changes,unplaced}이다. 변경 내역에는 수행 상태 갱신도 포함한다.
 - 일반 작업 완료 시 history-taskId라는 결정적 ID로 기록한다. 반복 보고로 중복하지 않으며 완료 후 actualMinutes를 정정하면 같은 기록의 실제시간을 갱신한다. completedAt은 최초 완료 시각을 유지한다.
