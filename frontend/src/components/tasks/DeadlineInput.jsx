@@ -18,7 +18,7 @@ function buildDate(month, day) {
   return null;
 }
 
-// 마감일·시각을 직접 입력한다: [월] 월 [일] 일  [시] : [분]
+// 마감일·시각을 직접 입력한다: [월] [일]  [시] : [분]
 // date는 'YYYY-MM-DD'(잘못된 입력이면 ''), time은 'HH:mm'
 export default function DeadlineInput({ date, time, onDateChange, onTimeChange }) {
   const [month, setMonth] = useState('');
@@ -65,22 +65,20 @@ export default function DeadlineInput({ date, time, onDateChange, onTimeChange }
         <label className="deadline-field">
           <input
             inputMode="numeric"
-            placeholder="월"
+            placeholder="00"
             value={month}
             onChange={(e) => changeDate(digits(e.target.value), day)}
             aria-label="마감 월"
           />
-          <span className="unit">월</span>
         </label>
         <label className="deadline-field">
           <input
             inputMode="numeric"
-            placeholder="일"
+            placeholder="00"
             value={day}
             onChange={(e) => changeDate(month, digits(e.target.value))}
             aria-label="마감 일"
           />
-          <span className="unit">일</span>
         </label>
         <label className="deadline-field time">
           <input
@@ -105,7 +103,7 @@ export default function DeadlineInput({ date, time, onDateChange, onTimeChange }
           ? `${formatDeadline(date)} ${time}까지`
           : dateInvalid
             ? '존재하지 않거나 이미 지난 날짜예요. 월·일을 확인해 주세요.'
-            : '예: 11월 27일 · 시각은 비우면 23:59예요.'}
+            : '월 일 순서로 입력해요. 예: 11 27 · 시각은 비우면 23:59예요.'}
       </p>
     </div>
   );
