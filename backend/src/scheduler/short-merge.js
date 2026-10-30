@@ -11,8 +11,10 @@ const restAfter = (task, settings) => task.breakAfterMinutes ?? settings.breakMi
 /** 남은 작업 전체가 하나의 짧은 블록에 들어 있고 아직 손대지 않은 작업만 묶을 수 있다. 내부 하위작업은 하나로 합친다. */
 function absorbable(block, db, now) {
   if (block.status !== 'planned' || instant(block, 'start') < timestamp(now) || length(block) >= SHORT_BLOCK_MINUTES) return null;
+  // 작업 종료 화면에서 이미 이어서 하기로 연결한 블록·묶인 작업은 다시 묻지 않는다.
+  if (block.continuationOf || (db.scheduledBlocks ?? []).some(item => item.continuationOf === block.id)) return null;
   const task = db.tasks.find(item => item.id === block.taskId);
-  if (!task || task.status === 'done' || task.progress > 0 || task.reviewOf || task.skipInnerBreak || task.estimatedMinutes !== length(block)) return null;
+  if (!task || task.status === 'done' || task.progress > 0 || task.reviewOf || task.sourceTasks?.length || task.skipInnerBreak || task.estimatedMinutes !== length(block)) return null;
   const planned = (db.scheduledBlocks ?? []).filter(item => item.taskId === task.id && item.status === 'planned');
   if (planned.length !== 1 || (db.scheduledBlocks ?? []).some(item => item.taskId === task.id && item.status !== 'planned')) return null;
   return task;

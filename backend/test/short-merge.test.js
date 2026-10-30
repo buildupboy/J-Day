@@ -62,3 +62,10 @@ test('묶인 작업의 하위작업 블록 사이에는 휴식을 요구하지 �
       { taskId: parent.id, subtaskId: s2.id, date: '2026-10-31', start: '10:15', end: '10:35' }]), { now }), /휴식/);
   });
 });
+
+test('작업 종료 화면에서 이미 이어서 하기로 연결했거나 묶인 작업은 후보에서 제외', () => {
+  const linked = db(); linked.scheduledBlocks[1].continuationOf = 'ba';
+  assert.equal(findShortMergeGroups(linked, { now }).length, 0);
+  const grouped = db(); grouped.tasks[1].sourceTasks = [{ id: 'x', title: 'x' }];
+  assert.equal(findShortMergeGroups(grouped, { now }).length, 0);
+});
