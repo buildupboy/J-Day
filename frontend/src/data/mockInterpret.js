@@ -1,4 +1,5 @@
 import { getBlocksForDate } from './sampleSchedule.js';
+import { parseTaskText, toIsoDate } from '../utils/parseTaskText.js';
 
 // TODO: 백엔드 POST /api/chat/interpret 이 구현되면 이 파일은 지운다.
 // 아직 501을 돌려주는 동안 화면 시연용으로 같은 응답 모양({ intent, reply, result })을 흉내 낸다.
@@ -14,23 +15,6 @@ const DEMO_SUBTASKS = [
 function hasBatchim(word) {
   const code = word.charCodeAt(word.length - 1) - 0xac00;
   return code >= 0 && code <= 11171 && code % 28 !== 0;
-}
-
-function toIsoDate(d) {
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-
-function parseDeadline(text) {
-  const m = text.match(/(\d{1,2})월\s*(\d{1,2})일/);
-  const d = new Date();
-  if (m) {
-    d.setMonth(Number(m[1]) - 1, Number(m[2]));
-  } else {
-    d.setDate(d.getDate() + 7);
-  }
-  return toIsoDate(d);
 }
 
 export async function mockInterpret(text) {
@@ -64,12 +48,10 @@ export async function mockInterpret(text) {
     };
   }
 
-  const title =
-    text
-      .replace(/^헤이\s*제이[,\s]*/, '')
-      .replace(/\d{1,2}월\s*\d{1,2}일(까지)?/, '')
-      .replace(/\s*(이|가)?\s*(있어|생겼어|해야\s*해|해야\s*돼|끝내야\s*해)[.!]?$/, '')
-      .trim() || '새 작업';
+  const parsed = parseTaskText(text);
+  const title = parsed.title || '새 작업';
+  const fallbackDeadline = new Date();
+  fallbackDeadline.setDate(fallbackDeadline.getDate() + 7);
 
   return {
     intent: 'add_task',
@@ -77,7 +59,7 @@ export async function mockInterpret(text) {
     result: {
       task: {
         title,
-        deadline: parseDeadline(text),
+        deadline: parsed.deadline ?? toIsoDate(fallbackDeadline),
         estimatedMinutes: DEMO_SUBTASKS.reduce((sum, st) => sum + st.estimatedMinutes, 0),
         subtasks: DEMO_SUBTASKS,
       },

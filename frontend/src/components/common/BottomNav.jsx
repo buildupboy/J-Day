@@ -4,7 +4,7 @@ export const TABS = [
   { id: 'home', label: '홈', icon: <HomeIcon /> },
   { id: 'calendar', label: '캘린더', icon: <CalendarIcon /> },
   { id: 'mic', label: '제이', icon: <MicIcon /> },
-  { id: 'tasks', label: '작업', icon: <ListIcon /> },
+  { id: 'tasks', label: '일정', icon: <ListIcon /> },
   { id: 'analytics', label: '분석', icon: <ChartIcon /> },
 ];
 

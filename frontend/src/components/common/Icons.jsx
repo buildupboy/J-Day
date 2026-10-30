@@ -135,3 +135,9 @@ export const KeyboardIcon = (p) => (
     <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h10" />
   </Svg>
 );
+
+export const PaperclipIcon = (p) => (
+  <Svg {...p}>
+    <path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.3 3.3 0 0 1 4.7 4.7L9.5 17a1.7 1.7 0 0 1-2.4-2.4L14 7.8" />
+  </Svg>
+);

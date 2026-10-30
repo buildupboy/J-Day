@@ -24,7 +24,7 @@ export default function App() {
   } else if (tab === 'calendar') {
     page = <CalendarPage onOpenMy={openMy} />;
   } else if (tab === 'tasks') {
-    page = <TasksPage onOpenMy={openMy} />;
+    page = <TasksPage onClose={() => selectTab('home')} />;
   } else if (tab === 'analytics') {
     page = <AnalyticsPage onOpenMy={openMy} />;
   } else {

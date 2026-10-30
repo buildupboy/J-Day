@@ -1833,3 +1833,241 @@ body {
   color: var(--text);
   cursor: pointer;
 }
+
+/* 일정 탭: 새 작업 */
+.new-task {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 16px 20px 0;
+}
+
+.new-task-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.new-task-head h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.speak-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 16px 18px;
+  border: 1.5px solid #111;
+  border-radius: 22px;
+}
+
+.speak-box textarea {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+  resize: none;
+}
+
+.speak-box textarea::placeholder {
+  color: #c4c8d2;
+}
+
+.speak-mic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+}
+
+.speak-mic.is-listening {
+  background: var(--danger);
+}
+
+.speak-mic:disabled {
+  background: #c4c8d2;
+  cursor: not-allowed;
+}
+
+.field-error {
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.ai-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ai-note b {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: #111;
+  color: #fff;
+  font-size: 11px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.field-row > label {
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.field-row input[type='text'],
+.field-row > input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.date-field {
+  position: relative;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.date-field.is-empty {
+  color: #c4c8d2;
+}
+
+.date-field input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.priority-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.priority-chips button {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.priority-chips button.is-on {
+  border-color: #111;
+  background: #111;
+  color: #fff;
+}
+
+.estimate-card {
+  margin-top: 18px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--bg);
+}
+
+.estimate-card.is-empty {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.estimate-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.estimate-top strong {
+  color: var(--text);
+  font-size: 28px;
+}
+
+.estimate-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.estimate-card li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 15px;
+}
+
+.estimate-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.attach-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px dashed var(--muted);
+  border-radius: 16px;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.task-footer {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 20px 0 16px;
+  background: linear-gradient(to top, var(--panel) 70%, rgba(255, 255, 255, 0));
+}
+
+.task-footer .primary-button {
+  width: 100%;
+}
+
+.primary-button:disabled {
+  background: #c4c8d2;
+  cursor: not-allowed;
+}
