@@ -1464,21 +1464,25 @@ body {
 }
 
 .assistant-avatar {
-  display: grid;
-  place-items: center;
+  position: relative;
   flex: none;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 50%;
-  background: #fff;
+  background: #e9ecf3;
 }
 
+/* 캐릭터 몸통이 원 안을 채우도록 잘라서 얼굴(눈)이 크게 보이게 한다 */
 .assistant-avatar img {
-  width: 165%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 175%;
   max-width: none;
   height: auto;
+  transform: translate(-50%, -50%);
 }
 
 .assistant-col {
