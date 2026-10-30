@@ -17,3 +17,11 @@ export function fromMinutes(minutes) {
   const m = String(minutes % 60).padStart(2, '0');
   return `${h}:${m}`;
 }
+
+/** 90 → "1시간 30분", 45 → "45분" */
+export function formatDuration(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h && m) return `${h}시간 ${m}분`;
+  return h ? `${h}시간` : `${m}분`;
+}

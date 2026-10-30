@@ -11,7 +11,7 @@ const top = (minutes) => ((minutes - START_HOUR * 60) / 60) * HOUR_HEIGHT + 12;
 const SCROLL_MARGIN = 20; // 기준 시각 위로 남겨 둘 여백(px)
 
 // 하루 타임테이블. 블록은 시작·종료 시각으로 절대 위치를 잡는다
-export default function DayTimetable({ date }) {
+export default function DayTimetable({ date, onSelectBlock }) {
   const scrollRef = useRef(null);
   const blocks = getBlocksForDate(date);
   const dayKey = date.toDateString();
@@ -46,6 +46,10 @@ export default function DayTimetable({ date }) {
         return (
           <div
             key={b.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelectBlock?.(b)}
+            onKeyDown={(e) => e.key === 'Enter' && onSelectBlock?.(b)}
             className={`tt-block tt-${b.kind} ${e - s <= 30 ? 'is-compact' : ''}`}
             style={{ top: top(s), height: Math.max(top(e) - top(s) - 2, 14) }}
           >
