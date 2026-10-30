@@ -27,6 +27,8 @@ export const api = {
     return data;
   },
   saveTimetable: (lessons, visibleDays = []) => request('/timetable', { method: 'PUT', body: { lessons, visibleDays } }),
+  appendTimetable: (lessons, visibleDays = []) => request('/timetable', { method: 'POST', body: { lessons, visibleDays } }),
+  clearTimetable: () => request('/timetable', { method: 'DELETE' }),
   health: () => request('/health'),
 
   // 음성 텍스트 해석

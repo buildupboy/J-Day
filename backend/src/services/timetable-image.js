@@ -18,15 +18,25 @@ export const TIMETABLE_FORMAT = {
   json_schema: {
     name: 'timetable_capture', strict: true,
     schema: {
-      type: 'object', additionalProperties: false, required: ['weekdayHeaderVisible', 'visibleDays', 'lessons', 'warnings'],
+      type: 'object', additionalProperties: false, required: ['timetableType', 'periods', 'recurrence', 'reviewReasons', 'weekdayHeaderVisible', 'visibleDays', 'lessons', 'warnings'],
       properties: {
+        periods: { type: 'array', items: {
+          type: 'object', additionalProperties: false, required: ['period', 'start', 'end'],
+          properties: { period: { type: 'integer' }, start: { type: ['string', 'null'] }, end: { type: ['string', 'null'] } },
+        } },
+        timetableType: { type: 'string', enum: ['school', 'university', 'shift', 'work', 'personal', 'study', 'unknown'] },
+        recurrence: { type: 'string', enum: ['weekly', 'dated', 'unknown'] },
+        reviewReasons: { type: 'array', items: { type: 'string' } },
         weekdayHeaderVisible: { type: 'boolean' },
         visibleDays: { type: 'array', items: { type: 'integer', enum: [0,1,2,3,4,5,6] } },
         warnings: { type: 'array', items: { type: 'string' } },
         lessons: { type: 'array', items: {
           type: 'object', additionalProperties: false,
-          required: ['title', 'location', 'dayOfWeek', 'start', 'end'],
+          required: ['title', 'kind', 'employeeName', 'period', 'location', 'dayOfWeek', 'start', 'end'],
           properties: {
+            employeeName: { type: ['string', 'null'] },
+            period: { type: ['integer', 'null'] },
+            kind: { type: 'string', enum: ['class', 'job', 'event', 'flexible', 'unknown'] },
             title: { type: 'string' }, location: { type: 'string' },
             dayOfWeek: { type: 'array', items: { type: 'integer', enum: [0,1,2,3,4,5,6] } },
             start: { type: ['string', 'null'] }, end: { type: ['string', 'null'] },

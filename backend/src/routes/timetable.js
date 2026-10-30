@@ -2,8 +2,9 @@ import { planSchedule } from '../services/ai-planner.js';
 import { Router } from 'express';
 import multer from 'multer';
 import { readDb, updateDb } from '../store/index.js';
-import { extractTimetable, validateTimetableImages, validateLessons, assertNoTimetableConflicts } from '../services/timetable.js';
+import { extractTimetable, validateTimetableImages, validateLessons, assertNoTimetableConflicts, appendTimetable, clearTimetable } from '../services/timetable.js';
 const router = Router();
+const isTimetableItem = (block) => block.kind === 'class' || (block.source === 'timetable' && ['job', 'event'].includes(block.kind));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 0 } });
 function receivePhoto(req, res, next) {
   if (!req.is('multipart/form-data')) return next();
@@ -16,11 +17,33 @@ function receivePhoto(req, res, next) {
   });
 }
 router.get('/', async (req, res, next) => {
-  try { const db = await readDb(); res.json({ visibleDays: db.timetableVisibleDays || [], lessons: (db.fixedBlocks || []).filter((block) => block.kind === 'class'), otherBlocks: (db.fixedBlocks || []).filter((block) => block.kind !== 'class') }); } catch (error) { next(error); }
+  try { const db = await readDb(); res.json({ visibleDays: db.timetableVisibleDays || [], lessons: (db.fixedBlocks || []).filter(isTimetableItem), otherBlocks: (db.fixedBlocks || []).filter((block) => !isTimetableItem(block)) }); } catch (error) { next(error); }
 });
 router.post(['/extract', '/ocr'], receivePhoto, async (req, res, next) => {
   try { validateTimetableImages(req.body?.image, req.body?.details); } catch (error) { return res.status(400).json({ error: error.message }); }
   try { res.json(await extractTimetable(req.body.image, req.body.details)); } catch (error) { next(error); }
+});
+router.post('/', async (req, res, next) => {
+  try { validateLessons(req.body?.lessons); } catch (error) { return res.status(400).json({ error: error.message }); }
+  try {
+    let lessons;
+    await updateDb(async (db) => {
+      lessons = appendTimetable(db, req.body.lessons, Array.isArray(req.body.visibleDays) ? req.body.visibleDays : []);
+      const result = await planSchedule(db, { now: new Date(), reason: 'manual' });
+      db.scheduledBlocks = result.scheduledBlocks;
+    });
+    res.status(201).json({ lessons });
+  } catch (error) { next(error); }
+});
+router.delete('/', async (_req, res, next) => {
+  try {
+    await updateDb(async (db) => {
+      clearTimetable(db);
+      const result = await planSchedule(db, { now: new Date(), reason: 'manual' });
+      db.scheduledBlocks = result.scheduledBlocks;
+    });
+    res.json({ cleared: true });
+  } catch (error) { next(error); }
 });
 router.put('/', async (req, res, next) => {
   let lessons;
@@ -28,7 +51,9 @@ router.put('/', async (req, res, next) => {
   try {
     // 사용자가 확인한 수업만 교체하고 알바·루틴은 보존한다.
     await updateDb(async (db) => {
-      const otherBlocks = (db.fixedBlocks || []).filter((block) => block.kind !== 'class');
+      const otherBlocks = (db.fixedBlocks || []).filter((block) => !isTimetableItem(block));
+      const existingIds = new Set((db.fixedBlocks || []).filter(isTimetableItem).map((block) => block.id));
+      lessons = lessons.map((lesson, index) => existingIds.has(req.body.lessons[index]?.id) ? { ...lesson, id: req.body.lessons[index].id } : lesson);
       assertNoTimetableConflicts(lessons, otherBlocks);
       db.fixedBlocks = [...otherBlocks, ...lessons];
       const result = await planSchedule(db, { now: new Date(), reason: 'manual' });

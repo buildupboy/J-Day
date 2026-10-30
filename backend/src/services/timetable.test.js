@@ -2,9 +2,36 @@ import sharp from 'sharp';
 import { preprocessTimetable } from './timetable-image.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateLessons, validateImage, extractTimetable, normalizeExtraction } from './timetable.js';
+import { validateLessons, validateImage, extractTimetable, normalizeExtraction, appendTimetable, clearTimetable } from './timetable.js';
 const lesson = { title: 'Database', dayOfWeek: [1, 3], start: '09:00', end: '10:30', location: '205' };
 const image = 'data:image/png;base64,' + (await sharp({create:{width:16,height:24,channels:4,background:'#ffffff'}}).png().toBuffer()).toString('base64');
+
+test('append preserves existing schedules and reports conflicts without partial changes', () => {
+  const original = { ...lesson, id: 'existing', kind: 'class', dayOfWeek: [1] };
+  const db = { fixedBlocks: [original], timetableVisibleDays: [1] };
+  appendTimetable(db, [{ ...lesson, title: '업무', kind: 'job', dayOfWeek: [2] }], [2]);
+  assert.equal(db.fixedBlocks.length, 2);
+  assert.equal(db.fixedBlocks[0], original);
+  assert.deepEqual(db.timetableVisibleDays, [1, 2]);
+  const before = structuredClone(db);
+  assert.throws(() => appendTimetable(db, [{ ...lesson, title: '회의', kind: 'event', dayOfWeek: [1] }]), (error) => error.status === 409 && error.message.includes('월요일') && error.message.includes('회의') && error.message.includes('Database'));
+  assert.deepEqual(db, before);
+});
+
+test('clear removes fixed timetable only; fresh import succeeds afterwards', () => {
+  const routine = { ...lesson, id: 'routine', kind: 'routine', dayOfWeek: [0] };
+  const db = { fixedBlocks: [routine, ...['class','job','event'].map((kind) => ({...lesson, id: kind, kind}))],
+    tasks: [{id:'task'}], scheduledBlocks: [{id:'scheduled'}], timetableVisibleDays: [1,3],
+    deletedCalendarItems: [{source:'fixed',id:'class'}, {source:'scheduled',id:'scheduled'}] };
+  clearTimetable(db);
+  assert.deepEqual(db.fixedBlocks, [routine]);
+  assert.deepEqual(db.tasks, [{id:'task'}]);
+  assert.deepEqual(db.scheduledBlocks, [{id:'scheduled'}]);
+  assert.deepEqual(db.timetableVisibleDays, []);
+  assert.deepEqual(db.deletedCalendarItems, [{source:'scheduled',id:'scheduled'}]);
+  appendTimetable(db, [{...lesson, kind:'event'}]);
+  assert.equal(db.fixedBlocks.length, 2);
+});
 test('normalize repeated classes and reject invalid days and time ranges', () => {
   const [saved] = validateLessons([{ ...lesson, dayOfWeek: [1, 1, 3], unexpected: 'discard' }]);
   assert.deepEqual(saved.dayOfWeek, [1, 3]);
@@ -83,9 +110,9 @@ test('single structured request preserves half-hour start', async () => {
   }
 });
 
-test('OCR times snap outward to half-hour slots; cropped weekdays are not invented', () => {
+test('OCR preserves exact minutes; cropped weekdays are not invented', () => {
   const result=normalizeExtraction({weekdayHeaderVisible:false,lessons:[{...lesson,start:'10:05',end:'10:25'}]});
-  assert.equal(result.lessons[0].start,'10:00');assert.equal(result.lessons[0].end,'10:30');
+  assert.equal(result.lessons[0].start,'10:05');assert.equal(result.lessons[0].end,'10:25');
   assert.deepEqual(result.lessons[0].dayOfWeek,[]);assert.equal(result.warnings.length,1);
 });
 
@@ -114,12 +141,101 @@ test('overlap is rejected including other routines; touching times and other wee
   assert.equal(lessonConflicts(a,[{...overlap,start:'12:00'}]).length,0);
 });
 
-test('strict time validation and half-hour normalization', async () => {
+test('strict time validation preserves minute boundaries', async () => {
  const {snapTimetableTime}=await import('./timetable.js');
  assert.equal(snapTimetableTime('10:30','start'),'10:30');
- assert.equal(snapTimetableTime('10:31','end'),'11:00');
+ assert.equal(snapTimetableTime('10:31','end'),'10:31');
  assert.equal(snapTimetableTime('10:75','start'),'');
  assert.equal(snapTimetableTime('24:01','end'),'');
- assert.equal(snapTimetableTime('23:50','end'),'24:00');
+ assert.equal(snapTimetableTime('23:50','end'),'23:50');
  assert.equal(snapTimetableTime('24:00','start'),'');
+});
+
+test('school periods preserve 50 minutes and unknown repetition requires review', () => {
+  const periods = [{ period: 1, start: '09:00', end: '09:50' }];
+  const draft = normalizeExtraction({ timetableType: 'school', periods, recurrence: 'unknown', lessons: [{ ...lesson, period: 1, start: '09:00', end: '09:50' }] });
+  assert.equal(draft.lessons[0].end, '09:50');
+  assert.equal(draft.requiresReview, true);
+  const weekly = normalizeExtraction({ timetableType: 'school', periods, recurrence: 'weekly', lessons: [{ ...lesson, period: 1, end: '09:50' }] });
+  assert.equal(weekly.requiresReview, false);
+});
+
+test('school row times override inflated block times across all weekdays', async () => {
+  const { assertNoTimetableConflicts } = await import('./timetable.js');
+  const periods = [
+    { period: 5, start: '13:50', end: '14:40' },
+    { period: 6, start: '14:50', end: '15:40' },
+    { period: 7, start: '15:50', end: '16:40' },
+  ];
+  const lessons = [1,2,3,4,5].flatMap((day) => periods.map((row, index) => ({
+    ...lesson, title: `요일${day} 교시${row.period}`, dayOfWeek: [day], period: row.period,
+    start: ['13:30','14:30','15:30'][index], end: ['15:00','16:00','17:00'][index],
+  })));
+  const draft = normalizeExtraction({ timetableType: 'school', recurrence: 'weekly', periods, lessons });
+  assert.equal(draft.lessons.length, 15);
+  assert.deepEqual(draft.lessons.slice(0,3).map(({start,end}) => [start,end]), periods.map(({start,end}) => [start,end]));
+  assert.doesNotThrow(() => assertNoTimetableConflicts(draft.lessons));
+  assert.equal(draft.requiresReview, false);
+});
+
+test('missing or ambiguous school periods cannot reuse guessed block times', () => {
+  for (const periods of [[], [{period: 5, start:'13:50', end:'14:40'}, {period: 5, start:'14:00', end:'15:00'}]]) {
+    const draft = normalizeExtraction({ timetableType: 'school', recurrence: 'weekly', periods, lessons: [{...lesson, period: 5}] });
+    assert.equal(draft.lessons[0].start, '');
+    assert.equal(draft.lessons[0].end, '');
+    assert.equal(draft.requiresReview, true);
+  }
+});
+
+test('flexible study plans never become fixed lessons', () => {
+  const draft = normalizeExtraction({ timetableType: 'study', recurrence: 'weekly', lessons: [{ ...lesson, title: '알고리즘 복습', kind: 'flexible' }] });
+  assert.equal(draft.lessons.length, 0);
+  assert.equal(draft.flexiblePlans[0].title, '알고리즘 복습');
+  assert.equal(draft.requiresReview, true);
+  assert.throws(() => validateLessons([{ ...lesson, kind: 'flexible' }]));
+});
+
+test('shift jobs preserve their kind and require employee review', () => {
+  const draft = normalizeExtraction({ timetableType: 'shift', recurrence: 'weekly', lessons: [{ ...lesson, kind: 'job' }] });
+  assert.equal(draft.requiresReview, true);
+  assert.equal(validateLessons(draft.lessons)[0].kind, 'job');
+  const unknownEmployee = normalizeExtraction({ timetableType: 'shift', recurrence: 'dated', lessons: [], reviewReasons: ['어느 직원인가요?'] });
+  assert.equal(unknownEmployee.lessons.length, 0);
+  assert.equal(unknownEmployee.requiresReview, true);
+});
+
+test('multiple employees are extracted separately and selected before importing', async () => {
+  const draft = normalizeExtraction({ timetableType: 'shift', recurrence: 'weekly', lessons: [
+    {...lesson, kind:'job', employeeName:'김민지'}, {...lesson, kind:'job', employeeName:'이준호'},
+  ] });
+  assert.deepEqual(draft.employees, ['김민지', '이준호']);
+  assert.equal(draft.lessons.length, 2);
+  assert.equal(draft.requiresReview, false);
+  const { selectTimetableEmployee } = await import('../../../frontend/src/utils/selectTimetableEmployee.js');
+  let remembered = '';
+  const storage = {getItem: () => remembered, setItem: (_key, value) => {remembered = value;}};
+  const selected = selectTimetableEmployee(draft, {prompt: () => '2', storage});
+  assert.equal(selected.lessons.length, 1);
+  assert.equal(selected.lessons[0].employeeName, '이준호');
+  assert.equal(remembered, '이준호');
+  assert.equal(selectTimetableEmployee(draft, {prompt: () => null, storage}), null);
+  assert.throws(() => selectTimetableEmployee(draft, {prompt: () => '없는 이름', storage}));
+  selectTimetableEmployee(draft, {prompt: (_message, initial) => {assert.equal(initial, '이준호'); return '김민지';}, storage});
+  assert.equal(draft.lessons.length, 2);
+});
+
+test('work and personal timetables accept non-class fixed events', () => {
+  for (const timetableType of ['work', 'personal', 'study', 'unknown']) {
+    const draft = normalizeExtraction({ timetableType, recurrence: 'weekly', lessons: [
+      { ...lesson, title: '프로젝트 업무', kind: 'job', dayOfWeek: [1] },
+      { ...lesson, title: '팀 회의', kind: 'event', dayOfWeek: [2] },
+      { ...lesson, title: '운동', kind: 'event', dayOfWeek: [3] },
+      { ...lesson, title: '고정 학습', kind: 'event', dayOfWeek: [4] },
+    ] });
+    assert.equal(draft.lessons.length, 4);
+    assert.equal(draft.requiresReview, false);
+    const saved = validateLessons(draft.lessons);
+    assert.deepEqual(saved.map((item) => item.kind), ['job', 'event', 'event', 'event']);
+    assert.deepEqual(saved.map((item) => item.title), ['프로젝트 업무', '팀 회의', '운동', '고정 학습']);
+  }
 });

@@ -8,6 +8,7 @@ import { toIsoDate } from '../utils/parseTaskText.js';
 import BlockDetailSheet from '../components/calendar/BlockDetailSheet.jsx';
 import useBlockDetails from '../hooks/useBlockDetails.js';
 import { scheduleChanged } from '../hooks/useLiveSchedule.js';
+import { selectTimetableEmployee } from '../utils/selectTimetableEmployee.js';
 
 const SHORT_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 화면은 월요일부터, dayOfWeek는 0=일
@@ -200,10 +201,12 @@ function SetupView({ nav }) {
     setImportStatus('시간표 분석 중…');
     const photo = URL.createObjectURL(file);
     try {
-      const result = await api.extractTimetable(photo);
-      if (!result.lessons?.length) throw new Error('수업을 찾지 못했어요. 요일과 시간이 잘 보이는 사진을 선택해 주세요.');
+      const result = selectTimetableEmployee(await api.extractTimetable(photo));
+      if (!result) return;
+      if (result.requiresReview) throw new Error([...result.reviewReasons, ...result.warnings].join(' ') || '요일과 시간을 확인해 주세요. 자동 저장하지 않았어요.');
+      if (!result.lessons?.length) throw new Error('등록할 고정 일정을 찾지 못했어요. 요일과 시간이 잘 보이는 사진을 선택해 주세요.');
       setImportStatus('시간표 저장 중…');
-      await api.saveTimetable(result.lessons, result.visibleDays ?? []);
+      await api.appendTimetable(result.lessons, result.visibleDays ?? []);
       scheduleChanged();
     } catch (err) {
       setError(err.message);
